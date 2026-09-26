@@ -1,0 +1,19 @@
+# Every VEYRA service exposes Prometheus text on its metrics port (IF-PORTS 8201-8206,
+# plus the API services on their own ports).
+global:
+  scrape_interval: 10s
+
+scrape_configs:
+  - job_name: veyra
+    static_configs:
+      - targets:
+          - normalizer:8201
+          - router:8202
+          - archiver:8203
+          - integrity:8204
+          - lineage-indexer:8205
+          - drift-worker:8206
+          - ingest-gateway:8088
+          - control-api:8000
+          - evidence-api:8100
+          - demo-engine:8300

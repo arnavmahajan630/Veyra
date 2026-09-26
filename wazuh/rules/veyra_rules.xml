@@ -1,0 +1,17 @@
+<!--
+  VEYRA custom rules, id range 100100-100199 (IF-WAZUH).
+  S0 ships only the parent rule 100100 so that S0-AC4 can be observed: any VEYRA event
+  becomes visible in Discover / alerts. A6 adds 100110 (auth failure), 100111 (brute
+  force, frequency 5 in 60s on the same src_endpoint.ip), 100120/100121 (tier 3/4) and
+  100130 (corrected event, ulpf.revision > 1), each with wazuh-logtest samples.
+-->
+<group name="veyra,">
+
+  <rule id="100100" level="3">
+    <decoded_as>json</decoded_as>
+    <field name="veyra.tier">\.+</field>
+    <description>VEYRA: normalized event delivered (tier $(veyra.tier), source $(veyra.source))</description>
+    <options>no_full_log</options>
+  </rule>
+
+</group>

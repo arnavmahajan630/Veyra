@@ -1,0 +1,48 @@
+# Ownership per docs/plan/01_TEAM_GUIDE.md §1. You may read anything; you change only
+# what you own. To change someone else's directory, open a changelog REQUEST @X.
+#
+# Replace the placeholder handles once the repo has a remote.
+
+# --- Shared (S0): compose, profiles, common package, Makefile, CI ---------------
+/compose/                      @person-a @person-b @person-c
+/profiles/                     @person-a @person-b @person-c
+/docker/                       @person-a @person-b @person-c
+/packages/veyra_common/        @person-a @person-b @person-c
+/Makefile                      @person-a @person-b @person-c
+/Caddyfile                     @person-a @person-b @person-c
+/tools/plan_check.py           @person-a @person-b @person-c
+/tools/doctor.py               @person-a @person-b @person-c
+/.github/                      @person-a @person-b @person-c
+
+# --- A: data plane --------------------------------------------------------------
+/edge/                         @person-a
+/packages/veyra_engine/        @person-a
+/services/ingest_gateway/      @person-a
+/services/normalizer/          @person-a
+/services/router/              @person-a
+/wazuh/                        @person-a
+/tools/bench/throughput.py     @person-a
+
+# --- B: evidence, lineage, demo -------------------------------------------------
+/packages/veyra_evidence/      @person-b
+/packages/veyra_lineage/       @person-b
+/services/archiver/            @person-b
+/services/integrity/           @person-b
+/services/lineage_indexer/     @person-b
+/services/evidence_api/        @person-b
+/services/demo_engine/         @person-b
+/demo/                         @person-b
+/console/src/pages/lineage/    @person-b
+/console/src/pages/evidence/   @person-b
+/console/src/pages/demo/       @person-b
+
+# --- C: control plane, console --------------------------------------------------
+/packages/veyra_contracts/     @person-c
+/services/control_api/         @person-c
+/services/drift_worker/        @person-c
+/contracts-repo/               @person-c
+/console/                      @person-c
+/tools/bench/llm_bench.py      @person-c
+
+# --- The plan itself: anyone may sync an interface into it (01_TEAM_GUIDE §6.2) --
+/docs/plan/                    @person-a @person-b @person-c

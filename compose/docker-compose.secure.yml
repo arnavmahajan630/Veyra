@@ -1,0 +1,23 @@
+# Optional `secure` profile: OpenBao transit for the KeyProvider (IF-KEYPROVIDER,
+# deviation #6). Opt in with:
+#   make up PROFILE=workstation EXTRA="-f compose/docker-compose.secure.yml"
+# then set VEYRA_KEY_PROVIDER=openbao in .env.local. B3 wires the transit key.
+name: veyra
+
+services:
+  openbao:
+    image: openbao/openbao:2.4.1
+    container_name: veyra-openbao
+    command: ["server", "-dev", "-dev-listen-address=0.0.0.0:8200"]
+    environment:
+      BAO_DEV_ROOT_TOKEN_ID: ${VEYRA_OPENBAO_TOKEN:-veyra-dev-root}
+      BAO_ADDR: http://0.0.0.0:8200
+    cap_add: [IPC_LOCK]
+    ports: ["8200:8200"]
+    mem_limit: 256m
+    restart: unless-stopped
+    networks: [veyra_net]
+
+networks:
+  veyra_net:
+    name: veyra_net

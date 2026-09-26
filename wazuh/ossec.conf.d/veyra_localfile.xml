@@ -1,0 +1,9 @@
+<!-- IF-WAZUH: the manager tails VEYRA's NDJSON sink. One line = one IF-NORM-EVENT plus
+     the convenience fields veyra.tier / veyra.class / veyra.tenant / veyra.source.
+     Injected into ossec.conf by wazuh/entrypoint-veyra.sh on container start. -->
+<ossec_config>
+  <localfile>
+    <log_format>json</log_format>
+    <location>/sinks/wazuh/veyra.ndjson</location>
+  </localfile>
+</ossec_config>

@@ -1,0 +1,33 @@
+# Optional observability profile (workstation): scrapes every service's /metrics.
+#   make up PROFILE=workstation EXTRA="-f compose/docker-compose.obs.yml"
+name: veyra
+
+services:
+  prometheus:
+    image: prom/prometheus:v3.7.3
+    container_name: veyra-prometheus
+    command: ["--config.file=/etc/prometheus/prometheus.yml", "--storage.tsdb.retention.time=2d"]
+    volumes:
+      - ./obs/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ../data/prometheus:/prometheus
+    ports: ["9090:9090"]
+    mem_limit: 512m
+    restart: unless-stopped
+    networks: [veyra_net]
+
+  grafana:
+    image: grafana/grafana:12.4.1
+    container_name: veyra-grafana
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: veyra
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Viewer
+    volumes: ["../data/grafana:/var/lib/grafana"]
+    ports: ["3000:3000"]
+    mem_limit: 512m
+    restart: unless-stopped
+    networks: [veyra_net]
+
+networks:
+  veyra_net:
+    name: veyra_net

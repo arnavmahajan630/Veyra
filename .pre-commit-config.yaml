@@ -1,0 +1,31 @@
+# pre-commit install  (once per clone)
+repos:
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.16.9
+    hooks:
+      - id: ruff
+        args: [--fix]
+      - id: ruff-format
+
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: end-of-file-fixer
+        exclude: ^(docs/plan/|demo/corpus/)
+      - id: trailing-whitespace
+        exclude: ^(docs/plan/|demo/corpus/)
+      - id: check-yaml
+        args: [--allow-multiple-documents]
+        exclude: ^compose/  # compose files use ${VAR} defaults check-yaml dislikes
+      - id: check-added-large-files
+        args: [--maxkb=512]
+      - id: check-merge-conflict
+
+  - repo: local
+    hooks:
+      - id: plan-check
+        name: plan-check (contracts headers)
+        entry: uv run python tools/plan_check.py
+        language: system
+        pass_filenames: false
+        files: ^docs/plan/

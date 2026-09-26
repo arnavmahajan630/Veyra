@@ -1,0 +1,37 @@
+# One origin for the console and every API (D16), so there is no CORS anywhere.
+# Routes follow IF-PORTS. Services that are not up yet simply 502 — that is visible
+# in the console as a dead panel, which is the honest signal during the build.
+{
+	admin off
+	auto_https off
+}
+
+:8080 {
+	encode gzip zstd
+
+	# Control plane (C1): tenants, sources, keys, contracts, drift, replay, SSE.
+	handle_path /api/control/* {
+		reverse_proxy control-api:8000
+	}
+
+	# Lineage + evidence (B4): search, events, verify, export, roots, SSE.
+	handle_path /api/lineage/* {
+		reverse_proxy evidence-api:8100
+	}
+	handle_path /api/evidence/* {
+		reverse_proxy evidence-api:8100
+	}
+
+	# Demo engine (B7): reset, stages, tamper, preflight.
+	handle_path /api/demo/* {
+		reverse_proxy demo-engine:8300
+	}
+
+	# Console: the static Vite build in the demo. During development, run
+	# `make console-dev` and set CONSOLE_DEV_UPSTREAM to proxy the dev server instead.
+	handle {
+		root * /srv/console
+		try_files {path} /index.html
+		file_server
+	}
+}

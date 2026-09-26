@@ -1,0 +1,109 @@
+# Wazuh single-node (D6), based on the official wazuh-docker single-node deployment.
+# Kept in its own file so the whole SIEM can move to another machine when RAM is tight:
+#   make up PROFILE=laptop WAZUH=local     # this file is merged in
+#   make up PROFILE=laptop WAZUH=remote    # this file is skipped; the router uses syslog_tcp
+#
+# Certificates are generated once by `make wazuh-certs` into data/wazuh/certs.
+# VEYRA delivers events as NDJSON into data/sinks/wazuh/veyra.ndjson, which the manager
+# tails via wazuh/ossec.conf.d/veyra_localfile.xml (IF-WAZUH).
+name: veyra
+
+services:
+  wazuh-indexer:
+    image: wazuh/wazuh-indexer:4.14.8
+    container_name: veyra-wazuh-indexer
+    hostname: wazuh-indexer
+    environment:
+      OPENSEARCH_JAVA_OPTS: -Xms${VEYRA_WAZUH_INDEXER_HEAP:-1g} -Xmx${VEYRA_WAZUH_INDEXER_HEAP:-1g}
+      bootstrap.memory_lock: "true"
+      NODE_NAME: wazuh-indexer
+      CLUSTER_INITIAL_MASTER_NODES: wazuh-indexer
+      CLUSTER_NAME: wazuh-cluster
+      DISCOVERY_SERVICE: wazuh-indexer
+      INDEXER_URL: https://wazuh-indexer:9200
+      INDEXER_USERNAME: admin
+      INDEXER_PASSWORD: ${VEYRA_WAZUH_INDEXER_PASSWORD:-SecretPassword}
+    ulimits:
+      memlock: { soft: -1, hard: -1 }
+      nofile: { soft: 65536, hard: 65536 }
+    mem_limit: ${VEYRA_MEM_WAZUH_INDEXER:-1.8g}
+    restart: unless-stopped
+    volumes:
+      - ../data/wazuh/indexer:/var/lib/wazuh-indexer
+      - ../data/wazuh/certs/root-ca.pem:/usr/share/wazuh-indexer/certs/root-ca.pem:ro
+      - ../data/wazuh/certs/wazuh-indexer-key.pem:/usr/share/wazuh-indexer/certs/wazuh-indexer.key:ro
+      - ../data/wazuh/certs/wazuh-indexer.pem:/usr/share/wazuh-indexer/certs/wazuh-indexer.pem:ro
+      - ../data/wazuh/certs/admin.pem:/usr/share/wazuh-indexer/certs/admin.pem:ro
+      - ../data/wazuh/certs/admin-key.pem:/usr/share/wazuh-indexer/certs/admin-key.pem:ro
+      - ./wazuh/indexer.yml:/usr/share/wazuh-indexer/opensearch.yml:ro
+    ports: ["9200:9200"]
+    networks: [veyra_net]
+
+  wazuh-manager:
+    image: wazuh/wazuh-manager:4.14.8
+    container_name: veyra-wazuh-manager
+    hostname: wazuh-manager
+    environment:
+      INDEXER_URL: https://wazuh-indexer:9200
+      INDEXER_USERNAME: admin
+      INDEXER_PASSWORD: ${VEYRA_WAZUH_INDEXER_PASSWORD:-SecretPassword}
+      FILEBEAT_SSL_VERIFICATION_MODE: full
+      SSL_CERTIFICATE_AUTHORITIES: /etc/ssl/root-ca.pem
+      SSL_CERTIFICATE: /etc/ssl/filebeat.pem
+      SSL_KEY: /etc/ssl/filebeat.key
+      API_USERNAME: wazuh-wui
+      API_PASSWORD: ${VEYRA_WAZUH_API_PASSWORD:-MyS3cr37P450r.*-}
+    ulimits:
+      memlock: { soft: -1, hard: -1 }
+      nofile: { soft: 65536, hard: 65536 }
+    mem_limit: ${VEYRA_MEM_WAZUH_MANAGER:-700m}
+    restart: unless-stopped
+    ports: ["1514:1514", "1515:1515", "514:514/udp", "55000:55000"]
+    volumes:
+      - ../data/wazuh/manager/api-config:/var/ossec/api/configuration
+      - ../data/wazuh/manager/etc:/var/ossec/etc
+      - ../data/wazuh/manager/logs:/var/ossec/logs
+      - ../data/wazuh/manager/queue:/var/ossec/queue
+      - ../data/wazuh/manager/wodles:/var/ossec/wodles
+      - ../data/wazuh/manager/filebeat-etc:/etc/filebeat
+      - ../data/wazuh/manager/filebeat-var:/var/lib/filebeat
+      - ../data/wazuh/certs/root-ca-manager.pem:/etc/ssl/root-ca.pem:ro
+      - ../data/wazuh/certs/wazuh-manager.pem:/etc/ssl/filebeat.pem:ro
+      - ../data/wazuh/certs/wazuh-manager-key.pem:/etc/ssl/filebeat.key:ro
+      # VEYRA's own bits: the NDJSON sink the router writes, plus rules and localfile.
+      - ../data/sinks/wazuh:/sinks/wazuh
+      - ../wazuh/rules/veyra_rules.xml:/var/ossec/etc/rules/veyra_rules.xml
+      - ../wazuh/ossec.conf.d/veyra_localfile.xml:/veyra/veyra_localfile.xml:ro
+      - ../wazuh/entrypoint-veyra.sh:/veyra/entrypoint-veyra.sh:ro
+    entrypoint: ["/bin/bash", "/veyra/entrypoint-veyra.sh"]
+    networks: [veyra_net]
+
+  wazuh-dashboard:
+    image: wazuh/wazuh-dashboard:4.14.8
+    container_name: veyra-wazuh-dashboard
+    hostname: wazuh-dashboard
+    environment:
+      INDEXER_USERNAME: admin
+      INDEXER_PASSWORD: ${VEYRA_WAZUH_INDEXER_PASSWORD:-SecretPassword}
+      WAZUH_API_URL: https://wazuh-manager
+      DASHBOARD_USERNAME: kibanaserver
+      DASHBOARD_PASSWORD: ${VEYRA_WAZUH_DASHBOARD_PASSWORD:-kibanaserver}
+      API_USERNAME: wazuh-wui
+      API_PASSWORD: ${VEYRA_WAZUH_API_PASSWORD:-MyS3cr37P450r.*-}
+    mem_limit: ${VEYRA_MEM_WAZUH_DASHBOARD:-800m}
+    restart: unless-stopped
+    ports: ["8443:5601"]
+    volumes:
+      - ../data/wazuh/certs/wazuh-dashboard.pem:/usr/share/wazuh-dashboard/certs/wazuh-dashboard.pem:ro
+      - ../data/wazuh/certs/wazuh-dashboard-key.pem:/usr/share/wazuh-dashboard/certs/wazuh-dashboard-key.pem:ro
+      - ../data/wazuh/certs/root-ca.pem:/usr/share/wazuh-dashboard/certs/root-ca.pem:ro
+      - ../data/wazuh/dashboard/config:/usr/share/wazuh-dashboard/data/wazuh/config
+    depends_on: [wazuh-indexer]
+    networks: [veyra_net]
+
+networks:
+  # Merged with the base file's definition (same name), so `docker compose -f base -f
+  # wazuh` shares one bridge. On a remote Wazuh host this file is used alone and the
+  # network is created here.
+  veyra_net:
+    name: veyra_net

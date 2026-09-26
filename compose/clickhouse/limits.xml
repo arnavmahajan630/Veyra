@@ -1,0 +1,13 @@
+<!-- ClickHouse memory ceiling, driven by the profile knob VEYRA_CH_MAX_MEMORY.
+     The value is baked at image start from the env var by the entrypoint below;
+     keeping it in a config.d file means B1 can add settings without touching compose. -->
+<clickhouse>
+    <max_server_memory_usage_to_ram_ratio>0.7</max_server_memory_usage_to_ram_ratio>
+    <mark_cache_size>268435456</mark_cache_size>
+    <!-- One node, small disks: keep merges from eating the laptop. -->
+    <background_pool_size>4</background_pool_size>
+    <max_concurrent_queries>32</max_concurrent_queries>
+    <logger>
+        <level>warning</level>
+    </logger>
+</clickhouse>

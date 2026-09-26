@@ -1,0 +1,74 @@
+# PLACEHOLDER edge config (S0). A1 replaces this with the rendered template that
+# stamps IF-ENVELOPE in VRL, resolves the source from the inventory and frames
+# multi-line events. Until then everything lands on raw.unregistered, unparsed,
+# which is exactly what an unregistered source is supposed to do.
+data_dir = "/var/lib/vector"
+
+[api]
+enabled = true
+address = "0.0.0.0:8686"
+
+[sources.syslog_udp]
+type = "socket"
+mode = "udp"
+address = "0.0.0.0:5514"
+max_length = 65536
+decoding.codec = "bytes"
+
+[sources.syslog_tcp]
+type = "socket"
+mode = "tcp"
+address = "0.0.0.0:5515"
+max_length = 65536
+decoding.codec = "bytes"
+
+[transforms.stamp]
+type = "remap"
+inputs = ["syslog_udp", "syslog_tcp"]
+source = '''
+# S0 placeholder stamping. A1 adds: uuid_v7, source resolution via the enrichment
+# table, framing.parts for joined events, and the full envelope field set.
+raw = string!(.message)
+. = {
+  "v": 1,
+  "event_uid": uuid_v4(),
+  "tenant_id": "unassigned",
+  "source_id": "unregistered",
+  "vendor": "unregistered",
+  "zone": "dmz",
+  "collector_id": "edge-dmz-01",
+  "transport": "syslog_udp",
+  "peer_ip": null,
+  "peer_port": null,
+  "listener": "dmz-placeholder",
+  "received_time": format_timestamp!(now(), format: "%Y-%m-%dT%H:%M:%S%.9fZ"),
+  "seq_no": null,
+  "raw_sha256": sha2(raw, variant: "SHA-256"),
+  # A1: confirm this is the BYTE length (not chars) on the pinned Vector; the parity
+  # vectors in packages/veyra_common/fixtures/envelope_vectors.json are the check.
+  "raw_len": length(raw),
+  "raw_b64": encode_base64(raw),
+  "framing": {"method": "datagram", "truncated": false, "parts": 1},
+  "custody": "realtime",
+  "auth": {"method": "none", "key_id": null},
+  "salt": null
+}
+'''
+
+[sinks.kafka_raw]
+type = "kafka"
+inputs = ["stamp"]
+bootstrap_servers = "kafka:9092"
+topic = "raw.unregistered"
+key_field = "source_id"
+compression = "zstd"
+encoding.codec = "json"
+
+[sinks.kafka_raw.librdkafka_options]
+"acks" = "all"
+"enable.idempotence" = "true"
+
+[sinks.kafka_raw.buffer]
+type = "disk"
+max_size = 268435488
+when_full = "block"

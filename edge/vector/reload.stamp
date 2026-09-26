@@ -1,0 +1,4 @@
+# Touched by control-api after it rewrites inventory/sources.csv, to trigger a Vector
+# config reload (IF-INVENTORY). A1 verifies this mechanism against the pinned Vector
+# and records the verified behaviour in 02_CONTRACTS.md.
+0
