@@ -2,7 +2,7 @@
 
 ```
 track: shared   owner: A+B+C   status: todo
-contracts: v1.0
+contracts: v1.1
 depends_on: []                      unblocks: [every phase]
 consumes: [IF-TOPICS, IF-PORTS, IF-NAMING, IF-ENV, IF-VERSIONS, IF-ENVELOPE, all record IFs]
 provides: [repo, compose, profiles, veyra_common, stubs, corpus, CI, pinned versions]
@@ -85,7 +85,7 @@ Split the S0 work across the three people as shown in the task list; each person
   - Record VRAM usage.
 
 ### S0.6 Pin and publish
-- [ ] 22. Fill **IF-VERSIONS** in `02_CONTRACTS.md` with the exact versions and tags in use. Add a `VERSION-PIN` changelog entry.
+- [x] 22. Fill **IF-VERSIONS** in `02_CONTRACTS.md` with the exact versions and tags in use. Add a `VERSION-PIN` changelog entry. <!-- Node pinned at 25.2.1, not an LTS line: decision D17 -->
 - [ ] 23. Everyone runs the acceptance checks on the **demo laptop**.
 
 ## Acceptance criteria

@@ -9,10 +9,10 @@ from __future__ import annotations
 import inspect
 
 import pytest
-from veyra_common.envelope import stamp
-from veyra_common.models import DlqRecord, Envelope, NormEvent
 
 import veyra_engine
+from veyra_common.envelope import stamp
+from veyra_common.models import DlqRecord, Envelope, NormEvent
 from veyra_engine import (
     Engine,
     EngineContext,
@@ -192,9 +192,9 @@ def test_ip_and_quoted_tokens() -> None:
 
 # ---------------------------------------------------------------- misc helpers
 def test_template_sig_is_the_shared_frozen_one() -> None:
-    assert template_sig("authsrv", "user=neel.k FAILED login from 45.12.3.9 via 10.2.3.4 attempts:3") == (
-        "t_3c85a1bfbf81"
-    )
+    assert template_sig(
+        "authsrv", "user=neel.k FAILED login from 45.12.3.9 via 10.2.3.4 attempts:3"
+    ) == ("t_3c85a1bfbf81")
 
 
 def test_peel_reports_the_text_field() -> None:

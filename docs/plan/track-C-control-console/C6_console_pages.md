@@ -2,7 +2,7 @@
 
 ```
 track: C   owner: C   status: todo
-contracts: v1.0
+contracts: v1.1
 depends_on: [C2, C3, C4, C5]     unblocks: [CP3, Beats 2 and 4]
 consumes: [IF-API-CONTROL, IF-API-EVIDENCE (backtest examples, template events), IF-LLM-DRAFT, IF-ULPF]
 provides: [/onboard, /contracts, /contracts/:id, /drift, /drift/:id (draft review), /delivery, /audit]
@@ -82,6 +82,7 @@ A single page with a progressive flow, not a multi-page wizard: each section unl
 
 ## Tasks
 - [ ] 1. The `DraftReview` component (compact + full), with edit, hover-thread and row states.
+  <!-- synced from S0 --> Same toolchain as C5: Node 25.2.1 (IF-VERSIONS, D17). No separate setup.
 - [ ] 2. The onboarding page with streaming analysis, the demo "Paste samples" button, and the key card.
 - [ ] 3. Contracts list + detail + diff + lifecycle actions + confirm dialogs.
 - [ ] 4. The drift inbox + draft review flow + replay progress.

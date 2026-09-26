@@ -1,6 +1,6 @@
 # 02 — CONTRACTS (shared interfaces)
 
-**Contract version: v1.0**. Bump rules are in §0. Every section has an ID (`IF-*`). Phase files reference these IDs. When you change a section, grep for its ID across the plan folder and update every file that references it.
+**Contract version: v1.1**. Bump rules are in §0. Every section has an ID (`IF-*`). Phase files reference these IDs. When you change a section, grep for its ID across the plan folder and update every file that references it.
 
 ---
 
@@ -16,26 +16,32 @@ Algorithms with test vectors (`IF-TEMPLATE-SIG`, `IF-CHAIN`, `IF-MERKLE`) are fr
 
 ---
 
-## IF-VERSIONS — pinned versions (fill in during S0)
+## IF-VERSIONS — pinned versions (filled by S0)
 
-| Component | Constraint | Pinned (S0 fills) |
+Pinned on the demo laptop (Ubuntu, i5-13400H, 16 GB, RTX 3050 4 GB) on 2026-09-26.
+Do not bump a row without a `VERSION-PIN` entry in `05_CHANGELOG.md` (01_TEAM_GUIDE §4.3 rule 7).
+Exact digests of the pulled images are recorded in `reports/S0.md`.
+
+| Component | Constraint | Pinned (S0) |
 |---|---|---|
-| Python | 3.12.x | |
-| uv | latest at S0 | |
-| Kafka image | `apache/kafka`, KRaft mode, 3.8+ or 4.x | |
-| confluent-kafka (py) | version supporting transactions + `send_offsets_to_transaction` | |
-| Vector | version whose VRL has `sha2`, `encode_base64`, `get_enrichment_table_record`, and `uuid_v7` if available | |
-| ClickHouse | `clickhouse/clickhouse-server` LTS | |
-| immudb | ≥ 1.11 (PostgreSQL wire protocol) | |
-| Wazuh | current stable single-node docker | |
-| Ollama | latest | |
-| LLM model (laptop) | 3–4B instruct, Q4, fits in 4 GB VRAM (e.g. `qwen2.5:3b`, or better per C4 bench) | |
-| OCSF schema | latest stable 1.x | |
-| Node | 20 or 22 LTS (build only) | |
-| React / Vite / Tailwind | current majors | |
-| Caddy | 2.x | |
-| Drain3 | latest | |
-| google-re2 | latest | |
+| Python | 3.12.x | 3.12.3 (host), `python:3.12-slim-bookworm` (containers) |
+| uv | latest at S0 | 0.12.19 (also pinned in `docker/python.Dockerfile` and CI) |
+| Kafka image | `apache/kafka`, KRaft mode, 3.8+ or 4.x | `apache/kafka:4.1.2`, single-node combined broker+controller |
+| confluent-kafka (py) | version supporting transactions + `send_offsets_to_transaction` | 2.15.1 (librdkafka 2.15.1) |
+| Vector | version whose VRL has `sha2`, `encode_base64`, `get_enrichment_table_record`, and `uuid_v7` if available | `timberio/vector:0.58.0-debian` — A1 confirms the VRL function set and records any gap |
+| ClickHouse | `clickhouse/clickhouse-server` LTS | `clickhouse/clickhouse-server:25.8` (LTS line) |
+| immudb | ≥ 1.11 (PostgreSQL wire protocol) | `codenotary/immudb:1.11.2-bullseye-slim` |
+| Wazuh | current stable single-node docker | 4.14.8 (indexer, manager, dashboard); certs from `wazuh/wazuh-certs-generator:0.0.2` |
+| Ollama | latest | 0.20.3 (native host install, not in compose — D15) |
+| LLM model (laptop) | 3–4B instruct, Q4, fits in 4 GB VRAM (e.g. `qwen2.5:3b`, or better per C4 bench) | `qwen2.5:3b` (Q4_K_M, ~1.9 GB). The host also carries `qwen2.5:7b-instruct`, which does **not** fit 4 GB VRAM; C4 benchmarks before any change |
+| OCSF schema | latest stable 1.x | 1.9.0 |
+| Node | ~~20 or 22 LTS~~ 25.x, build only (decision D17) | 25.2.1 / npm 11.7.0 <!-- synced from S0 --> |
+| React / Vite / Tailwind | current majors | pinned by C5 when `console/package.json` is created |
+| Caddy | 2.x | `caddy:2.11.4-alpine` |
+| Drain3 | latest | pinned by C3 (not installed in S0; no S0 code imports it) |
+| google-re2 | latest | 1.1.20251105 |
+| Other pinned Python libs | — | pydantic 2.13.5, pydantic-settings 2.15.0, jsonschema 4.26.0, charset-normalizer 3.5.1, uuid-utils 1.0.0, prometheus-client 0.26.0, clickhouse-connect 1.9.0, cryptography 50.0.1, zstandard 0.25.0, fastapi 0.141.1, uvicorn 0.54.0, ruff 0.16.9, pytest 9.1.1. `uv.lock` is the authority |
+| Optional profiles | — | `openbao/openbao:2.4.1` (secure), `prom/prometheus:v3.7.3` + `grafana/grafana:12.4.1` (obs) |
 
 ---
 

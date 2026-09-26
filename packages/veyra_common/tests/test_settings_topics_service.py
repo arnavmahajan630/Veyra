@@ -8,6 +8,7 @@ import urllib.request
 from pathlib import Path
 
 import pytest
+
 from veyra_common.service import ServiceApp
 from veyra_common.settings import Settings
 from veyra_common.topics import (

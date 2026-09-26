@@ -19,9 +19,9 @@ from datetime import datetime
 from typing import Any
 
 from charset_normalizer import from_bytes
+
 from veyra_common.hashing import template_sig
 from veyra_common.models import DlqRecord, Envelope
-
 from veyra_engine.types import (
     BacktestResult,
     Check,

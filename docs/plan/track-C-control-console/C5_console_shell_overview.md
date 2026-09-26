@@ -2,7 +2,7 @@
 
 ```
 track: C   owner: C   status: todo
-contracts: v1.0
+contracts: v1.1
 depends_on: [S0, B1 (query fixtures), B4 (OpenAPI), C1 (OpenAPI)]   unblocks: [CP2, B6, B7 (panel), C6]
 consumes: [IF-API-CONTROL, IF-API-EVIDENCE, IF-API-DEMO, IF-ULPF]
 provides: [console shell, design system, RawHighlighter + thread overlay, hotkey registry, i18n, /overview, /sources]
@@ -126,6 +126,12 @@ Sources ─── Edge / Gateway ─── Kafka ─┬─ Normalizer ─── 
 
 ## Tasks
 - [ ] 1. Vite + TS + Tailwind scaffold; tokens; self-hosted fonts; contrast check script.
+  <!-- synced from S0 --> Toolchain is **Node 25.2.1 / npm 11.7.0** (IF-VERSIONS, decision D17),
+  which is what the demo laptop and the CI `console` job both use. Put `"engines": {"node": ">=25"}`
+  in `console/package.json`, commit `package-lock.json` (CI runs `npm ci`), and build to
+  `console/dist/` — Caddy already serves that path read-only (see `Caddyfile`, created in S0).
+  If a Vite or Tailwind major refuses Node 25, switch the build to a `node:22` container
+  per D17's revisit note instead of changing the host toolchain.
 - [ ] 2. Typed API clients from OpenAPI (fixtures mode via MSW for offline UI work).
 - [ ] 3. The shell: login, nav, header, demo user switcher, toasts, SSE hook, hotkey registry, i18n.
 - [ ] 4. The shared components listed above, with a `/dev/components` route showing each in states (development only).

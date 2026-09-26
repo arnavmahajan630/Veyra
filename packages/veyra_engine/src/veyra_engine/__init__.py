@@ -6,7 +6,6 @@ calls this library in-process for golden tests, backtests and onboarding preview
 """
 
 from veyra_common.hashing import template_sig
-
 from veyra_engine.engine import (
     ENGINE_VERSION,
     Engine,

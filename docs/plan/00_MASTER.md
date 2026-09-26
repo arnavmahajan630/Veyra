@@ -154,6 +154,7 @@ Say these honestly if a judge asks.
 | D14 | Console live data via SSE from the APIs (1 s tick) | Simple, reliable | — |
 | D15 | Ollama runs natively on the host by default, not in Docker | GPU and Metal access without container GPU plumbing | — |
 | D16 | One reverse proxy (Caddy) on :8080 for the console and all APIs | One origin, no CORS | — |
+| D17 | **Node 25 for console builds**, not the 20/22 LTS line IF-VERSIONS first asked for | It is the toolchain already on the demo laptop (25.2.1 / npm 11.7.0), and per D2 there is no Node at runtime — the console ships as a static bundle served by Caddy, so the build-time major is not exposed to the demo | A Vite or Tailwind major refuses Node 25 → build the console in a `node:22` container instead (one line in CI and in `make console-build`) | <!-- synced from S0 -->
 
 ## 9. Repo layout (monorepo, created in S0)
 

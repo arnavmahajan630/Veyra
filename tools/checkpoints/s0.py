@@ -17,6 +17,7 @@ import argparse
 import base64
 import json
 import os
+import re
 import ssl
 import subprocess
 import sys
@@ -68,16 +69,11 @@ def ac1_stack_healthy() -> list[Row]:
         if "\t" not in line or not line.startswith("veyra-"):
             continue
         used = line.split("\t", 1)[1].split("/")[0].strip()
-        try:
-            value = float(used.rstrip("GiBMKB").rstrip())
-        except ValueError:
+        match = re.match(r"([0-9.]+)\s*([GMK]i?B)", used)
+        if not match:
             continue
-        if used.endswith("GiB"):
-            total_mb += value * 1024
-        elif used.endswith("MiB"):
-            total_mb += value
-        elif used.endswith("KiB"):
-            total_mb += value / 1024
+        value, unit = float(match.group(1)), match.group(2)
+        total_mb += value * {"GiB": 1024, "GB": 1024, "MiB": 1, "MB": 1}.get(unit, 1 / 1024)
     rows.append(
         (
             PASS if total_mb <= 9216 else WARN,
@@ -99,7 +95,7 @@ def ac2_topics() -> list[Row]:
     admin = AdminClient({"bootstrap.servers": cfg.kafka_bootstrap})
     try:
         cluster = admin.list_topics(timeout=20)
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         return [(FAIL, "kafka", f"cannot list topics: {exc}")]
 
     rows: list[Row] = []
@@ -173,7 +169,7 @@ def ac3_envelopes(eps: float, seconds: float) -> list[Row]:
             continue
         try:
             envelope = Envelope.model_validate_json(msg.value())
-        except Exception:  # noqa: BLE001
+        except Exception:
             invalid += 1
             continue
         valid += 1

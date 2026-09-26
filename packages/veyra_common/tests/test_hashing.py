@@ -12,6 +12,7 @@ import sys
 from pathlib import Path
 
 import pytest
+
 from veyra_common.hashing import sha256_hex, template_sig, template_sig_parts
 
 SPEC_VECTORS = (

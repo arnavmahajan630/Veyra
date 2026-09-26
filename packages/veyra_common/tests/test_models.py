@@ -12,6 +12,7 @@ from typing import Any
 
 import pytest
 from pydantic import BaseModel, TypeAdapter
+
 from veyra_common.models import (
     ApiKeyMessage,
     AuditRecord,

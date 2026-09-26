@@ -17,7 +17,10 @@ from veyra_engine.types import Token, TokenKind
 
 # Ordered: the first pattern that matches a span wins.
 _PATTERNS: list[tuple[TokenKind, object]] = [
-    ("uuid", re2.compile(r"[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}")),
+    (
+        "uuid",
+        re2.compile(r"[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}"),
+    ),
     ("email", re2.compile(r"[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}")),
     ("url", re2.compile(r"https?://[^\s\"']+")),
     ("ip", re2.compile(r"\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b")),

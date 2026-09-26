@@ -1,7 +1,7 @@
 # Track A — Data plane (Person A)
 
 ```
-contracts: v1.0
+contracts: v1.1
 ```
 
 ## Mission
