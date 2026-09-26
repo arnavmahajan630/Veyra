@@ -1,0 +1,16 @@
+[project]
+name = "ingest-gateway"
+version = "0.1.0"
+description = "HEC-compatible HTTP push ingestion (owner A)"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    "veyra-common",
+    "veyra-common[api]",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/ingest_gateway"]

@@ -1,0 +1,47 @@
+# VEYRA monorepo — uv workspace root (virtual project, no root package).
+# Members are the libraries in packages/ and the services in services/.
+[tool.uv.workspace]
+members = ["packages/*", "services/*"]
+
+[dependency-groups]
+dev = [
+    "ruff>=0.14",
+    "pytest>=8.4",
+    "pytest-asyncio>=1.2",
+    "mypy>=1.18",
+    "hypothesis>=6.140",
+    "httpx>=0.28",
+]
+
+[tool.uv.sources]
+veyra-common = { workspace = true }
+veyra-engine = { workspace = true }
+veyra-evidence = { workspace = true }
+veyra-lineage = { workspace = true }
+veyra-contracts = { workspace = true }
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+extend-exclude = ["docs/plan", "console", "contracts-repo"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B", "C4", "SIM", "RUF"]
+ignore = ["B008"]  # FastAPI Depends() in defaults
+
+[tool.ruff.lint.per-file-ignores]
+"docs/plan/reference/spec_vectors.py" = ["ALL"]
+"tests/**" = ["B011"]
+
+[tool.pytest.ini_options]
+testpaths = ["packages", "services", "tests"]
+asyncio_mode = "auto"
+markers = ["int: integration test, needs `make up` (deselect with -m 'not int')"]
+filterwarnings = ["error::DeprecationWarning:veyra_.*"]
+
+[tool.mypy]
+python_version = "3.12"
+ignore_missing_imports = true
+check_untyped_defs = true
+warn_unused_ignores = false
+exclude = "(docs/plan|console|contracts-repo)"
