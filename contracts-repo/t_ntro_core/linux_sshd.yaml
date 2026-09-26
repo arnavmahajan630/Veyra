@@ -1,0 +1,70 @@
+# PLACEHOLDER (S0). Shape is IF-CONTRACT-YAML; C2 compiles it for real and adds the
+# remaining templates plus golden tests. Every pattern token here must stay verifiable
+# against demo/corpus/linux_sshd.log.
+contract: linux_sshd
+version: 1
+tenant: t_ntro_core
+sources: [src_lnx_core_07]
+description: Linux sshd/sudo via syslog RFC 3164 (library pack)
+state: active
+
+envelope:
+  - syslog: {variant: auto}
+
+time:
+  field: syslog.timestamp
+  formats: ["%b %d %H:%M:%S"]
+  timezone: Asia/Kolkata
+  year: infer_from_received
+
+templates:
+  - id: sshd_failed_password
+    pattern: 'Failed password for <user> from <src_ip:ip> port <src_port:int> ssh2'
+    class: authentication
+    activity: logon
+    map:
+      user.name: $user
+      src_endpoint.ip: $src_ip
+      src_endpoint.port: $src_port
+      device.hostname: $syslog.host
+      status_id: {const: 2}
+      severity_id: {const: 3}
+      message: $__text
+
+  - id: sshd_failed_password_invalid_user
+    pattern: 'Failed password for invalid user <user> from <src_ip:ip> port <src_port:int> ssh2'
+    class: authentication
+    activity: logon
+    map:
+      user.name: $user
+      src_endpoint.ip: $src_ip
+      src_endpoint.port: $src_port
+      device.hostname: $syslog.host
+      status_id: {const: 2}
+      severity_id: {const: 3}
+      status_detail: {const: "invalid user"}
+      message: $__text
+
+  - id: sshd_accepted_password
+    pattern: 'Accepted password for <user> from <src_ip:ip> port <src_port:int> ssh2'
+    class: authentication
+    activity: logon
+    map:
+      user.name: $user
+      src_endpoint.ip: $src_ip
+      src_endpoint.port: $src_port
+      device.hostname: $syslog.host
+      status_id: {const: 1}
+      severity_id: {const: 1}
+      message: $__text
+
+required: [time, user.name, src_endpoint.ip]
+enrich: [asset_inventory, zone_map]
+pii: [user.name, src_endpoint.ip]
+vocab: [status_words]
+tests:
+  - sample: samples/linux_sshd/failed_password_1.log
+    expect: expected/linux_sshd/failed_password_1.json
+provenance:
+  drafted_by: library
+  approved_by: [admin@veyra]
