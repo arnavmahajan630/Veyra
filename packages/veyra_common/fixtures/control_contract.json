@@ -1,0 +1,42 @@
+{
+  "candidate": null,
+  "compiled": {
+    "compiler_version": "0.0.0-s0-stub",
+    "contract": "authsrv",
+    "envelope": [
+      {
+        "syslog": {
+          "variant": "auto"
+        }
+      },
+      {
+        "json": {
+          "text_field": "msg"
+        }
+      }
+    ],
+    "required": [
+      "time"
+    ],
+    "sources": [
+      "src_authsrv_01"
+    ],
+    "templates": [],
+    "tenant": "t_maha_power",
+    "time": {
+      "field": "syslog.timestamp",
+      "formats": [
+        "%b %d %H:%M:%S"
+      ]
+    },
+    "version": 1
+  },
+  "id": "authsrv",
+  "published_at": "2026-09-26T08:30:05.000000000Z",
+  "sources": [
+    "src_authsrv_01"
+  ],
+  "state": "active",
+  "tenant_id": "t_maha_power",
+  "version": 1
+}

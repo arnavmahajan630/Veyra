@@ -16,7 +16,9 @@ from typing import Final
 
 UNIT_SEP: Final = "\x1f"
 
-_RE_UUID = re.compile(r"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$")
+_RE_UUID = re.compile(
+    r"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$"
+)
 _RE_IPV4 = re.compile(r"^(\d{1,3}\.){3}\d{1,3}(:\d{1,5})?$")
 _RE_IPV6 = re.compile(r"^[0-9a-fA-F:]*:[0-9a-fA-F:]*:[0-9a-fA-F:]*$")
 _RE_EMAIL = re.compile(r"^[^@\s]+@[^@\s]+\.[A-Za-z]{2,}$")

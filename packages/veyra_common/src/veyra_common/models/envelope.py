@@ -96,7 +96,7 @@ class Envelope(BaseModel):
     def _valid_b64(cls, value: str) -> str:
         try:
             base64.b64decode(value, validate=True)
-        except Exception as exc:  # noqa: BLE001 - surfaced as a validation error
+        except Exception as exc:
             raise ValueError(f"raw_b64 is not valid base64: {exc}") from exc
         return value
 

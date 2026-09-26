@@ -1,0 +1,59 @@
+{
+  "class_hint": {
+    "class_uid": 3002,
+    "confidence": "medium"
+  },
+  "conformance": "unknown_template",
+  "contract": {
+    "id": "authsrv",
+    "version": 1
+  },
+  "custody": "realtime",
+  "derived_fields": {
+    "severity_id": "vocab:severity_words",
+    "time": "ts:inferred_year"
+  },
+  "encoding": {
+    "confidence": 0.99,
+    "detected": "utf-8",
+    "invalid_bytes": 0
+  },
+  "engine_version": "0.1.0",
+  "event_uid": "0192a4f0-0000-7000-8000-000000000001",
+  "field_offsets": {},
+  "parse_path": [
+    "syslog:rfc3164",
+    "json",
+    "auto:kv(rest)"
+  ],
+  "pii_fields": [
+    "user"
+  ],
+  "raw_ref": {
+    "offset": 4412,
+    "partition": 1,
+    "topic": "raw.custom"
+  },
+  "raw_sha256": "dafbdd096394de285451b37bdb4486c66d55bf3ca05855bfe5f61f9b34492513",
+  "received_time": "2026-09-26T08:35:11.123456789Z",
+  "replay": false,
+  "revision": 1,
+  "shadow": false,
+  "source_id": "src_authsrv_01",
+  "supersedes": null,
+  "template": {
+    "id": null,
+    "sig": "t_3c85a1bfbf81"
+  },
+  "tenant_id": "t_maha_power",
+  "tier": 3,
+  "time": {
+    "clock_skew_ms": -812,
+    "source": "event",
+    "tz_assumed": "Asia/Kolkata",
+    "year_inferred": true
+  },
+  "v": 1,
+  "vendor": "custom",
+  "zone": "dmz"
+}

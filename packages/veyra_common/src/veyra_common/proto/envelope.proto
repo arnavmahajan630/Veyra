@@ -1,0 +1,58 @@
+// IF-ENVELOPE, production target (declared deviation #2 in docs/plan/00_MASTER.md §7).
+//
+// The demo wire format is JSON with base64 raw bytes, because it is inspectable during
+// a 3-minute demo. This file is the shape production would use: raw bytes stay bytes,
+// and the envelope costs ~35% fewer bytes on the wire.
+syntax = "proto3";
+
+package veyra.v1;
+
+message Framing {
+  enum Method {
+    METHOD_UNSPECIFIED = 0;
+    DATAGRAM = 1;
+    NEWLINE = 2;
+    OCTET_COUNTING = 3;
+    MULTILINE_JOIN = 4;
+    HTTP_BODY = 5;
+    BATCH_LINE = 6;
+  }
+  Method method = 1;
+  bool truncated = 2;
+  uint32 parts = 3;
+}
+
+message Auth {
+  enum Method {
+    METHOD_UNSPECIFIED = 0;
+    IP_MAP = 1;
+    API_KEY = 2;
+    MTLS = 3;
+    NONE = 4;
+  }
+  Method method = 1;
+  optional string key_id = 2;
+}
+
+message Envelope {
+  uint32 v = 1;                      // always 1
+  string event_uid = 2;              // UUIDv7
+  string tenant_id = 3;
+  string source_id = 4;
+  string vendor = 5;
+  string zone = 6;                   // dmz | core | ot | external
+  string collector_id = 7;
+  string transport = 8;
+  optional string peer_ip = 9;
+  optional uint32 peer_port = 10;
+  optional string listener = 11;
+  int64 received_time_unix_nanos = 12;
+  optional uint64 seq_no = 13;
+  bytes raw_sha256 = 14;             // 32 bytes, not hex
+  uint32 raw_len = 15;
+  bytes raw = 16;                    // the exact original bytes
+  Framing framing = 17;
+  string custody = 18;               // realtime | post_hoc | post_hoc_signed
+  Auth auth = 19;
+  optional uint32 salt = 20;
+}

@@ -1,0 +1,16 @@
+{
+  "alg": "Ed25519",
+  "key_id": "veyra-root-ed25519-1",
+  "leaf_count": 3,
+  "prev_signed_sha256": "a93423deac995ba0e328e4dadbe29d43c77d61f273f1f0d0410b65ad6cf41f53",
+  "root": "49a27ff0ee8487600104ea234555fdaa1b3f8ac98d67d12fa3c3620a0e7000f4",
+  "segments": [
+    "seg_raw.custom_1_000000004400",
+    "seg_raw.linux_0_000000001200",
+    "seg_raw.acme_ngfw_2_000000000300"
+  ],
+  "v": 1,
+  "window_end": 1790000060,
+  "window_id": "w_1790000000",
+  "window_start": 1790000000
+}

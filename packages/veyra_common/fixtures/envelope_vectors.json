@@ -1,0 +1,101 @@
+{
+  "note": "A1/A2 parity vectors \u2014 Vector VRL and veyra_common.envelope.stamp must agree",
+  "vectors": [
+    {
+      "envelope": {
+        "auth": {
+          "key_id": null,
+          "method": "ip_map"
+        },
+        "collector_id": "edge-dmz-01",
+        "custody": "realtime",
+        "event_uid": "0192a4f0-0000-7000-8000-000000000001",
+        "framing": {
+          "method": "multiline_join",
+          "parts": 2,
+          "truncated": false
+        },
+        "listener": "dmz-tcp",
+        "peer_ip": "172.20.0.21",
+        "peer_port": 40112,
+        "raw_b64": "PDEzND5TZXAgMjYgMTQ6MDU6MTEgZncwMSBhcHBbMjMzXTogeyJldnQiOiJhdXRoIiwibXNnIjoidXNlcj1hLnNoYXJtYSBGQUlMRUQgbG9naW4gZnJvbSAxMDMuMjEuNC43NyB2aWEgMTAuMi4zLjQgYXR0ZW1wdHM6MSJ9IHwgdHJhY2U9CiAgYXQgY29tLnguQXV0aC5sb2dpbihBdXRoLmphdmE6ODgp",
+        "raw_len": 171,
+        "raw_sha256": "dafbdd096394de285451b37bdb4486c66d55bf3ca05855bfe5f61f9b34492513",
+        "received_time": "2026-09-26T08:35:11.123456789Z",
+        "salt": null,
+        "seq_no": null,
+        "source_id": "src_authsrv_01",
+        "tenant_id": "t_maha_power",
+        "transport": "syslog_tcp",
+        "v": 1,
+        "vendor": "custom",
+        "zone": "dmz"
+      },
+      "name": "t3_multiline_syslog_tcp"
+    },
+    {
+      "envelope": {
+        "auth": {
+          "key_id": null,
+          "method": "ip_map"
+        },
+        "collector_id": "edge-core-01",
+        "custody": "realtime",
+        "event_uid": "0192a4f0-0000-7000-8000-000000000002",
+        "framing": {
+          "method": "datagram",
+          "parts": 1,
+          "truncated": false
+        },
+        "listener": "core-udp",
+        "peer_ip": "172.20.0.31",
+        "peer_port": 51422,
+        "raw_b64": "PDg2PlNlcCAyNiAxNDowNToxMiBjb3JlLWxueC0wNyBzc2hkWzQ0MTBdOiBGYWlsZWQgcGFzc3dvcmQgZm9yIGludmFsaWQgdXNlciBhZG1pbiBmcm9tIDQ1LjEyLjMuOSBwb3J0IDUyMTQ0IHNzaDI=",
+        "raw_len": 113,
+        "raw_sha256": "d0d2cdd323470fb723e6a4b8f74e802e59af7d6efbe9a221bf2d12e4adcba4dc",
+        "received_time": "2026-09-26T08:35:11.123456789Z",
+        "salt": null,
+        "seq_no": null,
+        "source_id": "src_lnx_core_07",
+        "tenant_id": "t_ntro_core",
+        "transport": "syslog_udp",
+        "v": 1,
+        "vendor": "linux",
+        "zone": "core"
+      },
+      "name": "sshd_datagram_udp"
+    },
+    {
+      "envelope": {
+        "auth": {
+          "key_id": "k_7QX2MPLA",
+          "method": "api_key"
+        },
+        "collector_id": "ingest-gateway-01",
+        "custody": "realtime",
+        "event_uid": "0192a4f0-0000-7000-8000-000000000003",
+        "framing": {
+          "method": "http_body",
+          "parts": 1,
+          "truncated": false
+        },
+        "listener": null,
+        "peer_ip": null,
+        "peer_port": null,
+        "raw_b64": "Q0VGOjB8QWNtZXxOR0ZXfDkuMXwxMDB8dHJhZmZpYyBkZW55fDV8c3JjPTQ1LjEyLjMuOSBkc3Q9MTAuMi4zLjQgZHB0PTIyIGFjdD1kZW55",
+        "raw_len": 81,
+        "raw_sha256": "9703bf6c33817c5fcb7c97a74fa639d89a2ab5e4f5f3e1c72b47b787ed35cea4",
+        "received_time": "2026-09-26T08:35:11.123456789Z",
+        "salt": null,
+        "seq_no": null,
+        "source_id": "src_fw_dmz_01",
+        "tenant_id": "t_ntro_core",
+        "transport": "http_hec_event",
+        "v": 1,
+        "vendor": "acme_ngfw",
+        "zone": "dmz"
+      },
+      "name": "cef_http_hec_event"
+    }
+  ]
+}

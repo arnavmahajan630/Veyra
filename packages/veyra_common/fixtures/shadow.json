@@ -1,0 +1,16 @@
+{
+  "active_ref": "authsrv@1",
+  "active_tier": 3,
+  "candidate_ref": "authsrv@2",
+  "candidate_tier": 1,
+  "changed_fields": [
+    "user.name",
+    "src_endpoint.ip",
+    "dst_endpoint.ip",
+    "status_id"
+  ],
+  "contract_id": "authsrv",
+  "event_uid": "0192a4f0-0000-7000-8000-000000000001",
+  "produced_at": "2026-09-26T08:35:11.210000000Z",
+  "regressions": []
+}

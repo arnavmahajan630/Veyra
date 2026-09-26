@@ -1,0 +1,11 @@
+{
+  "contract_id": "authsrv",
+  "expected_eps": 5.0,
+  "salt_buckets": 1,
+  "source_id": "src_authsrv_01",
+  "status": "active",
+  "tenant_id": "t_maha_power",
+  "transport": "http_hec_event",
+  "vendor": "custom",
+  "zone": "dmz"
+}

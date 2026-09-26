@@ -1,0 +1,100 @@
+{
+  "activity_id": 99,
+  "category_uid": 0,
+  "class_uid": 0,
+  "message": "user=a.sharma FAILED login from 103.21.4.77 via 10.2.3.4 attempts:1",
+  "metadata": {
+    "product": {
+      "name": "VEYRA",
+      "vendor_name": "NTRO"
+    },
+    "version": "1.3.0"
+  },
+  "observables": [
+    {
+      "name": "ip_1",
+      "type_id": 2,
+      "value": "103.21.4.77"
+    },
+    {
+      "name": "ip_2",
+      "type_id": 2,
+      "value": "10.2.3.4"
+    },
+    {
+      "name": "user",
+      "type_id": 4,
+      "value": "a.sharma"
+    }
+  ],
+  "raw_data": "<134>Sep 26 14:05:11 fw01 app[233]: {\"evt\":\"auth\",\"msg\":\"user=a.sharma FAILED login from 103.21.4.77 via 10.2.3.4 attempts:1\"} | trace=\n  at com.x.Auth.login(Auth.java:88)",
+  "severity_id": 3,
+  "time": 1790400311000,
+  "type_uid": 99,
+  "ulpf": {
+    "class_hint": {
+      "class_uid": 3002,
+      "confidence": "medium"
+    },
+    "conformance": "unknown_template",
+    "contract": {
+      "id": "authsrv",
+      "version": 1
+    },
+    "custody": "realtime",
+    "derived_fields": {
+      "severity_id": "vocab:severity_words",
+      "time": "ts:inferred_year"
+    },
+    "encoding": {
+      "confidence": 0.99,
+      "detected": "utf-8",
+      "invalid_bytes": 0
+    },
+    "engine_version": "0.1.0",
+    "event_uid": "0192a4f0-0000-7000-8000-000000000001",
+    "field_offsets": {},
+    "parse_path": [
+      "syslog:rfc3164",
+      "json",
+      "auto:kv(rest)"
+    ],
+    "pii_fields": [
+      "user"
+    ],
+    "raw_ref": {
+      "offset": 4412,
+      "partition": 1,
+      "topic": "raw.custom"
+    },
+    "raw_sha256": "dafbdd096394de285451b37bdb4486c66d55bf3ca05855bfe5f61f9b34492513",
+    "received_time": "2026-09-26T08:35:11.123456789Z",
+    "replay": false,
+    "revision": 1,
+    "shadow": false,
+    "source_id": "src_authsrv_01",
+    "supersedes": null,
+    "template": {
+      "id": null,
+      "sig": "t_3c85a1bfbf81"
+    },
+    "tenant_id": "t_maha_power",
+    "tier": 3,
+    "time": {
+      "clock_skew_ms": -812,
+      "source": "event",
+      "tz_assumed": "Asia/Kolkata",
+      "year_inferred": true
+    },
+    "v": 1,
+    "vendor": "custom",
+    "zone": "dmz"
+  },
+  "unmapped": {
+    "attempts": "1",
+    "syslog.app": "app",
+    "syslog.host": "fw01",
+    "trace": "at com.x.Auth.login(Auth.java:88)",
+    "user": "a.sharma"
+  }
+}

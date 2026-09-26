@@ -1,0 +1,29 @@
+{
+  "auth": {
+    "key_id": null,
+    "method": "ip_map"
+  },
+  "collector_id": "edge-dmz-01",
+  "custody": "realtime",
+  "event_uid": "0192a4f0-0000-7000-8000-000000000001",
+  "framing": {
+    "method": "multiline_join",
+    "parts": 2,
+    "truncated": false
+  },
+  "listener": "dmz-tcp",
+  "peer_ip": "172.20.0.21",
+  "peer_port": 40112,
+  "raw_b64": "PDEzND5TZXAgMjYgMTQ6MDU6MTEgZncwMSBhcHBbMjMzXTogeyJldnQiOiJhdXRoIiwibXNnIjoidXNlcj1hLnNoYXJtYSBGQUlMRUQgbG9naW4gZnJvbSAxMDMuMjEuNC43NyB2aWEgMTAuMi4zLjQgYXR0ZW1wdHM6MSJ9IHwgdHJhY2U9CiAgYXQgY29tLnguQXV0aC5sb2dpbihBdXRoLmphdmE6ODgp",
+  "raw_len": 171,
+  "raw_sha256": "dafbdd096394de285451b37bdb4486c66d55bf3ca05855bfe5f61f9b34492513",
+  "received_time": "2026-09-26T08:35:11.123456789Z",
+  "salt": null,
+  "seq_no": null,
+  "source_id": "src_authsrv_01",
+  "tenant_id": "t_maha_power",
+  "transport": "syslog_tcp",
+  "v": 1,
+  "vendor": "custom",
+  "zone": "dmz"
+}

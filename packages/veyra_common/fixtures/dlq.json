@@ -1,0 +1,17 @@
+{
+  "contract_ref": "authsrv@1",
+  "event_uid": "0192a4f0-0000-7000-8000-000000000001",
+  "parse_path": [
+    "syslog:rfc3164",
+    "json",
+    "auto:kv(rest)"
+  ],
+  "produced_at": "2026-09-26T08:35:11.200000000Z",
+  "reason_code": "no_template_match",
+  "reason_detail": "authsrv@1 has 2 templates, none matched",
+  "source_id": "src_authsrv_01",
+  "template_sig": "t_3c85a1bfbf81",
+  "tenant_id": "t_maha_power",
+  "text_masked": "user=<USER_1> FAILED login from 103.21.4.77 via 10.2.3.4 attempts:1",
+  "tier": 3
+}

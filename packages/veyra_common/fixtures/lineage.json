@@ -1,0 +1,29 @@
+{
+  "category": "uncategorized",
+  "class_uid": 0,
+  "conformance": "unknown_template",
+  "contract_ref": "authsrv@1",
+  "event_uid": "0192a4f0-0000-7000-8000-000000000001",
+  "norm_topic": "norm.uncategorized",
+  "produced_at": "2026-09-26T08:35:11.200000000Z",
+  "raw_ref": {
+    "offset": 4412,
+    "partition": 1,
+    "topic": "raw.custom"
+  },
+  "raw_sha256": "dafbdd096394de285451b37bdb4486c66d55bf3ca05855bfe5f61f9b34492513",
+  "replay": false,
+  "replay_job_id": null,
+  "revision": 1,
+  "search_terms": [
+    "103.21.4.77",
+    "10.2.3.4",
+    "a.sharma",
+    "fw01"
+  ],
+  "source_id": "src_authsrv_01",
+  "template_id": null,
+  "template_sig": "t_3c85a1bfbf81",
+  "tenant_id": "t_maha_power",
+  "tier": 3
+}

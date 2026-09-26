@@ -1,0 +1,16 @@
+{
+  "name": "zone_map",
+  "rows": [
+    {
+      "cidr": "10.2.0.0/16",
+      "site": "maha-pune-1",
+      "zone": "core"
+    },
+    {
+      "cidr": "172.20.0.0/16",
+      "site": "maha-pune-1",
+      "zone": "dmz"
+    }
+  ],
+  "version": 1
+}

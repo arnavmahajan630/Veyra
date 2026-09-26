@@ -1,0 +1,47 @@
+{
+  "routes": [
+    {
+      "filter": {
+        "tenants": [
+          "*"
+        ],
+        "tiers": [
+          1,
+          2,
+          3,
+          4
+        ]
+      },
+      "format": "ocsf_json",
+      "id": "wazuh_main",
+      "masking": "none",
+      "sink": {
+        "fsync_ms": 200,
+        "path": "/sinks/wazuh/veyra.ndjson",
+        "type": "ndjson_file"
+      }
+    },
+    {
+      "filter": {
+        "classes": [
+          3002,
+          4001
+        ],
+        "tenants": [
+          "t_maha_power"
+        ]
+      },
+      "format": "ocsf_json",
+      "id": "partner_masked",
+      "masking": {
+        "raw_data": "redact",
+        "src_endpoint.ip": "hmac",
+        "user.name": "hmac"
+      },
+      "sink": {
+        "path": "/sinks/partner/partner.ndjson",
+        "type": "ndjson_file"
+      }
+    }
+  ]
+}

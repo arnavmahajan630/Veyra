@@ -91,7 +91,7 @@ class Settings(BaseSettings):
     receipts_partitions: int = 1
     audit_partitions: int = 1
 
-    # ------------------------------------------------------------------ §2.2 vault / integrity / lineage
+    # --------------------------------------------------- §2.2 vault / integrity / lineage
     segment_max_bytes: int = 2 * 1024 * 1024  # 2 MB
     segment_max_seconds: int = 20
     merkle_window_seconds: int = 60
@@ -102,7 +102,7 @@ class Settings(BaseSettings):
     openbao_url: str = "http://openbao:8200"
     openbao_token: str = ""
 
-    # ------------------------------------------------------------------ §2.3 engine / ingestion limits
+    # --------------------------------------------------- §2.3 engine / ingestion limits
     max_event_bytes: int = 65536
     engine_budget_us: int = 5000
     peel_max_depth: int = 4
