@@ -11,7 +11,8 @@
 SHELL := /bin/bash
 .DEFAULT_GOAL := help
 .PHONY: help up down ps logs restart build topics wipe-data test test-int lint fmt typecheck ci \
-        plan-check wazuh-certs wazuh-logtest console-dev console-build e2e-smoke llm-warm \
+        plan-check wazuh-certs wazuh-logtest console-dev console-build contracts-repo-init \
+        e2e-smoke llm-warm \
         bench-llm bench-throughput demo-reset demo-preflight demo-stage doctor env-print
 
 PROFILE      ?= laptop
@@ -75,6 +76,14 @@ wipe-data: ## delete every runtime volume (asks first)
 	$(DC) down -v --remove-orphans 2>/dev/null || true
 	sudo rm -rf data
 	@echo "data/ removed"
+
+contracts-repo-init: ## give the contract registry its own git history (idempotent)
+	@if [ -d contracts-repo/.git ]; then echo "contracts-repo already initialised"; else \
+	  git -C contracts-repo init -q . && \
+	  git -C contracts-repo add -A && \
+	  git -C contracts-repo -c user.email=veyra@localhost -c user.name="VEYRA seed" \
+	    commit -q -m "seed: library contracts from the tracked seed files" && \
+	  git -C contracts-repo tag seed && echo "contracts-repo initialised at tag seed"; fi
 
 topics: $(RUNTIME_ENV) ## create every IF-TOPICS topic with profile partitions
 	$(UV) run --env-file $(RUNTIME_ENV) python -m veyra_common.topics
