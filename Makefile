@@ -113,8 +113,8 @@ wazuh-certs: ## generate Wazuh certificates into data/wazuh/certs (run once)
 		-v $(PWD)/compose/wazuh/certs.yml:/config/certs.yml:ro \
 		-v $(PWD)/data/wazuh/certs:/certificates \
 		--entrypoint /bin/bash wazuh/wazuh-certs-generator:0.0.2 \
-		-c "/entrypoint.sh && chown -R $(shell id -u):$(shell id -g) /certificates"
-	cp data/wazuh/certs/root-ca.pem data/wazuh/certs/root-ca-manager.pem
+		-c "/entrypoint.sh"
+	@# The generator writes root-ca-manager.pem itself and sets container UIDs; do not chown.
 	@echo "certs written to data/wazuh/certs"
 
 wazuh-logtest: ## pipe a sample NDJSON line through the manager's rule engine

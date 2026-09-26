@@ -1,11 +1,14 @@
 # Input for wazuh/wazuh-certs-generator (run by `make wazuh-certs`).
+# Names use the official single-node convention (dotted), because the generator
+# validates each entry as an IP or a DNS name and the certificate CNs must match the
+# hostnames the services use inside veyra_net.
 nodes:
   indexer:
-    - name: wazuh-indexer
-      ip: wazuh-indexer
+    - name: wazuh.indexer
+      ip: wazuh.indexer
   server:
-    - name: wazuh-manager
-      ip: wazuh-manager
+    - name: wazuh.manager
+      ip: wazuh.manager
   dashboard:
-    - name: wazuh-dashboard
-      ip: wazuh-dashboard
+    - name: wazuh.dashboard
+      ip: wazuh.dashboard

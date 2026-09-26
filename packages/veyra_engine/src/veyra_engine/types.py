@@ -123,4 +123,4 @@ class EngineContext:
     budget_us: int = 5000
     peel_max_depth: int = 4
     max_event_bytes: int = 65536
-    ocsf_version: str = "1.3.0"
+    ocsf_version: str = "1.9.0"

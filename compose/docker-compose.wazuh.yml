@@ -12,15 +12,15 @@ services:
   wazuh-indexer:
     image: wazuh/wazuh-indexer:4.14.8
     container_name: veyra-wazuh-indexer
-    hostname: wazuh-indexer
+    hostname: wazuh.indexer
     environment:
       OPENSEARCH_JAVA_OPTS: -Xms${VEYRA_WAZUH_INDEXER_HEAP:-1g} -Xmx${VEYRA_WAZUH_INDEXER_HEAP:-1g}
       bootstrap.memory_lock: "true"
-      NODE_NAME: wazuh-indexer
-      CLUSTER_INITIAL_MASTER_NODES: wazuh-indexer
+      NODE_NAME: wazuh.indexer
+      CLUSTER_INITIAL_MASTER_NODES: wazuh.indexer
       CLUSTER_NAME: wazuh-cluster
-      DISCOVERY_SERVICE: wazuh-indexer
-      INDEXER_URL: https://wazuh-indexer:9200
+      DISCOVERY_SERVICE: wazuh.indexer
+      INDEXER_URL: https://wazuh.indexer:9200
       INDEXER_USERNAME: admin
       INDEXER_PASSWORD: ${VEYRA_WAZUH_INDEXER_PASSWORD:-SecretPassword}
     ulimits:
@@ -31,8 +31,8 @@ services:
     volumes:
       - ../data/wazuh/indexer:/var/lib/wazuh-indexer
       - ../data/wazuh/certs/root-ca.pem:/usr/share/wazuh-indexer/certs/root-ca.pem:ro
-      - ../data/wazuh/certs/wazuh-indexer-key.pem:/usr/share/wazuh-indexer/certs/wazuh-indexer.key:ro
-      - ../data/wazuh/certs/wazuh-indexer.pem:/usr/share/wazuh-indexer/certs/wazuh-indexer.pem:ro
+      - ../data/wazuh/certs/wazuh.indexer-key.pem:/usr/share/wazuh-indexer/certs/wazuh.indexer.key:ro
+      - ../data/wazuh/certs/wazuh.indexer.pem:/usr/share/wazuh-indexer/certs/wazuh.indexer.pem:ro
       - ../data/wazuh/certs/admin.pem:/usr/share/wazuh-indexer/certs/admin.pem:ro
       - ../data/wazuh/certs/admin-key.pem:/usr/share/wazuh-indexer/certs/admin-key.pem:ro
       - ./wazuh/indexer.yml:/usr/share/wazuh-indexer/opensearch.yml:ro
@@ -42,9 +42,9 @@ services:
   wazuh-manager:
     image: wazuh/wazuh-manager:4.14.8
     container_name: veyra-wazuh-manager
-    hostname: wazuh-manager
+    hostname: wazuh.manager
     environment:
-      INDEXER_URL: https://wazuh-indexer:9200
+      INDEXER_URL: https://wazuh.indexer:9200
       INDEXER_USERNAME: admin
       INDEXER_PASSWORD: ${VEYRA_WAZUH_INDEXER_PASSWORD:-SecretPassword}
       FILEBEAT_SSL_VERIFICATION_MODE: full
@@ -68,8 +68,8 @@ services:
       - ../data/wazuh/manager/filebeat-etc:/etc/filebeat
       - ../data/wazuh/manager/filebeat-var:/var/lib/filebeat
       - ../data/wazuh/certs/root-ca-manager.pem:/etc/ssl/root-ca.pem:ro
-      - ../data/wazuh/certs/wazuh-manager.pem:/etc/ssl/filebeat.pem:ro
-      - ../data/wazuh/certs/wazuh-manager-key.pem:/etc/ssl/filebeat.key:ro
+      - ../data/wazuh/certs/wazuh.manager.pem:/etc/ssl/filebeat.pem:ro
+      - ../data/wazuh/certs/wazuh.manager-key.pem:/etc/ssl/filebeat.key:ro
       # VEYRA's own bits: the NDJSON sink the router writes, plus rules and localfile.
       - ../data/sinks/wazuh:/sinks/wazuh
       - ../wazuh/rules/veyra_rules.xml:/var/ossec/etc/rules/veyra_rules.xml
@@ -81,11 +81,11 @@ services:
   wazuh-dashboard:
     image: wazuh/wazuh-dashboard:4.14.8
     container_name: veyra-wazuh-dashboard
-    hostname: wazuh-dashboard
+    hostname: wazuh.dashboard
     environment:
       INDEXER_USERNAME: admin
       INDEXER_PASSWORD: ${VEYRA_WAZUH_INDEXER_PASSWORD:-SecretPassword}
-      WAZUH_API_URL: https://wazuh-manager
+      WAZUH_API_URL: https://wazuh.manager
       DASHBOARD_USERNAME: kibanaserver
       DASHBOARD_PASSWORD: ${VEYRA_WAZUH_DASHBOARD_PASSWORD:-kibanaserver}
       API_USERNAME: wazuh-wui
@@ -94,8 +94,8 @@ services:
     restart: unless-stopped
     ports: ["8443:5601"]
     volumes:
-      - ../data/wazuh/certs/wazuh-dashboard.pem:/usr/share/wazuh-dashboard/certs/wazuh-dashboard.pem:ro
-      - ../data/wazuh/certs/wazuh-dashboard-key.pem:/usr/share/wazuh-dashboard/certs/wazuh-dashboard-key.pem:ro
+      - ../data/wazuh/certs/wazuh.dashboard.pem:/usr/share/wazuh-dashboard/certs/wazuh.dashboard.pem:ro
+      - ../data/wazuh/certs/wazuh.dashboard-key.pem:/usr/share/wazuh-dashboard/certs/wazuh.dashboard-key.pem:ro
       - ../data/wazuh/certs/root-ca.pem:/usr/share/wazuh-dashboard/certs/root-ca.pem:ro
       - ../data/wazuh/dashboard/config:/usr/share/wazuh-dashboard/data/wazuh/config
     depends_on: [wazuh-indexer]

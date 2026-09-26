@@ -89,7 +89,9 @@ def check_ollama() -> list[Result]:
     except (urllib.error.URLError, OSError) as exc:
         return [(WARN, "ollama", f"not reachable at {url} ({exc}) — needed from C4 on")]
     model = os.environ.get("VEYRA_LLM_MODEL", "qwen2.5:3b")
-    have = model.split(":")[0] in body
+    # Exact tag, not just the family: qwen2.5:7b does not fit the laptop's 4 GB VRAM,
+    # so a loose match here would hide a real problem.
+    have = f'"{model}"' in body or f'"name":"{model}"' in body
     return [
         (PASS, "ollama", f"reachable at {url}"),
         (PASS if have else WARN, "llm model", f"{model} {'present' if have else 'not pulled'}"),

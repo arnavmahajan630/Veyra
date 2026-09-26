@@ -172,7 +172,7 @@ def norm_event() -> NormEvent:
             "syslog.app": "app",
             "trace": "at com.x.Auth.login(Auth.java:88)",
         },
-        metadata={"version": "1.3.0", "product": {"name": "VEYRA", "vendor_name": "NTRO"}},
+        metadata={"version": "1.9.0", "product": {"name": "VEYRA", "vendor_name": "NTRO"}},
         ulpf=ulpf_tier3(),
     )
 

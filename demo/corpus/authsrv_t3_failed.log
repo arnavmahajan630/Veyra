@@ -1,0 +1,28 @@
+<134>Sep 26 14:05:11 fw01 app[233]: {"evt":"auth","msg":"user=a.sharma FAILED login from 103.21.4.77 via 10.2.3.4 attempts:1"} | trace=
+  at com.x.Auth.login(Auth.java:88)
+<134>Sep 26 14:05:11 fw01 app[233]: {"evt":"auth","msg":"user=a.sharma FAILED login from 103.21.4.77 via 10.2.3.4 attempts:2"} | trace=
+  at com.x.Auth.login(Auth.java:88)
+<134>Sep 26 14:05:11 fw01 app[233]: {"evt":"auth","msg":"user=a.sharma FAILED login from 103.21.4.77 via 10.2.3.4 attempts:3"} | trace=
+  at com.x.Auth.login(Auth.java:88)
+<134>Sep 26 14:05:11 fw01 app[233]: {"evt":"auth","msg":"user=a.sharma FAILED login from 103.21.4.77 via 10.2.3.4 attempts:1"} | trace=
+  at com.x.Auth.login(Auth.java:88)
+<134>Sep 26 14:05:11 fw01 app[233]: {"evt":"auth","msg":"user=a.sharma FAILED login from 103.21.4.77 via 10.2.3.4 attempts:2"} | trace=
+  at com.x.Auth.login(Auth.java:88)
+<134>Sep 26 14:05:11 fw01 app[233]: {"evt":"auth","msg":"user=a.sharma FAILED login from 103.21.4.77 via 10.2.3.4 attempts:3"} | trace=
+  at com.x.Auth.login(Auth.java:88)
+<134>Sep 26 14:05:11 fw01 app[233]: {"evt":"auth","msg":"user=a.sharma FAILED login from 103.21.4.77 via 10.2.3.4 attempts:1"} | trace=
+  at com.x.Auth.login(Auth.java:88)
+<134>Sep 26 14:05:11 fw01 app[233]: {"evt":"auth","msg":"user=a.sharma FAILED login from 103.21.4.77 via 10.2.3.4 attempts:2"} | trace=
+  at com.x.Auth.login(Auth.java:88)
+<134>Sep 26 14:05:11 fw01 app[233]: {"evt":"auth","msg":"user=r.patil FAILED login from 10.4.9.2 via 10.2.3.4 attempts:1"} | trace=
+  at com.x.Auth.login(Auth.java:88)
+<134>Sep 26 14:05:11 fw01 app[233]: {"evt":"auth","msg":"user=a.sharma FAILED login from 10.4.9.2 via 10.2.3.4 attempts:1"} | trace=
+  at com.x.Auth.login(Auth.java:88)
+<134>Sep 26 14:05:11 fw01 app[233]: {"evt":"auth","msg":"user=neel.k FAILED login from 10.4.9.2 via 10.2.3.4 attempts:1"} | trace=
+  at com.x.Auth.login(Auth.java:88)
+<134>Sep 26 14:05:11 fw01 app[233]: {"evt":"auth","msg":"user=s.iyer FAILED login from 10.4.9.2 via 10.2.3.4 attempts:1"} | trace=
+  at com.x.Auth.login(Auth.java:88)
+<134>Sep 26 14:05:11 fw01 app[233]: {"evt":"auth","msg":"user=v.rao FAILED login from 10.4.9.2 via 10.2.3.4 attempts:1"} | trace=
+  at com.x.Auth.login(Auth.java:88)
+<134>Sep 26 14:05:11 fw01 app[233]: {"evt":"auth","msg":"user=admin FAILED login from 10.4.9.2 via 10.2.3.4 attempts:1"} | trace=
+  at com.x.Auth.login(Auth.java:88)
