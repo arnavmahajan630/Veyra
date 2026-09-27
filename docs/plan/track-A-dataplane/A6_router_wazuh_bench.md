@@ -46,6 +46,11 @@ v1 refs: §10.1, ADR-05, §13 (SIEM outage). Demo beats 3–4.
 - `wazuh/ossec.conf.d/veyra_localfile.xml`: `<localfile><log_format>json</log_format><location>/sinks/wazuh/veyra.ndjson</location></localfile>`.
 - `wazuh/rules/veyra_rules.xml`, ids 100100–100199 per IF-WAZUH:
   - 100100 is the parent (matches the `veyra.tier` field present), level 3, group `veyra`.
+    <!-- synced from S0 --> **100100 itself must be a child of built-in rule 99000**
+    (`<if_sid>99000</if_sid>`): 99000 "Amazon Security Lake rules grouped" is level 0 and matches any
+    json event with `activity_id` and `category_uid`, i.e. every OCSF event, so a sibling rule never
+    alerts. S0 ships 100100 in this shape already, verified with `wazuh-logtest`; add 100110-100130
+    as children of 100100.
   - Children match JSON fields with `<field name="class_uid">^3002$</field>`, `<field name="status_id">^2$</field>`, `<field name="veyra.tier">^3$</field>`, and so on.
   - 100111 uses `frequency="5" timeframe="60"`, `<if_matched_sid>100110</if_matched_sid>` and `<same_field>src_endpoint.ip</same_field>`. **Verify `same_field` works with nested JSON field names on the pinned Wazuh version.** If not, add a flat convenience field `veyra.src_ip` and use that.
 - Validate every rule with `wazuh-logtest`, using sample lines committed in `wazuh/tests/`.
@@ -60,8 +65,16 @@ Output: `reports/A6-bench-<machine>.md` with a table and the machine spec. These
 
 ## Tasks
 - [ ] 1. (minimal) The router with the `wazuh_main` NDJSON route + receipts.
-- [ ] 2. (minimal) Wazuh localfile config + rule 100100; confirmed visible in Discover.
-- [ ] 3. (minimal) Compose mounts for `/sinks/wazuh`.
+- [x] 2. (minimal) Wazuh localfile config + rule 100100; confirmed visible in Discover.
+  <!-- synced from S0 --> Done in S0: `wazuh/ossec.conf.d/veyra_localfile.xml`, rule 100100, and
+  `wazuh/entrypoint-veyra.sh` (which copies the rules in on every start, since `/var/ossec/etc` is a
+  named volume). A probe line reaches `wazuh-alerts-*` under rule 100100. Run `make wazuh-init` once
+  after `make wazuh-certs`, or the indexer never leaves "Security not initialized".
+- [x] 3. (minimal) Compose mounts for `/sinks/wazuh`.
+  <!-- synced from S0 --> `data/sinks/wazuh` is mounted into the manager at `/sinks/wazuh`, and the
+  router service already mounts `data/sinks` at `/sinks`. `make up` creates
+  `data/sinks/wazuh/veyra.ndjson` as the invoking user — nothing in the manager container may create
+  it, or the router (uid 10001) cannot append.
 - [ ] 4. Full routes: filters, masking, the partner route, syslog_tcp with breaker, http_json.
 - [ ] 5. Full rules 100110–100130 + logtest samples; brute force verified.
 - [ ] 6. (minimal) Integration test: event → sink line → Wazuh API `GET /alerts`-style query or indexer search finds it (automated, via the indexer REST API).
@@ -80,3 +93,10 @@ Output: `reports/A6-bench-<machine>.md` with a table and the machine spec. These
 
 ## Implementation notes
 _(filled after execution)_
+
+<!-- synced from S0 --> Wazuh is 4.14.8, single node, credentials at the image defaults
+(admin/admin) until S2 rotates them; the indexer is reachable from the host at
+`https://localhost:9200` and the dashboard at `https://localhost:8443`. Expect the
+alerts.json -> filebeat -> indexer hop to take tens of seconds on the laptop, so any assertion about
+"appears in Wazuh" needs a generous wait. Never `pkill filebeat` inside the manager: restart the
+container instead (S0 wasted a round on a stuck filebeat registry).

@@ -63,10 +63,13 @@ def make_producer(
         "compression.type": "zstd",
         "linger.ms": 5,
         "max.in.flight.requests.per.connection": 5,
-        "delivery.timeout.ms": 120_000,
+        "delivery.timeout.ms": s.kafka_delivery_timeout_ms,
     }
     if transactional_id:
         conf["transactional.id"] = transactional_id
+        # Must be >= delivery.timeout.ms, or librdkafka rejects the producer outright
+        # (_INVALID_ARG). The broker caps it at transaction.max.timeout.ms (15 min).
+        conf["transaction.timeout.ms"] = max(s.kafka_txn_timeout_ms, s.kafka_delivery_timeout_ms)
     conf.update(overrides)
     return Producer(conf)
 

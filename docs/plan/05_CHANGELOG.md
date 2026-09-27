@@ -17,6 +17,46 @@ ACTION REQUIRED:
 
 ---
 
+## 2026-09-27 05:10 — S0 — CLARIFICATION  (contracts v1.1)
+TYPE: CLARIFICATION
+What:     IF-WAZUH: rule 100100 must be a **child of Wazuh's built-in rule 99000**
+          (`<if_sid>99000</if_sid>`), and 100110-100130 children of 100100. 99000
+          ("Amazon Security Lake rules grouped", level 0) matches any json event carrying
+          activity_id and category_uid, i.e. every OCSF event; a sibling rule loses to it and,
+          because 99000 is level 0, produces no alert at all.
+          IF-PORTS: immudb's pg wire is 5432 inside veyra_net; the host mapping is
+          VEYRA_IMMUDB_PG_HOST_PORT (default 5433), because a local PostgreSQL usually owns 5432.
+          The console host port is VEYRA_CONSOLE_PORT (default 8080, unchanged).
+Why:      Found by running the stack: alerts were generated in alerts.json but rule 100100 never
+          fired, and immudb could not bind 5432 on the demo laptop. No payload or schema changes.
+IDs:      IF-WAZUH, IF-PORTS
+Files patched: 02_CONTRACTS.md (IF-WAZUH, IF-PORTS), shared/S0_bootstrap.md (implementation notes),
+          reports/S0.md.
+ACTION REQUIRED:
+  - [ ] @A In A6, define 100110-100130 with `<if_sid>100100</if_sid>` and verify each with
+        wazuh-logtest before claiming the brute-force alert works.
+  - [ ] @B In B3, connect to immudb's pg wire on host port 5433 (VEYRA_IMMUDB_PG_HOST_PORT), or
+        on 5432 from inside the compose network.
+
+## 2026-09-27 05:10 — S0 — REQUEST @C  (contracts v1.1)
+TYPE: REQUEST
+What:     The demo laptop's Ollama runs the model on **CPU, not GPU**: discovery reports only
+          `library=cpu` although the NVIDIA driver 580.178.04, /dev/nvidia*, libcuda.so.1 and
+          Ollama's own cuda_v12 runner are all present. Measured draft latency 53-91 s, against the
+          5 s fallback window in 04_DEMO_SCRIPT §Beat 2. S0.5's "confirm 100% GPU" is therefore
+          **not met**; AC5 (schema-valid JSON from inside a container) passes.
+          Also: AC5 needs `OLLAMA_HOST=0.0.0.0:11434` (systemd drop-in), which exposes the LLM API
+          on the LAN while Wi-Fi is on. The demo runs air-gapped, Wi-Fi off.
+Why:      C4's live drafting and `make bench-llm` depend on GPU residency; until it is fixed the
+          demo must rely on LLM_MODE=cache, which is a planned fallback but not the intended path.
+IDs:      IF-VERSIONS (LLM model row)
+Files patched: shared/S0_bootstrap.md (implementation notes), reports/S0.md, 06_STATUS_BOARD.md.
+ACTION REQUIRED:
+  - [ ] @C Before C4's bench: get Ollama onto the GPU (or record CPU numbers honestly and set
+        LLM_MODE=cache in profiles/laptop.env as the demo default).
+  - [ ] @C Pin Drain3 (C3) and React/Vite/Tailwind (C5) with a VERSION-PIN entry each; S0 left
+        those rows open rather than guessing.
+
 ## 2026-09-26 18:30 — S0 — VERSION-PIN  (contracts v1.0 → v1.1)
 TYPE: VERSION-PIN
 What:     IF-VERSIONS filled with the exact versions running on the demo laptop: Python 3.12.3,

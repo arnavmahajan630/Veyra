@@ -135,3 +135,14 @@ Write the *content* of `linux_sshd.yaml` and `acme_ngfw_cef.yaml` (IF-CONTRACT-Y
 
 ## Implementation notes
 _(filled after execution)_
+
+<!-- synced from S0 --> The stub you are replacing lives in `packages/veyra_engine/src/veyra_engine/`
+(`engine.py`, `tokens.py`, `types.py`) and its public names are frozen and already imported by tests:
+`Engine.normalize(envelope, *, use_candidate=False)`, `load`, `set_candidate`, `peel`,
+`extract_tokens`, `template_sig`, `provenance_check`, `mask`, `backtest`, `serialize`, `decode`.
+`packages/veyra_engine/tests/test_stub.py` asserts the surface and the invariants (purity,
+tier in 1..4, spans that slice back to their value) rather than the stub's tier-4 answer, so it should
+keep passing as you land the real pipeline. `template_sig` is re-exported from
+`veyra_common.hashing` — that is deliberate, and it is why no engine module imports `re`
+(A4's RE2-only test should allow for that). `serialize` already emits sorted keys, compact separators
+and integer epoch-ms time, which the determinism test in task 8 depends on.

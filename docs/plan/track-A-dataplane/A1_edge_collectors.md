@@ -57,10 +57,17 @@ v1 refs: §5 Zone Edge, §6 steps 1–4, §7.1–7.3, §13 (edge failure). Demo 
 - [ ] 2. UDP and TCP sources; the multi-line `reduce` for TCP.
 - [ ] 3. VRL stamping and envelope build; Vector unit tests (`[[tests]]` in config) for stamping and resolution.
 - [ ] 4. Enrichment table from `edge/vector/inventory/sources.csv` (seeded in S0 with the NTRO sources); both lookups.
+  <!-- synced from S0 --> The file exists with four rows (peer_ip and syslog_host for both NTRO
+  sources), and `edge/vector/reload.stamp` is in place for the reload check.
 - [ ] 5. Kafka sink with durability settings and a disk buffer.
 - [ ] 6. Verify the inventory reload mechanism; update IF-INVENTORY.
 - [ ] 7. Integration test `tests/int/test_edge.py`: send corpus lines via Python sockets (UDP and TCP), consume `raw.*`, validate with `veyra_common` models, recompute `sha256(b64decode(raw_b64)) == raw_sha256`, and check multi-line joins and unregistered routing.
-- [ ] 8. **Parity test vector:** the same raw bytes through the edge and through `veyra_common.hashing` give the same `raw_sha256` and `raw_b64`. Record 3 vectors in `packages/veyra_common/fixtures/envelope_vectors.json` (the gateway will reuse them).
+- [x] 8. **Parity test vector:** the same raw bytes through the edge and through `veyra_common.hashing` give the same `raw_sha256` and `raw_b64`. Record 3 vectors in `packages/veyra_common/fixtures/envelope_vectors.json` (the gateway will reuse them).
+  <!-- synced from S0 --> The three vectors already exist (`t3_multiline_syslog_tcp`,
+  `sshd_datagram_udp`, `cef_http_hec_event`), written by
+  `packages/veyra_common/tests/gen_fixtures.py` from `veyra_common.envelope.stamp`. A1's remaining
+  job is to assert Vector reproduces them — in particular that `raw_len` is the **byte** length, which
+  the placeholder VRL flags with a TODO comment.
 
 ## Acceptance criteria
 - [ ] AC1: 1000 UDP + 1000 TCP lines at 200 EPS → 2000 valid envelopes, 0 invalid; all sha checks pass.
@@ -81,3 +88,9 @@ v1 refs: §5 Zone Edge, §6 steps 1–4, §7.1–7.3, §13 (edge failure). Demo 
 
 ## Implementation notes
 _(filled after execution)_
+
+<!-- synced from S0 --> Starting points S0 left you: `edge/vector/vector-dmz.toml` and
+`vector-core.toml` are placeholder configs that stamp a minimal envelope and publish everything to
+`raw.unregistered` (so an unregistered source already behaves correctly), both edges run on
+`timberio/vector:0.58.0-debian` with the API on 8686, and `veyra_common.framing.split_lines`
+implements the continuation rule (`^\s` or `at `) that the TCP `reduce` transform must match.

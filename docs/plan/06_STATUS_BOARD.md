@@ -4,7 +4,7 @@ Update your row after every phase (status, one line, report link). Status values
 
 | Phase | Owner | Status | Contracts | Summary | Report |
 |---|---|---|---|---|---|
-| S0 Bootstrap | all | todo | v1.0 | | |
+| S0 Bootstrap | all (run by A) | done | v1.1 | AC1–AC7 pass; stack idles at 2.89 GiB; 77 unit + 5 integration tests green. LLM runs on CPU (53–91 s/draft) — GPU unresolved, @C | [S0.md](reports/S0.md) |
 | A1 Edge collectors (Vector) | A | todo | v1.0 | | |
 | A2 Ingest gateway (HTTP push) | A | todo | v1.0 | | |
 | A3 Engine core + normalizer service | A | todo | v1.0 | | |
@@ -34,3 +34,4 @@ Update your row after every phase (status, one line, report link). Status values
 
 | Checkpoint | Date | Result | Notes |
 |---|---|---|---|
+| S0 | 2026-09-27 | PASS | Run solo by A on the demo laptop. CP1 is now unblocked and needs A1 + A3 + minimal A6 (A), B1 + B2 (B) and C1 (C). |

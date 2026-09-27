@@ -663,7 +663,13 @@ Sink types: `ndjson_file` | `syslog_tcp` (host, port; used for remote Wazuh) | `
 
 - The manager reads `/sinks/wazuh/veyra.ndjson` via `<localfile><log_format>json</log_format>`.
 - Each line is one IF-NORM-EVENT plus convenience fields `veyra.tier`, `veyra.class`, `veyra.tenant`, `veyra.source`.
-- The custom rules file `wazuh/rules/veyra_rules.xml` uses rule id range **100100–100199**:
+- The custom rules file `wazuh/rules/veyra_rules.xml` uses rule id range **100100–100199**.
+  <!-- synced from S0 --> **100100 must be a child of Wazuh's built-in rule 99000**
+  (`<if_sid>99000</if_sid>`), and 100110–100130 children of 100100. Wazuh ships 99000
+  ("Amazon Security Lake rules grouped", level 0) matching any json-decoded event that carries
+  `activity_id` and `category_uid` — i.e. every OCSF event, so every VEYRA event. A sibling rule
+  loses to it, and because 99000 is level 0 no alert is generated at all. The event payload is
+  unaffected; only the rule tree changes. Verified on Wazuh 4.14.8 with `wazuh-logtest`.
 
 | Rule id | Level | Matches |
 |---|---|---|

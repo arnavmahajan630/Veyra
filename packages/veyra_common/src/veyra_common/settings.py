@@ -63,6 +63,10 @@ class Settings(BaseSettings):
     raw_partitions_per_vendor: int = 3
     norm_partitions: int = 3
     kafka_replication: int = 1
+    # librdkafka refuses a transactional producer whose delivery timeout exceeds the
+    # transaction timeout, so both are knobs and the default keeps them equal.
+    kafka_delivery_timeout_ms: int = 120_000
+    kafka_txn_timeout_ms: int = 120_000
 
     # ------------------------------------------------------------------ kafka / infra endpoints
     kafka_bootstrap: str = "kafka:9092"
@@ -133,9 +137,13 @@ class Settings(BaseSettings):
     route_breaker_fails: int = 5
     route_fsync_ms: int = 200
     wazuh_mode: WazuhMode = "local"
-    # Image defaults; S2 rotates them with wazuh-passwords-tool.
+    # Image defaults; S2 rotates them with wazuh-passwords-tool. The dashboard and API
+    # values are consumed by compose, but they live here so a typo in a profile fails a
+    # test instead of silently doing nothing.
     wazuh_indexer_user: str = "admin"
     wazuh_indexer_password: str = "admin"
+    wazuh_dashboard_password: str = "kibanaserver"
+    wazuh_api_password: str = "MyS3cr37P450r.*-"
     wazuh_remote_host: str = ""
     wazuh_remote_port: int = 514
 
