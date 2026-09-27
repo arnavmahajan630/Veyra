@@ -1,6 +1,25 @@
-"""Placeholder package created in S0 so the workspace resolves.
+"""VEYRA Log Contracts: models, compiler (C2) and, later, golden tests and drafting."""
 
-Owner fills this in their own phase; see docs/plan for the phase files.
-"""
+from veyra_contracts.compiler import (
+    COMPILER_VERSION,
+    EPOCH,
+    CompiledContract,
+    CompiledTemplate,
+    MapEntry,
+    compile,
+)
+from veyra_contracts.errors import ContractError
+from veyra_contracts.models import ContractYaml
 
 __version__ = "0.1.0"
+
+__all__ = [
+    "COMPILER_VERSION",
+    "EPOCH",
+    "CompiledContract",
+    "CompiledTemplate",
+    "ContractError",
+    "ContractYaml",
+    "MapEntry",
+    "compile",
+]
