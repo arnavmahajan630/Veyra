@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import asyncio
 import json
-from collections.abc import AsyncIterator, Awaitable, Callable
+from collections.abc import AsyncGenerator, Awaitable, Callable
 from typing import Any
 
 Event = dict[str, Any]
@@ -57,7 +57,7 @@ async def sse_stream(
     hub: EventHub,
     heartbeat_s: float,
     is_disconnected: Callable[[], Awaitable[bool]],
-) -> AsyncIterator[bytes]:
+) -> AsyncGenerator[bytes, None]:
     queue = hub.subscribe()
     try:
         yield b": connected\n\n"

@@ -45,5 +45,5 @@ async def test_sse_stream_emits_events_and_heartbeats_then_unsubscribes() -> Non
         b'event: contract\ndata: {"type": "contract", "data": {"id": "c1"}}\n\n'
     )
     assert await asyncio.wait_for(anext(stream), 1) == b": heartbeat\n\n"
-    await stream.aclose()  # type: ignore[attr-defined]  # AsyncIterator lacks aclose; runtime is a generator
+    await stream.aclose()
     assert hub.subscriber_count == 0
