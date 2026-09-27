@@ -2,7 +2,7 @@
 
 ```
 track: A   owner: A   status: todo
-contracts: v1.1
+contracts: v1.2
 depends_on: [A3 (minimal part), A5 (revisions)]   unblocks: [CP1 (minimal), CP3, S2 numbers slide]
 consumes: [IF-NORM-EVENT, IF-ROUTES, IF-CONTROL (routes), IF-KEYPROVIDER (hmac key), IF-WAZUH]
 provides: [IF-RECEIPT, wazuh/ rules and config, bench reports]
@@ -34,6 +34,8 @@ v1 refs: §10.1, ADR-05, §13 (SIEM outage). Demo beats 3–4.
   - The masking key comes from `data/keys/route_hmac` (created by B's KeyProvider bootstrap or by the router itself on first boot; coordinate in the changelog).
 - **Sinks:**
   - `ndjson_file`: buffered append, fsync every `fsync_ms`, rotate at `VEYRA_SINK_ROTATE_BYTES` (Wazuh follows the file name; test rotation);
+    <!-- synced from A1 --> if you add a Vector-side sink anywhere, note that a templated topic
+    disables its healthcheck, and a disk buffer has a 256 MiB + 32 B floor.
   - `syslog_tcp`: RFC 5425 octet-counting, reconnect with exponential backoff, circuit breaker (open after N failures, half-open probe);
   - `http_json`.
 - **Receipts:** IF-RECEIPT per `(event, route)` to `receipts`: `delivered` after flush, `filtered` when the filter rejects, `failed` on permanent failure.

@@ -1,6 +1,6 @@
 # 02 — CONTRACTS (shared interfaces)
 
-**Contract version: v1.1**. Bump rules are in §0. Every section has an ID (`IF-*`). Phase files reference these IDs. When you change a section, grep for its ID across the plan folder and update every file that references it.
+**Contract version: v1.2**. Bump rules are in §0. Every section has an ID (`IF-*`). Phase files reference these IDs. When you change a section, grep for its ID across the plan folder and update every file that references it.
 
 ---
 
@@ -179,7 +179,7 @@ Resolution (v1 §6 step 2: network + message fingerprint) tries two lookups in o
 
 If neither matches, the event is unregistered. The `syslog_host` fingerprint lets one demo sender container simulate many devices. HTTP sources are resolved by API key in the gateway, not through this table.
 
-**Reload mechanism:** control-api writes `sources.csv.tmp`, renames it atomically, then touches `edge/vector/reload.stamp`. That file is included in Vector's watched config so it triggers a reload. A1 must verify this works with the pinned Vector version and document the actual mechanism here.
+**Reload mechanism (verified in A1, Vector 0.58.0):** control-api writes `sources.csv.tmp` and renames it atomically — that part matters, it is what stops Vector reading a half-written file. <!-- synced from A1 --> Vector **watches the enrichment-table CSV itself** when started with `--watch-config`, so a new row is live within 5 s with **no** `reload.stamp` touch and **no** container restart; the stamp file is kept as an inert hook in case a future version stops watching enrichment tables. The A1 fallback (control-api restarting the edge over the Docker API) is therefore not needed on this version. Measurements and the caveat that a reload drops in-flight events are in `edge/RELOAD.md`; batch inventory writes rather than rewriting per source.
 
 ---
 

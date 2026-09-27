@@ -2,7 +2,7 @@
 
 ```
 track: B   owner: B   status: todo
-contracts: v1.1
+contracts: v1.2
 depends_on: [S0]     unblocks: [CP1, B4, C5]
 consumes: [IF-ENVELOPE, IF-NORM-EVENT, IF-LINEAGE, IF-VAULT-INDEX, IF-RECEIPT, IF-DLQ, IF-SHADOW, IF-AUDIT]
 provides: [IF-CH-SCHEMA, packages/veyra_lineage.queries]

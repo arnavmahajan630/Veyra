@@ -2,7 +2,7 @@
 
 ```
 track: A   owner: A   status: todo
-contracts: v1.1
+contracts: v1.2
 depends_on: [S0]                  unblocks: [CP1, A4, A5, A6, C2 (golden tests), B1]
 consumes: [IF-ENVELOPE, IF-CONTROL (contract:*, vocab:*, enrich:*), IF-CONTRACT-COMPILED, IF-OCSF-SUBSET, IF-TOPICS]
 provides: [IF-ENGINE-LIB, IF-NORM-EVENT, IF-ULPF, IF-LINEAGE, IF-DLQ, IF-TEMPLATE-SIG]
@@ -112,6 +112,13 @@ Write the *content* of `linux_sshd.yaml` and `acme_ngfw_cef.yaml` (IF-CONTRACT-Y
 - [ ] 5. map, time, enrich, validate, build, serialize, DLQ.
 - [ ] 6. The linux_sshd and acme_ngfw_cef contracts + golden tests (≥ 20 samples each).
 - [ ] 7. Normalizer service with transactions, the control follower and metrics.
+  <!-- synced from A1 --> `raw.*` now carries real vendors (`linux`, `acme_ngfw`, `custom`,
+  `unregistered`), so the `^raw\..*` pattern subscription spans several topics; fill
+  `ulpf.raw_ref` from the Kafka coordinates of the message in hand, not from the envelope.
+  Unregistered events arrive with no contract — the tier-3 path A4 finishes. For integration
+  tests, copy A1's two patterns: tag payloads with a unique marker, and pin the consumer to
+  captured end offsets with `assign()` rather than `subscribe()` (a `latest` pattern subscription
+  can rebalance after the send and skip the event).
 - [ ] 8. **Determinism test:** normalize the corpus twice, in two processes → byte-identical `serialize()` output.
 - [ ] 9. **Restart test:** kill -9 during a stream → no duplicates or gaps in `lineage` by `(event_uid, revision)`.
 - [ ] 10. **Microbench:** `tools/bench/engine_bench.py` reports tier-1 EPS for single-core sshd and CEF. Record it in the report.

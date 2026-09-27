@@ -2,7 +2,7 @@
 
 ```
 track: C   owner: C   status: todo
-contracts: v1.1
+contracts: v1.2
 depends_on: [C2, C3, A4]     unblocks: [CP3, C6, Beats 2 and 4]
 consumes: [IF-LLM-DRAFT, IF-ENGINE-LIB (extract_tokens, mask, peel, provenance_check, backtest), IF-OCSF-SUBSET]
 provides: [drafts, POST /onboarding/analyze, GET/PATCH /drafts/*, make bench-llm, make llm-warm]

@@ -2,7 +2,7 @@
 
 ```
 track: C   owner: C   status: todo
-contracts: v1.1
+contracts: v1.2
 depends_on: [C1, A3 (veyra_engine real; stub OK to start)]   unblocks: [CP2, CP3, C3, C4, C6, A5]
 consumes: [IF-CONTRACT-YAML, IF-OCSF-SUBSET, IF-ENGINE-LIB, IF-API-EVIDENCE (raw fetch, template events), IF-TOPICS (replay.raw)]
 provides: [IF-CONTRACT-COMPILED, IF-API-CONTROL (contracts, replay), IF-CONTROL (contract:* with candidate)]

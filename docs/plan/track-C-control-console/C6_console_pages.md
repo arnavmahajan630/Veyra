@@ -2,7 +2,7 @@
 
 ```
 track: C   owner: C   status: todo
-contracts: v1.1
+contracts: v1.2
 depends_on: [C2, C3, C4, C5]     unblocks: [CP3, Beats 2 and 4]
 consumes: [IF-API-CONTROL, IF-API-EVIDENCE (backtest examples, template events), IF-LLM-DRAFT, IF-ULPF]
 provides: [/onboard, /contracts, /contracts/:id, /drift, /drift/:id (draft review), /delivery, /audit]

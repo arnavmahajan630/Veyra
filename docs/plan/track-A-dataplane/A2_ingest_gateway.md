@@ -2,7 +2,7 @@
 
 ```
 track: A   owner: A   status: todo
-contracts: v1.1
+contracts: v1.2
 depends_on: [S0, A1 (envelope parity vectors)]      unblocks: [CP3, Beat 2–3]
 consumes: [IF-CONTROL (apikey:*, source:*), IF-TOPICS, IF-NAMING]
 provides: [IF-ENVELOPE (gateway producer)]
@@ -47,6 +47,11 @@ This is the "org gets an API doc + key" part of the onboarding story (Beat 2) an
 ## Tasks
 - [ ] 1. Service skeleton on `ServiceApp`; control-topic follower building the key and source registries (with a mock publisher script until C1 lands: `tools/mock_control_publish.py`).
 - [ ] 2. `veyra_common.framing` (shared with A1's rule, pure Python) and `veyra_common.envelope.stamp`; parity tests against the A1 vectors.
+  <!-- synced from A1 --> Both already exist and are already the shared contract with the edge:
+  `tests/int/test_edge.py::test_edge_and_stamp_agree_on_the_same_bytes` and
+  `::test_parity_vectors_from_s0_still_hold` lock the VRL and the Python together. Reuse
+  `framing.split_lines` for the HEC raw endpoint instead of re-implementing the continuation rule,
+  and run those two tests after touching either side.
 - [ ] 3. The three endpoints with auth, quotas and durable acks.
 - [ ] 4. Client compatibility test: configure a throwaway Vector with a `splunk_hec_logs` sink pointed at the gateway, and confirm events arrive. This proves "point your existing shipper here".
 - [ ] 5. Integration tests: auth ok, bad key 401, revoked key 401 within 2 s of revocation, quota 429, multi-line HEC event, batch custody.

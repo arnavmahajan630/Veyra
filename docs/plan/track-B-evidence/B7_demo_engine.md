@@ -2,7 +2,7 @@
 
 ```
 track: B   owner: B   status: todo
-contracts: v1.1
+contracts: v1.2
 depends_on: [B5, C1 (/internal/reset, /internal/demo/last-key), A6 (saved objects)]   unblocks: [CP4, S2]
 consumes: [IF-API-DEMO, IF-API-CONTROL (internal), IF-PORTS, IF-TOPICS, IF-CH-SCHEMA, IF-WAZUH]
 provides: [services/demo_engine, demo/scenarios/*.yaml, make demo-*, console /demo page]

@@ -1,48 +1,49 @@
 # Ownership per docs/plan/01_TEAM_GUIDE.md §1. You may read anything; you change only
 # what you own. To change someone else's directory, open a changelog REQUEST @X.
 #
-# Replace the placeholder handles once the repo has a remote.
+# Handles: A is @arnavmahajan630 (repo owner). B and C are placeholders until their GitHub
+# accounts are known — replace @veyra-person-b / @veyra-person-c then.
 
 # --- Shared (S0): compose, profiles, common package, Makefile, CI ---------------
-/compose/                      @person-a @person-b @person-c
-/profiles/                     @person-a @person-b @person-c
-/docker/                       @person-a @person-b @person-c
-/packages/veyra_common/        @person-a @person-b @person-c
-/Makefile                      @person-a @person-b @person-c
-/Caddyfile                     @person-a @person-b @person-c
-/tools/plan_check.py           @person-a @person-b @person-c
-/tools/doctor.py               @person-a @person-b @person-c
-/.github/                      @person-a @person-b @person-c
+/compose/                      @arnavmahajan630 @veyra-person-b @veyra-person-c
+/profiles/                     @arnavmahajan630 @veyra-person-b @veyra-person-c
+/docker/                       @arnavmahajan630 @veyra-person-b @veyra-person-c
+/packages/veyra_common/        @arnavmahajan630 @veyra-person-b @veyra-person-c
+/Makefile                      @arnavmahajan630 @veyra-person-b @veyra-person-c
+/Caddyfile                     @arnavmahajan630 @veyra-person-b @veyra-person-c
+/tools/plan_check.py           @arnavmahajan630 @veyra-person-b @veyra-person-c
+/tools/doctor.py               @arnavmahajan630 @veyra-person-b @veyra-person-c
+/.github/                      @arnavmahajan630 @veyra-person-b @veyra-person-c
 
 # --- A: data plane --------------------------------------------------------------
-/edge/                         @person-a
-/packages/veyra_engine/        @person-a
-/services/ingest_gateway/      @person-a
-/services/normalizer/          @person-a
-/services/router/              @person-a
-/wazuh/                        @person-a
-/tools/bench/throughput.py     @person-a
+/edge/                         @arnavmahajan630
+/packages/veyra_engine/        @arnavmahajan630
+/services/ingest_gateway/      @arnavmahajan630
+/services/normalizer/          @arnavmahajan630
+/services/router/              @arnavmahajan630
+/wazuh/                        @arnavmahajan630
+/tools/bench/throughput.py     @arnavmahajan630
 
 # --- B: evidence, lineage, demo -------------------------------------------------
-/packages/veyra_evidence/      @person-b
-/packages/veyra_lineage/       @person-b
-/services/archiver/            @person-b
-/services/integrity/           @person-b
-/services/lineage_indexer/     @person-b
-/services/evidence_api/        @person-b
-/services/demo_engine/         @person-b
-/demo/                         @person-b
-/console/src/pages/lineage/    @person-b
-/console/src/pages/evidence/   @person-b
-/console/src/pages/demo/       @person-b
+/packages/veyra_evidence/      @veyra-person-b
+/packages/veyra_lineage/       @veyra-person-b
+/services/archiver/            @veyra-person-b
+/services/integrity/           @veyra-person-b
+/services/lineage_indexer/     @veyra-person-b
+/services/evidence_api/        @veyra-person-b
+/services/demo_engine/         @veyra-person-b
+/demo/                         @veyra-person-b
+/console/src/pages/lineage/    @veyra-person-b
+/console/src/pages/evidence/   @veyra-person-b
+/console/src/pages/demo/       @veyra-person-b
 
 # --- C: control plane, console --------------------------------------------------
-/packages/veyra_contracts/     @person-c
-/services/control_api/         @person-c
-/services/drift_worker/        @person-c
-/contracts-repo/               @person-c
-/console/                      @person-c
-/tools/bench/llm_bench.py      @person-c
+/packages/veyra_contracts/     @veyra-person-c
+/services/control_api/         @veyra-person-c
+/services/drift_worker/        @veyra-person-c
+/contracts-repo/               @veyra-person-c
+/console/                      @veyra-person-c
+/tools/bench/llm_bench.py      @veyra-person-c
 
 # --- The plan itself: anyone may sync an interface into it (01_TEAM_GUIDE §6.2) --
-/docs/plan/                    @person-a @person-b @person-c
+/docs/plan/                    @arnavmahajan630 @veyra-person-b @veyra-person-c

@@ -17,6 +17,45 @@ ACTION REQUIRED:
 
 ---
 
+## 2026-09-27 15:40 — A1 — CLARIFICATION  (contracts v1.1 → v1.2)
+TYPE: CLARIFICATION
+What:     IF-INVENTORY's reload mechanism, measured on the pinned Vector 0.58.0: Vector watches
+          the enrichment-table CSV itself under --watch-config, so a new row resolves within 5 s
+          with NO reload.stamp touch and NO container restart. The atomic write-then-rename
+          requirement stands; the stamp file stays as an inert hook. The A1 fallback (control-api
+          restarting the edge via the Docker API) is not needed on this version.
+          Caveat: a config reload tears the topology down and rebuilds it, and events arriving in
+          that window are lost, so inventory writes should be batched.
+Why:      A1 had to verify the mechanism rather than assume it; the answer is simpler than planned
+          and removes work from C1.
+IDs:      IF-INVENTORY
+Files patched: 02_CONTRACTS.md (IF-INVENTORY + header v1.2), every plan file's contracts header,
+          track-A-dataplane/A1_edge_collectors.md (implementation notes), 06_STATUS_BOARD.md,
+          reports/A1.md, edge/RELOAD.md (new).
+ACTION REQUIRED:
+  - [ ] @C In C1, write sources.csv.tmp + atomic rename; skip the reload.stamp touch (harmless if
+        kept) and do not restart the edge container. Batch inventory changes: a reload costs
+        in-flight events.
+  - [ ] @B In B7's demo senders, give the containers static addresses on veyra_net if you want the
+        (listener, peer_ip) resolution path exercised; from the host, peer_ip is the docker
+        gateway, so only the syslog_host path is reachable.
+
+## 2026-09-27 15:40 — A1 — DECISION  (contracts v1.2)
+TYPE: DECISION
+What:     Two Vector facts now encoded in code and profiles, not folklore: a disk buffer must be
+          >= 256 MiB + 32 B (VEYRA_EDGE_BUFFER_BYTES is 268435488 and edge/render.py clamps to
+          that floor — the old 268435456 crash-looped the edge), and a sink with a templated topic
+          cannot run a healthcheck, so the kafka sink's healthcheck is disabled and container
+          liveness comes from Vector's own API.
+          Also: VRL length() is BYTE length, strlen() is characters. raw_len must use length(),
+          or ulpf.field_offsets would be wrong for every non-ASCII source (the OT historian).
+Why:      Each cost a debugging round; all three are pinned by tests now.
+IDs:      none (no interface changed)
+Files patched: profiles/*.env, packages/veyra_common/src/veyra_common/settings.py, edge/render.py,
+          edge/vector/*, reports/A1.md.
+ACTION REQUIRED:
+  - [ ] @A In A6, when adding a second sink, remember the templated-topic healthcheck rule.
+
 ## 2026-09-27 05:10 — S0 — CLARIFICATION  (contracts v1.1)
 TYPE: CLARIFICATION
 What:     IF-WAZUH: rule 100100 must be a **child of Wazuh's built-in rule 99000**
@@ -110,8 +149,9 @@ ACTION REQUIRED:
   - [ ] @C Review and adopt yours before starting C1: pyproject.toml workspace, CODEOWNERS,
         .pre-commit-config.yaml, .github/workflows/ci.yml, tools/plan_check.py, contracts-repo/
         seed contracts, and the Ollama host setup (model qwen2.5:3b).
-  - [ ] @A Fix the CODEOWNERS placeholder handles (@person-a/@person-b/@person-c) once the repo
-        has a remote.
+  - [x] @A Fix the CODEOWNERS placeholder handles (@person-a/@person-b/@person-c) once the repo
+        has a remote.  <!-- done in A1: A is @arnavmahajan630; B and C stay placeholders until
+        their GitHub accounts are known -->
 
 ## 2026-09-26 — PLAN — DECISION  (contracts v1.0)
 What:     Initial plan published. Decisions D1–D16 in 00_MASTER §8. Contracts v1.0.
