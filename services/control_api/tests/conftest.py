@@ -1,5 +1,5 @@
 """Shared fixtures: settings rooted in tmp_path, a SQLite engine, a fake Kafka producer,
-a controllable clock and a registry seeded from the separate contracts repository."""
+a controllable clock, a seeded contracts-repo, and the whole app in-process."""
 
 from __future__ import annotations
 
@@ -11,8 +11,11 @@ from pathlib import Path
 from typing import Any
 
 import pytest
+from control_api.app import create_app
+from control_api.context import AppContext, build_context, first_boot
 from control_api.contracts_repo import ensure_repo
 from control_api.db import init_db, make_engine
+from fastapi.testclient import TestClient
 from sqlalchemy.engine import Engine
 from sqlmodel import Session as DbSession
 
@@ -116,3 +119,28 @@ def seeded_repo(cfg: Settings) -> Path:
         shutil.copy(path, target / path.name)
     ensure_repo(cfg.contracts_repo)
     return cfg.contracts_repo
+
+
+@pytest.fixture
+def ctx(
+    cfg: Settings, seeded_repo: Path, producer: FakeProducer, clock: FakeClock
+) -> Iterator[AppContext]:
+    context = build_context(cfg, producer, clock=clock)
+    first_boot(context)
+    yield context
+    context.engine.dispose()
+
+
+@pytest.fixture
+def client(ctx: AppContext) -> Iterator[TestClient]:
+    with TestClient(create_app(ctx)) as test_client:
+        yield test_client
+
+
+@pytest.fixture
+def login(client: TestClient) -> Callable[..., None]:
+    def _login(email: str, password: str = "veyra-demo") -> None:
+        response = client.post("/auth/login", json={"email": email, "password": password})
+        assert response.status_code == 200, response.text
+
+    return _login
