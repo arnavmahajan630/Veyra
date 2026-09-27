@@ -19,10 +19,21 @@ class Capture:
     type: str
 
 
-# token type after ':' -> (capture type name, regex body)
+# octet 0-255, no leading-zero ambiguity beyond what the alternation order implies
+_IP_OCTET = r"(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)"
+_IPV4 = rf"{_IP_OCTET}(?:\.{_IP_OCTET}){{3}}"
+_IPV6_FULL = r"(?:[0-9A-Fa-f]{1,4}:){7}[0-9A-Fa-f]{1,4}"
+_IPV6_COMPRESSED = (
+    r"(?:[0-9A-Fa-f]{1,4}(?::[0-9A-Fa-f]{1,4})*)?::(?:[0-9A-Fa-f]{1,4}(?::[0-9A-Fa-f]{1,4})*)?"
+)
+_IP_PATTERN = f"(?:{_IPV4}|{_IPV6_FULL}|{_IPV6_COMPRESSED})"
+
+# default (untyped) capture
+_DEFAULT_TYPE: tuple[str, str] = ("string", r"\S+")
+
+# explicit token type after ':' -> (capture type name, regex body)
 _TYPES: dict[str, tuple[str, str]] = {
-    "": ("string", r"\S+"),
-    "ip": ("ip", r"\d{1,3}(?:\.\d{1,3}){3}|[0-9A-Fa-f]*:[0-9A-Fa-f:.]+"),
+    "ip": ("ip", _IP_PATTERN),
     "int": ("int", r"-?\d+"),
     "word": ("word", r"[\w.\-]+"),
     "rest": ("rest", r".*"),
@@ -59,7 +70,7 @@ def compile_pattern(pattern: str) -> tuple[str, list[Capture]]:
     try:
         re2.compile(regex)
     except Exception as exc:  # re2 raises its own error type
-        raise ContractError(f"pattern is not valid RE2: {exc}") from exc
+        raise ContractError(f"pattern is not valid RE2: {exc}", column=1) from exc
     return regex, captures
 
 
@@ -80,19 +91,23 @@ def _literal_regex(text: str) -> str:
 def _token_regex(body: str, column: int, captures: list[Capture]) -> str:
     if body == "*":
         return r"\S+"
-    name, _, kind = body.partition(":")
+    name, sep, kind = body.partition(":")
     if not (name.isascii() and name.isidentifier()) or name.startswith("__"):
         raise ContractError(
             f"invalid capture name {name!r} in <{body}> at pattern column {column}", column=column
         )
-    if kind not in _TYPES:
-        allowed = sorted(k for k in _TYPES if k)
-        raise ContractError(
-            f"unknown capture type {kind!r} in <{body}>; expected one of {allowed}", column=column
-        )
+    if not sep:
+        type_name, body_regex = _DEFAULT_TYPE
+    else:
+        if kind not in _TYPES:
+            allowed = sorted(_TYPES)
+            raise ContractError(
+                f"unknown capture type {kind!r} in <{body}>; expected one of {allowed}",
+                column=column,
+            )
+        type_name, body_regex = _TYPES[kind]
     if any(c.name == name for c in captures):
         raise ContractError(f"duplicate capture <{name}> at pattern column {column}", column=column)
-    type_name, body_regex = _TYPES[kind]
     captures.append(Capture(name=name, type=type_name))
     if kind == "quoted":
         return f'"(?P<{name}>{body_regex})"'

@@ -54,7 +54,13 @@ def test_typed_tokens() -> None:
     assert match("msg <v:rest>", "msg anything at all") == {"v": "anything at all"}
     assert match("<v:quoted>", '"two words"') == {"v": "two words"}
     assert match("<v:ip>", "fe80::1") == {"v": "fe80::1"}
+    assert match("<v:ip>", "103.21.4.77") == {"v": "103.21.4.77"}
     assert match("<v:ip>", "not-an-ip") is None
+    assert match("<v:ip>", "999.999.999.999") is None
+    assert match("<v:ip>", "aa:bb:cc:dd:ee:ff") is None
+    assert match("<v:ip>", "::1") == {"v": "::1"}
+    assert match("<v:ip>", "2001:db8:0:0:0:0:2:1") == {"v": "2001:db8:0:0:0:0:2:1"}
+    assert match("<v:ip>", "255.255.255.255") == {"v": "255.255.255.255"}
 
 
 def test_anonymous_token_is_not_a_capture() -> None:
@@ -81,6 +87,7 @@ def test_non_ascii_literals_compile_and_match() -> None:
     [
         ("a <user", "unterminated", 3),
         ("<v:float>", "unknown capture type 'float'", 1),
+        ("<a:>", "unknown capture type ''", 1),
         ("<a> <a>", "duplicate capture <a>", 5),
         ("<1bad>", "invalid capture name '1bad'", 1),
         ("<__text>", "invalid capture name '__text'", 1),
