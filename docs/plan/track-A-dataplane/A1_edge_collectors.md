@@ -2,7 +2,7 @@
 
 ```
 track: A   owner: A   status: done
-contracts: v1.2
+contracts: v1.3
 depends_on: [S0]                  unblocks: [CP1, B2, B1]
 consumes: [IF-INVENTORY, IF-TOPICS, IF-PORTS, IF-NAMING]
 provides: [IF-ENVELOPE (edge producers)]

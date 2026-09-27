@@ -1,8 +1,8 @@
 # A3 — Engine core + normalizer service (tiers 1, 2, 4; peeling; transactions)
 
 ```
-track: A   owner: A   status: todo
-contracts: v1.2
+track: A   owner: A   status: done
+contracts: v1.3
 depends_on: [S0]                  unblocks: [CP1, A4, A5, A6, C2 (golden tests), B1]
 consumes: [IF-ENVELOPE, IF-CONTROL (contract:*, vocab:*, enrich:*), IF-CONTRACT-COMPILED, IF-OCSF-SUBSET, IF-TOPICS]
 provides: [IF-ENGINE-LIB, IF-NORM-EVENT, IF-ULPF, IF-LINEAGE, IF-DLQ, IF-TEMPLATE-SIG]
@@ -105,13 +105,13 @@ For tier ≥ 2 only. `reason_code` per IF-DLQ. `text_masked` comes from the `vey
 Write the *content* of `linux_sshd.yaml` and `acme_ngfw_cef.yaml` (IF-CONTRACT-YAML) under `packages/veyra_engine/tests/contracts/`, with golden samples and expected outputs from the corpus. Until C2 ships the real compiler, use `veyra_engine.testing.mini_compile()`, a minimal compiler for tests only. C3 imports these files into the library.
 
 ## Tasks
-- [ ] 1. decode + offset map; tests with ASCII, UTF-8 Hindi, Latin-1 and invalid bytes.
-- [ ] 2. `spanjson` scanner with exhaustive tests (escapes, unicode escapes, nested, trailing text, malformed → error).
-- [ ] 3. Peel layers syslog, json, kv, cef, leef, csv, regex, base64; `peel()` API.
-- [ ] 4. template match + `template_sig` (test vectors).
-- [ ] 5. map, time, enrich, validate, build, serialize, DLQ.
-- [ ] 6. The linux_sshd and acme_ngfw_cef contracts + golden tests (≥ 20 samples each).
-- [ ] 7. Normalizer service with transactions, the control follower and metrics.
+- [x] 1. decode + offset map; tests with ASCII, UTF-8 Hindi, Latin-1 and invalid bytes.
+- [x] 2. `spanjson` scanner with exhaustive tests (escapes, unicode escapes, nested, trailing text, malformed → error).
+- [x] 3. Peel layers syslog, json, kv, cef, leef, csv, regex, base64; `peel()` API.
+- [x] 4. template match + `template_sig` (test vectors).
+- [x] 5. map, time, enrich, validate, build, serialize, DLQ.
+- [x] 6. The linux_sshd and acme_ngfw_cef contracts + golden tests (≥ 20 samples each).
+- [x] 7. Normalizer service with transactions, the control follower and metrics.
   <!-- synced from A1 --> `raw.*` now carries real vendors (`linux`, `acme_ngfw`, `custom`,
   `unregistered`), so the `^raw\..*` pattern subscription spans several topics; fill
   `ulpf.raw_ref` from the Kafka coordinates of the message in hand, not from the envelope.
@@ -119,16 +119,16 @@ Write the *content* of `linux_sshd.yaml` and `acme_ngfw_cef.yaml` (IF-CONTRACT-Y
   tests, copy A1's two patterns: tag payloads with a unique marker, and pin the consumer to
   captured end offsets with `assign()` rather than `subscribe()` (a `latest` pattern subscription
   can rebalance after the send and skip the event).
-- [ ] 8. **Determinism test:** normalize the corpus twice, in two processes → byte-identical `serialize()` output.
-- [ ] 9. **Restart test:** kill -9 during a stream → no duplicates or gaps in `lineage` by `(event_uid, revision)`.
-- [ ] 10. **Microbench:** `tools/bench/engine_bench.py` reports tier-1 EPS for single-core sshd and CEF. Record it in the report.
+- [x] 8. **Determinism test:** normalize the corpus twice, in two processes → byte-identical `serialize()` output.
+- [x] 9. **Restart test:** kill -9 during a stream → no duplicates or gaps in `lineage` by `(event_uid, revision)`.
+- [x] 10. **Microbench:** `tools/bench/engine_bench.py` reports tier-1 EPS for single-core sshd and CEF. Record it in the report.
 
 ## Acceptance criteria
-- [ ] AC1: Corpus sshd/CEF through Kafka → tier 1, schema-valid, `field_offsets` correct for every capture (checked by comparing raw bytes).
-- [ ] AC2: The T1 authsrv line against a test contract (syslog → json → template) → tier 1, with `user.name` offset pointing at `r.patil` inside the JSON string.
-- [ ] AC3: `garbage.bin` lines → tier 4, no exception, DLQ records with `reason_code`.
-- [ ] AC4: The determinism and restart tests pass.
-- [ ] AC5: Engine microbench ≥ 1500 EPS/core for tier 1 on the laptop (record the actual number).
+- [x] AC1: Corpus sshd/CEF through Kafka → tier 1, schema-valid, `field_offsets` correct for every capture (checked by comparing raw bytes).
+- [x] AC2: The T1 authsrv line against a test contract (syslog → json → template) → tier 1, with `user.name` offset pointing at `r.patil` inside the JSON string.
+- [x] AC3: `garbage.bin` lines → tier 4, no exception, DLQ records with `reason_code`.
+- [x] AC4: The determinism and restart tests pass.
+- [x] AC5: Engine microbench ≥ 1500 EPS/core for tier 1 on the laptop (record the actual number).
 
 ## Settings
 `VEYRA_NORM_BATCH_MAX` (500), `VEYRA_NORM_BATCH_MS` (100), `VEYRA_PEEL_MAX_DEPTH`, `VEYRA_ENGINE_BUDGET_US`, `VEYRA_MAX_EVENT_BYTES`.
@@ -141,7 +141,43 @@ Write the *content* of `linux_sshd.yaml` and `acme_ngfw_cef.yaml` (IF-CONTRACT-Y
 | RE2 Python binding install issues | `google-re2` wheels exist for Linux and macOS; if blocked, use the `re` module with a strict pattern whitelist and the per-event budget (log a DEVIATION) |
 
 ## Implementation notes
-_(filled after execution)_
+
+Done 2026-09-27; evidence and per-AC results in `reports/A3.md`. All five ACs pass, with
+**2732 EPS/core** on the slowest tier-1 shape against a 1500 target.
+
+**The stub's surface survived intact.** `tests/test_engine_surface.py` was written in S0 against the
+stub and still passes, with the only edits being three `decode` assertions (it now returns a
+`Decoded` carrying the char→byte map). That was the point of freezing the signatures, and it means
+Track C can keep building against them.
+
+**Measure before optimizing, then follow through.** This phase's own risk list said "jsonschema is
+slow — cache validators and **measure**". Measured: 216 µs/event, roughly a third of the pipeline.
+The same vendored schema compiled with `fastjsonschema` costs ~10 µs and rejects the same bad enum,
+wrong type and missing-required cases; plain `jsonschema` is kept to produce the full error list when
+an event really is invalid. Two other things the profiler found were plain bugs of mine: CEF
+extension values were being truncated at whitespace (so `rt=Sep 26 2026 14:05:00` became `Sep`, which
+silently broke time parsing on every CEF event — RE2 has no lookahead, so the fix is a single-pass
+scan over the `key=` boundaries), and that scan originally walked the text twice.
+
+**Purity is proven, not asserted.** `test_normalize_never_reads_the_clock` makes `time.time`,
+`time.time_ns`, `datetime.now` and `datetime.utcnow` all raise, then normalizes the whole corpus.
+Anything reaching for the clock fails the test loudly, which is a stronger guarantee than comparing
+two outputs — and it is what makes the golden snapshots honest.
+
+**The control follower nearly shipped a silent poison.** First implementation treated "poll returned
+nothing" as "the topic is empty", so a restarted normalizer declared itself ready with **zero
+contracts** and turned every event into tier 4 — events keep flowing, nothing looks broken, and the
+output is useless. That is the first row of S1's "common failure modes" table, hit for real. It now
+waits until every assigned partition's position reaches the high watermark captured at startup, with
+the idle timer only as a fallback for a genuinely empty topic, and `services/normalizer/tests/
+test_control.py` pins the behaviour with a fake consumer that is unassigned for its first polls.
+
+**Tier 3 is deliberately still tier 4.** `_tier3_placeholder` holds the slot with the correct DLQ
+reason and the peeled fields preserved in `unmapped`; A4 fills it.
+
+**`linux_sshd@1` only covers 3 of the sshd shapes in the corpus.** 13 of 24 lines land in the DLQ as
+`no_template_match` — correct behaviour, and precisely what C3's drift detection is for. A did not
+extend `contracts-repo/` because that is C's directory; raised as a `REQUEST @C` instead.
 
 <!-- synced from S0 --> The stub you are replacing lives in `packages/veyra_engine/src/veyra_engine/`
 (`engine.py`, `tokens.py`, `types.py`) and its public names are frozen and already imported by tests:

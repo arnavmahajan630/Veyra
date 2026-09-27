@@ -2,7 +2,7 @@
 
 ```
 track: A   owner: A   status: todo
-contracts: v1.2
+contracts: v1.3
 depends_on: [A3 (minimal part), A5 (revisions)]   unblocks: [CP1 (minimal), CP3, S2 numbers slide]
 consumes: [IF-NORM-EVENT, IF-ROUTES, IF-CONTROL (routes), IF-KEYPROVIDER (hmac key), IF-WAZUH]
 provides: [IF-RECEIPT, wazuh/ rules and config, bench reports]
@@ -26,6 +26,9 @@ v1 refs: §10.1, ADR-05, §13 (SIEM outage). Demo beats 3–4.
 - **Filter:** tenants, tiers, classes, sources.
 - **Format:**
   - `ocsf_json` = the event plus convenience fields `veyra.{tier,class,tenant,source,revision}`;
+    <!-- synced from A3 --> all five come straight off `ulpf` (`tier`, `contract`, `tenant_id`,
+    `source_id`, `revision`), which is complete on every event including tier 4. `lineage` rows also
+    carry `search_terms` (observables plus user / IP / hostname) if the router ever needs them.
   - stretch: `cef`, `leef`.
 - **Masking:**
   - `hmac` = HMAC-SHA256(route key, value), truncated to 16 hex, prefixed `h_`;

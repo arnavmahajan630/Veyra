@@ -1,6 +1,6 @@
 # 02 — CONTRACTS (shared interfaces)
 
-**Contract version: v1.2**. Bump rules are in §0. Every section has an ID (`IF-*`). Phase files reference these IDs. When you change a section, grep for its ID across the plan folder and update every file that references it.
+**Contract version: v1.3**. Bump rules are in §0. Every section has an ID (`IF-*`). Phase files reference these IDs. When you change a section, grep for its ID across the plan folder and update every file that references it.
 
 ---
 
@@ -40,6 +40,7 @@ Exact digests of the pulled images are recorded in `reports/S0.md`.
 | Caddy | 2.x | `caddy:2.11.4-alpine` |
 | Drain3 | latest | pinned by C3 (not installed in S0; no S0 code imports it) |
 | google-re2 | latest | 1.1.20251105 |
+| fastjsonschema | latest | 2.21.2 <!-- synced from A3 --> compiles the vendored OCSF subset to Python for the hot path (~10 µs/event vs ~216 µs for `jsonschema`, measured in A3). `jsonschema` stays for full error detail when an event is actually invalid. |
 | Other pinned Python libs | — | pydantic 2.13.5, pydantic-settings 2.15.0, jsonschema 4.26.0, charset-normalizer 3.5.1, uuid-utils 1.0.0, prometheus-client 0.26.0, clickhouse-connect 1.9.0, cryptography 50.0.1, zstandard 0.25.0, fastapi 0.141.1, uvicorn 0.54.0, ruff 0.16.9, pytest 9.1.1. `uv.lock` is the authority |
 | Optional profiles | — | `openbao/openbao:2.4.1` (secure), `prom/prometheus:v3.7.3` + `grafana/grafana:12.4.1` (obs) |
 
@@ -320,6 +321,8 @@ peel = engine.peel(envelope) -> PeelResult        # layers, fields with byte spa
 ## IF-OCSF-SUBSET — classes and fields the demo supports
 
 Pin the OCSF version in IF-VERSIONS and vendor the JSON schema for these classes into `packages/veyra_engine/ocsf/`.
+
+<!-- synced from A3 --> **Verified against OCSF 1.9.0** (`https://schema.ocsf.io/api/1.9.0/classes/<name>`, 2026-09-27): every `class_uid`, `category_uid`, activity id and the `severity_id` / `status_id` / `disposition_id` / `action_id` enums below match, and `type_uid = class_uid * 100 + activity_id` holds. Two deliberate differences, both in `packages/veyra_engine/ocsf/README.md`: OCSF marks **`cloud` and `osint` required** on several classes and VEYRA neither emits nor validates them (a log pre-processor does not invent cloud metadata, and nothing downstream needs them), and the vendored schema constrains only the mapped catalogue while leaving `additionalProperties` open, so its job is to catch a *wrong* value rather than to enumerate OCSF.
 
 | Class | class_uid | category (topic) | Activities used |
 |---|---|---|---|

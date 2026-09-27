@@ -2,7 +2,7 @@
 
 ```
 track: A   owner: A   status: todo
-contracts: v1.2
+contracts: v1.3
 depends_on: [A3]                  unblocks: [CP2, C4 (tokens), B6 (highlights)]
 consumes: [IF-ENGINE-LIB, IF-ULPF, IF-OCSF-SUBSET]
 provides: [tier 3 per IF-ULPF, provenance_check(), extract_tokens() final, mask() final]
@@ -84,10 +84,24 @@ Deterministic. Replaces:
 
 ## Tasks
 - [ ] 1. Classifier cascade + auto-peel; tests with the OT historian lines, T3 lines and garbage.
+  <!-- synced from A3 --> The detectors already exist in `packages/veyra_engine/src/veyra_engine/peel.py`
+  (`detect_syslog` returning the variant, `detect_kv` with a density threshold, `detect_cef`,
+  `detect_leef`, `detect_csv` returning the delimiter), so the cascade is mostly ordering them and
+  calling `run_layers` with the detected specs. The tier-3 slot is `Engine._tier3_placeholder`, which
+  already receives the peeled fields and sets the right DLQ reason.
 - [ ] 2. Final `extract_tokens`; property tests (spans always slice to the value).
 - [ ] 3. Tier 3 build, class hints, severity vocabulary.
 - [ ] 4. `provenance_check` + `mask`; export both from `veyra_engine`.
+  <!-- synced from A3 --> Both exist and are exported. `provenance_check` already verifies that every
+  declared offset slices its own value out of the raw bytes; what is missing is the other half — every
+  mapped path must be either located or in `derived_fields`. `mask` is the simple A3 version (secret-key
+  values and emails, IPs kept on purpose). Note `decode.Decoded.byte_span` returns **None** for a lossy
+  decode, so tier 3 must record those fields as derived rather than claim a byte range.
 - [ ] 5. Robustness guards + the RE2 import test.
+  <!-- synced from A3 --> The RE2-only rule already holds: no engine module imports `re`, because
+  `template_sig` lives in `veyra_common.hashing` — allow for that in the import test. `normalize`
+  already has the top-level guard that turns any exception into tier 4 `engine_crash`; the budget,
+  size cap and crash-loop guard are still to do.
 - [ ] 6. **Fuzz:** a `hypothesis` strategy of random bytes, corpus mutations and deep JSON nesting. `normalize` never raises, always returns tier 1–4, within 2× budget.
 - [ ] 7. Update the golden tests; add tier 3 goldens for T3 and the OT historian.
 

@@ -2,7 +2,7 @@
 
 ```
 track: A   owner: A   status: todo
-contracts: v1.2
+contracts: v1.3
 depends_on: [A4, C2 (candidate in control msg; mock until then)]   unblocks: [CP3, Beat 4]
 consumes: [IF-CONTROL (contract candidate), IF-ENVELOPE (+replay block), IF-SHADOW, IF-LINEAGE]
 provides: [veyra_engine.backtest(), shadow records, revision semantics in IF-ULPF]
@@ -40,8 +40,22 @@ C2 and C4 call this in-process for the instant "8/8 tier 3 → 1" panel.
 
 ## Tasks
 - [ ] 1. Candidate support in `Engine` + control follower; shadow diff computation; IF-SHADOW production.
+  <!-- synced from A3 --> `Engine.set_candidate` and `_resolve_contract` are in place: candidates are
+  keyed by **contract id**, and resolution follows source -> active contract -> candidate, including a
+  candidate that declares a source no active contract covers. The control follower already reads the
+  `candidate` block from `contract:<id>` messages and calls `set_candidate`. What remains is running
+  both and emitting IF-SHADOW.
 - [ ] 2. `backtest()` + tests using the T3 corpus with a hand-written `authsrv@2`.
+  <!-- synced from A3 --> `authsrv@2` already exists as
+  `packages/veyra_engine/tests/contracts/authsrv_v2.yaml`, and
+  `test_authsrv_v2_upgrades_t3_to_tier_one` proves all 8 T3 events go tier 3 -> tier 1 with the
+  attacker IP located in the raw bytes. `backtest()` has the real shape (tier histograms, upgraded /
+  regressed / unchanged, examples); it still needs `field_coverage` and the richer examples A5 lists.
 - [ ] 3. `replay.raw` consumption, revision fields, `lineage.replay_job_id`.
+  <!-- synced from A3 --> The normalizer already consumes `replay.raw` alongside `^raw\..*` and carries
+  `replay`, `revision` and `supersedes` from the envelope's replay block into `ulpf`, with
+  `lineage.replay_job_id` filled. A5's work is the semantics (revision from ClickHouse, idempotence
+  under crash), not the plumbing.
 - [ ] 4. `tools/mock_replay.py` to produce replay messages until C2's replay job exists.
 - [ ] 5. Metrics:
   - `veyra_shadow_events_total{contract}`

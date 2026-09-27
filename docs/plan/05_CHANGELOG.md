@@ -17,6 +17,61 @@ ACTION REQUIRED:
 
 ---
 
+## 2026-09-27 17:30 — A3 — VERSION-PIN  (contracts v1.2 → v1.3)
+TYPE: VERSION-PIN
+What:     `fastjsonschema` 2.21.2 added to veyra_engine and pinned in IF-VERSIONS. It compiles the
+          vendored OCSF subset schema to Python once per class and validates an event in ~10 us;
+          plain `jsonschema` measured ~216 us per event, about a third of the whole pipeline. Both
+          read the same schema file, and `jsonschema` is kept to produce the full error list when an
+          event really is invalid (off the hot path by definition).
+Why:      A3's own risk list said "jsonschema is slow — cache validators and measure". Measured, so
+          followed through. AC5 went from 1204-1480 EPS (below the 1500 target) to 2732 EPS on the
+          slowest tier-1 shape.
+IDs:      IF-VERSIONS
+Files patched: 02_CONTRACTS.md (IF-VERSIONS + header v1.3), every plan file's contracts header,
+          track-A-dataplane/A3_engine_core.md, 06_STATUS_BOARD.md, reports/A3.md.
+ACTION REQUIRED:
+  - [ ] @C C2's golden-test runner validates compiled contracts against the same schema; use
+        `veyra_engine.validate.validate_event` rather than calling jsonschema directly, so the
+        compiled validator and its cache are shared.
+
+## 2026-09-27 17:30 — A3 — CLARIFICATION  (contracts v1.3)
+TYPE: CLARIFICATION
+What:     IF-OCSF-SUBSET is now verified rather than assumed. Every class_uid, category_uid, activity
+          id and the severity_id / status_id / disposition_id / action_id enums were checked against
+          https://schema.ocsf.io/api/1.9.0/classes/<name> and all match the plan; type_uid =
+          class_uid * 100 + activity_id holds.
+          Two deliberate differences from upstream, recorded in packages/veyra_engine/ocsf/README.md:
+          OCSF 1.9 marks `cloud` and `osint` **required** on several classes and VEYRA neither emits
+          nor validates them (a pre-processor does not invent cloud metadata, and nothing downstream
+          needs them); and the vendored schema constrains only the mapped field catalogue, leaving
+          additionalProperties open, so its job is catching a wrong value rather than enumerating OCSF.
+Why:      The plan said "verify ids against the pinned schema"; this is that verification, plus the
+          honest note about what we deliberately do not enforce.
+IDs:      IF-OCSF-SUBSET
+Files patched: 02_CONTRACTS.md (IF-OCSF-SUBSET), reports/A3.md, packages/veyra_engine/ocsf/README.md.
+ACTION REQUIRED:
+  - [ ] @B In B6, note that events carry no `cloud`/`osint`; do not build a view that assumes them.
+  - [ ] @C In C4, the drafter's allowed-field catalogue is the same subset — keep it in step with
+        packages/veyra_engine/ocsf/subset_1.9.0.json rather than re-listing fields by hand.
+
+## 2026-09-27 17:30 — A3 — REQUEST @C  (contracts v1.3)
+TYPE: REQUEST
+What:     The seeded `linux_sshd@1` library contract has three templates, and 13 of the 24 lines in
+          demo/corpus/linux_sshd.log do not match any of them: pam_unix session open/close,
+          `Accepted publickey`, `Received disconnect`, `Disconnecting invalid user`, `error: maximum
+          authentication attempts exceeded`, sudo COMMAND, `Server listening`, `Received signal`.
+          They are emitted correctly (never dropped) and land in the DLQ as `no_template_match`.
+Why:      A owns the engine, not contracts-repo/, so A did not extend the contract. For the demo
+          these shapes are either drift fodder for C3 or should be covered by the library pack —
+          that is a C decision. Listing them here so nobody has to rediscover them.
+IDs:      none (no interface changed)
+Files patched: reports/A3.md, track-A-dataplane/A3_engine_core.md.
+ACTION REQUIRED:
+  - [ ] @C In C3, decide per shape: extend linux_sshd's library pack, or leave it as drift the demo
+        can show. `packages/veyra_engine/tests/expected/linux_sshd.log.json` lists exactly which
+        lines fall through.
+
 ## 2026-09-27 15:40 — A1 — CLARIFICATION  (contracts v1.1 → v1.2)
 TYPE: CLARIFICATION
 What:     IF-INVENTORY's reload mechanism, measured on the pinned Vector 0.58.0: Vector watches

@@ -6,11 +6,11 @@ Update your row after every phase (status, one line, report link). Status values
 |---|---|---|---|---|---|
 | S0 Bootstrap | all (run by A) | done | v1.1 | AC1–AC7 pass; stack idles at 2.89 GiB; 77 unit + 5 integration tests green. LLM runs on CPU (53–91 s/draft) — GPU unresolved, @C | [S0.md](reports/S0.md) |
 | A1 Edge collectors (Vector) | A | done | v1.2 | 5/5 ACs pass; UUIDv7 + byte-accurate raw_len; T3 joins to one envelope; 60 s Kafka outage lossless; inventory reload verified | [A1.md](reports/A1.md) |
-| A2 Ingest gateway (HTTP push) | A | todo | v1.2 | | |
-| A3 Engine core + normalizer service | A | todo | v1.2 | | |
-| A4 Tier 3, offsets, robustness | A | todo | v1.2 | | |
-| A5 Shadow, replay, revisions | A | todo | v1.2 | | |
-| A6 Router + Wazuh + throughput bench | A | todo | v1.2 | | |
+| A2 Ingest gateway (HTTP push) | A | todo | v1.3 | | |
+| A3 Engine core + normalizer service | A | done | v1.3 | 5/5 ACs; 2732 EPS/core tier 1; byte-exact offsets incl. inside JSON; purity + cross-process determinism proven; transactional normalizer survives kill -9 | [A3.md](reports/A3.md) |
+| A4 Tier 3, offsets, robustness | A | todo | v1.3 | | |
+| A5 Shadow, replay, revisions | A | todo | v1.3 | | |
+| A6 Router + Wazuh + throughput bench | A | todo | v1.3 | | |
 | B1 Lineage indexer + ClickHouse | B | todo | v1.0 | | |
 | B2 Archiver + vault segments | B | todo | v1.0 | | |
 | B3 Integrity: Merkle, signing, immudb | B | todo | v1.0 | | |
@@ -34,5 +34,6 @@ Update your row after every phase (status, one line, report link). Status values
 
 | Checkpoint | Date | Result | Notes |
 |---|---|---|---|
+| A3 | 2026-09-27 | PASS | Engine + normalizer live: syslog -> raw.linux -> norm.iam tier 1 with real Kafka coordinates. CP1 now needs only minimal A6 from track A, plus B1 + B2 (B) and C1 (C). |
 | A1 | 2026-09-27 | PASS | Edge is live on both zones. CP1 still needs A3 + minimal A6 (A), B1 + B2 (B), C1 (C). |
 | S0 | 2026-09-27 | PASS | Run solo by A on the demo laptop. CP1 is now unblocked and needs A1 + A3 + minimal A6 (A), B1 + B2 (B) and C1 (C). |
