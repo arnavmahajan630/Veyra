@@ -1104,6 +1104,8 @@ name = "veyra-contracts"
 version = "0.1.0"
 source = { editable = "packages/veyra_contracts" }
 dependencies = [
+    { name = "google-re2" },
+    { name = "pydantic" },
     { name = "pyyaml" },
     { name = "veyra-common" },
     { name = "veyra-engine" },
@@ -1111,6 +1113,8 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [
+    { name = "google-re2", specifier = ">=1.1" },
+    { name = "pydantic", specifier = ">=2.11" },
     { name = "pyyaml", specifier = ">=6.0" },
     { name = "veyra-common", editable = "packages/veyra_common" },
     { name = "veyra-engine", editable = "packages/veyra_engine" },
