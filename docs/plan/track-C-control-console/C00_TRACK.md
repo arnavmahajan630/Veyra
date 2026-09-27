@@ -20,7 +20,7 @@ v1 refs: §11 (control plane), §12 (console), ADR-04 (LLM off the hot path).
 **Directories:**
 - `packages/veyra_contracts/`
 - `services/{control_api,drift_worker}/`
-- `contracts-repo/`
+- the contract registry, a separate repository at `../contracts-repo` <!-- synced: moved out of the code repo (05_CHANGELOG, 2026-09-27) -->
 - `console/`: shell, design system, and the pages Overview, Sources, Onboarding, Contracts, Drift, Delivery, Audit. B owns `pages/{lineage,evidence,demo}`.
 - `tools/bench/llm_bench.py`, `bench/llm_golden/`
 

@@ -41,7 +41,7 @@
 /packages/veyra_contracts/     @veyra-person-c
 /services/control_api/         @veyra-person-c
 /services/drift_worker/        @veyra-person-c
-/contracts-repo/               @veyra-person-c
+# The Log Contract registry (../contracts-repo) is a separate repository, also owned by C.
 /console/                      @veyra-person-c
 /tools/bench/llm_bench.py      @veyra-person-c
 

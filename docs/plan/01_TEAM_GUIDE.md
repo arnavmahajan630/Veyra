@@ -6,7 +6,7 @@
 |---|---|---|---|
 | **A — Data plane** | `track-A-dataplane/` | `edge/`, `packages/veyra_engine/`, `services/{ingest_gateway,normalizer,router}/`, `wazuh/` | IF-ENVELOPE, IF-ENGINE-LIB, IF-ULPF, IF-NORM-EVENT, IF-ROUTES, IF-WAZUH, IF-TEMPLATE-SIG |
 | **B — Evidence & lineage** | `track-B-evidence/` | `packages/{veyra_evidence,veyra_lineage}/`, `services/{archiver,integrity,lineage_indexer,evidence_api,demo_engine}/`, `demo/`, `console/src/pages/{lineage,evidence,demo}/` | IF-CHAIN, IF-SEGMENT, IF-MERKLE, IF-SIGNED-ROOT, IF-KEYPROVIDER, IF-CH-SCHEMA, IF-API-EVIDENCE, IF-API-DEMO |
-| **C — Control & console** | `track-C-control-console/` | `packages/veyra_contracts/`, `services/{control_api,drift_worker}/`, `contracts-repo/`, `console/` (shell, design system, other pages) | IF-CONTRACT-YAML, IF-CONTRACT-COMPILED, IF-CONTROL, IF-INVENTORY, IF-API-CONTROL, IF-LLM-DRAFT |
+| **C — Control & console** | `track-C-control-console/` | `packages/veyra_contracts/`, `services/{control_api,drift_worker}/`, the separate `../contracts-repo` repository, `console/` (shell, design system, other pages) | IF-CONTRACT-YAML, IF-CONTRACT-COMPILED, IF-CONTROL, IF-INVENTORY, IF-API-CONTROL, IF-LLM-DRAFT |
 | **Shared** | `shared/` | `compose/`, `profiles/`, `packages/veyra_common/`, `Makefile`, `Caddyfile`, CI | IF-TOPICS, IF-PORTS, IF-NAMING, IF-ENV, IF-VERSIONS |
 
 **Ownership rule:** you may *read* anything, but *change* only what you own. To change something another track owns, open a changelog request (§6.3) or pair with the owner.

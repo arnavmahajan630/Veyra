@@ -73,7 +73,7 @@ Note: the Maha Power auth server is **not** seeded; it is onboarded live, and it
 
 **Internal endpoints** (bound to the docker network; Caddy does not route `/internal`):
 - `POST /internal/drift`: stub for C3.
-- `POST /internal/reset`: wipe SQLite, `git reset --hard seed` in contracts-repo, re-seed, republish all, rewrite the inventory. Must finish in < 10 s.
+- `POST /internal/reset`: wipe SQLite, `git reset --hard seed` in the contract registry (`VEYRA_CONTRACTS_REPO`, default `../contracts-repo`), re-seed, republish all, rewrite the inventory. Must finish in < 10 s.
 - `GET /internal/demo/last-key`.
 
 ## Tasks

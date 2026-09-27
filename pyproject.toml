@@ -23,7 +23,7 @@ veyra-contracts = { workspace = true }
 [tool.ruff]
 line-length = 100
 target-version = "py312"
-extend-exclude = ["docs/plan", "console", "contracts-repo"]
+extend-exclude = ["docs/plan", "console"]
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "UP", "B", "C4", "SIM", "RUF"]
@@ -61,4 +61,4 @@ python_version = "3.12"
 ignore_missing_imports = true
 check_untyped_defs = true
 warn_unused_ignores = false
-exclude = "(docs/plan|console|contracts-repo)"
+exclude = "(docs/plan|console)"

@@ -17,6 +17,41 @@ ACTION REQUIRED:
 
 ---
 
+## 2026-09-28 — C — DECISION + REQUEST @A  (contracts v1.3, no bump)
+TYPE: DECISION
+What:     The contract registry leaves this repository. It is now its own repository,
+          github.com/arnavmahajan630/contracts-repo, checked out **beside** the code at
+          `../contracts-repo` (Makefile `CONTRACTS_REPO=`, services `VEYRA_CONTRACTS_REPO`). Inside it
+          the layout is unchanged: `<tenant_id>/<contract_id>.yaml`, a `seed` tag, one commit per
+          contract version. `contracts-repo/` is removed from this repo, from .gitignore, from the
+          ruff/mypy excludes and from CODEOWNERS.
+Why:      Contracts are data with their own lifecycle (authored and approved by pack authors,
+          committed at runtime), matching v1's separate Source Pack repository; keeping them out of
+          the code repo stops runtime commits and resets from dirtying it.
+IDs:      IF-CONTRACT-YAML (storage location only; the file format is unchanged), IF-API-CONTROL
+          (/internal/reset wording)
+Files patched: 00_MASTER.md (repo layout), 01_TEAM_GUIDE.md §1, 02_CONTRACTS.md (IF-CONTRACT-YAML,
+          IF-API-CONTROL), track-C-control-console/{C00,C1,C2,C3}, track-B-evidence/B7_demo_engine.md,
+          Makefile (contracts-repo-init), .gitignore, pyproject.toml, CODEOWNERS.
+          Historical records (reports/S0.md, shared/S0_bootstrap.md, older entries here) are left as
+          written.
+Note:     No contracts version bump: the YAML format is untouched. If the team reads §0 as "a
+          location change is breaking", bump to v1.4 and re-sync the headers.
+ACTION REQUIRED:
+  - [ ] @A @B @C Clone the contracts repository next to `Veyra/` (same parent folder):
+        `git clone https://github.com/arnavmahajan630/contracts-repo` — tests,
+        `make contracts-repo-init` and the demo need it there.
+  - [ ] @A REQUEST: three A3 files still read the seed from inside this repo
+        (`REPO / "contracts-repo" / "t_ntro_core"`): packages/veyra_engine/tests/test_golden.py,
+        packages/veyra_engine/tests/test_invariants.py, tools/bench/engine_bench.py. Point them at
+        `os.environ.get("VEYRA_CONTRACTS_REPO", REPO.parent / "contracts-repo")`. Until then those
+        tests need the sibling checkout. (C checked: A3's golden suite passes unchanged with
+        veyra_contracts.compile swapped in for mini_compile, 24/24.)
+  - [ ] @C Add a checkout step for the contracts repository to .github/workflows/ci.yml before any
+        test depends on it in CI.
+  - [ ] @B In B7, nothing changes in the API call (`/internal/reset` still resets the registry);
+        the demo laptop just needs the checkout beside `Veyra/`.
+
 ## 2026-09-27 17:30 — A3 — VERSION-PIN  (contracts v1.2 → v1.3)
 TYPE: VERSION-PIN
 What:     `fastjsonschema` 2.21.2 added to veyra_engine and pinned in IF-VERSIONS. It compiles the
