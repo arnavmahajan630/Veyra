@@ -1,0 +1,64 @@
+# authsrv version 2: adds the FAILED-login template that arrives as drift in demo Beat 4.
+# A5's backtest and shadow tests use this as the candidate against version 1.
+contract: authsrv
+version: 2
+tenant: t_maha_power
+sources: [src_authsrv_01]
+description: Maha Power auth server, with the failed-login shape added
+state: canary
+
+envelope:
+  - syslog: {variant: auto}
+  - json: {text_field: msg}
+
+time:
+  field: syslog.timestamp
+  formats: ["%b %d %H:%M:%S"]
+  timezone: Asia/Kolkata
+  year: infer_from_received
+
+templates:
+  - id: auth_failed
+    pattern: 'user=<user> FAILED login from <src_ip:ip> via <dst_ip:ip> attempts:<attempts:int>'
+    class: authentication
+    activity: logon
+    map:
+      user.name: $user
+      src_endpoint.ip: $src_ip
+      dst_endpoint.ip: $dst_ip
+      device.hostname: $syslog.host
+      status_id: {const: 2}
+      severity_id: {const: 3}
+      message: $__text
+    unmapped: [attempts]
+
+  - id: auth_ok
+    pattern: 'user=<user> OK login from <src_ip:ip> via <dst_ip:ip>'
+    class: authentication
+    activity: logon
+    map:
+      user.name: $user
+      src_endpoint.ip: $src_ip
+      dst_endpoint.ip: $dst_ip
+      device.hostname: $syslog.host
+      status_id: {const: 1}
+      severity_id: {const: 1}
+      message: $__text
+
+  - id: session_closed
+    pattern: 'session <session_id:int> closed for <user> after <seconds:int>s'
+    class: authentication
+    activity: logoff
+    map:
+      user.name: $user
+      device.hostname: $syslog.host
+      status_id: {const: 1}
+      severity_id: {const: 1}
+      message: $__text
+    unmapped: [session_id, seconds]
+
+required: [time, user.name]
+pii: [user.name, src_endpoint.ip]
+provenance:
+  drafted_by: llm:qwen2.5:3b
+  approved_by: [author@maha, approver@veyra]

@@ -1,0 +1,861 @@
+[
+  {
+    "activity_id": 1,
+    "category": "iam",
+    "class_uid": 3002,
+    "conformance": "match",
+    "derived_fields": {
+      "severity_id": "const",
+      "status_detail": "const",
+      "status_id": "const"
+    },
+    "dlq_reason": null,
+    "mapped": {
+      "device.hostname": "core-lnx-07",
+      "message": "Failed password for invalid user admin from 45.12.3.9 port 52144 ssh2",
+      "src_endpoint.ip": "45.12.3.9",
+      "src_endpoint.port": "52144",
+      "user.name": "admin"
+    },
+    "observables": [
+      "45.12.3.9",
+      "admin",
+      "core-lnx-07"
+    ],
+    "parse_path": [
+      "syslog:rfc3164",
+      "template:sshd_failed_password_invalid_user"
+    ],
+    "severity_id": 3,
+    "status_id": 2,
+    "template_id": "sshd_failed_password_invalid_user",
+    "tier": 1,
+    "time_source": "event",
+    "type_uid": 300201,
+    "unmapped_keys": [
+      "syslog.app",
+      "syslog.facility",
+      "syslog.pid",
+      "syslog.pri",
+      "syslog.severity",
+      "syslog.timestamp"
+    ],
+    "year_inferred": true
+  },
+  {
+    "activity_id": 1,
+    "category": "iam",
+    "class_uid": 3002,
+    "conformance": "match",
+    "derived_fields": {
+      "severity_id": "const",
+      "status_detail": "const",
+      "status_id": "const"
+    },
+    "dlq_reason": null,
+    "mapped": {
+      "device.hostname": "core-lnx-07",
+      "message": "Failed password for invalid user admin from 45.12.3.9 port 52145 ssh2",
+      "src_endpoint.ip": "45.12.3.9",
+      "src_endpoint.port": "52145",
+      "user.name": "admin"
+    },
+    "observables": [
+      "45.12.3.9",
+      "admin",
+      "core-lnx-07"
+    ],
+    "parse_path": [
+      "syslog:rfc3164",
+      "template:sshd_failed_password_invalid_user"
+    ],
+    "severity_id": 3,
+    "status_id": 2,
+    "template_id": "sshd_failed_password_invalid_user",
+    "tier": 1,
+    "time_source": "event",
+    "type_uid": 300201,
+    "unmapped_keys": [
+      "syslog.app",
+      "syslog.facility",
+      "syslog.pid",
+      "syslog.pri",
+      "syslog.severity",
+      "syslog.timestamp"
+    ],
+    "year_inferred": true
+  },
+  {
+    "activity_id": 1,
+    "category": "iam",
+    "class_uid": 3002,
+    "conformance": "match",
+    "derived_fields": {
+      "severity_id": "const",
+      "status_detail": "const",
+      "status_id": "const"
+    },
+    "dlq_reason": null,
+    "mapped": {
+      "device.hostname": "core-lnx-07",
+      "message": "Failed password for invalid user admin from 45.12.3.9 port 52146 ssh2",
+      "src_endpoint.ip": "45.12.3.9",
+      "src_endpoint.port": "52146",
+      "user.name": "admin"
+    },
+    "observables": [
+      "45.12.3.9",
+      "admin",
+      "core-lnx-07"
+    ],
+    "parse_path": [
+      "syslog:rfc3164",
+      "template:sshd_failed_password_invalid_user"
+    ],
+    "severity_id": 3,
+    "status_id": 2,
+    "template_id": "sshd_failed_password_invalid_user",
+    "tier": 1,
+    "time_source": "event",
+    "type_uid": 300201,
+    "unmapped_keys": [
+      "syslog.app",
+      "syslog.facility",
+      "syslog.pid",
+      "syslog.pri",
+      "syslog.severity",
+      "syslog.timestamp"
+    ],
+    "year_inferred": true
+  },
+  {
+    "activity_id": 1,
+    "category": "iam",
+    "class_uid": 3002,
+    "conformance": "match",
+    "derived_fields": {
+      "severity_id": "const",
+      "status_detail": "const",
+      "status_id": "const"
+    },
+    "dlq_reason": null,
+    "mapped": {
+      "device.hostname": "core-lnx-07",
+      "message": "Failed password for invalid user admin from 45.12.3.9 port 52147 ssh2",
+      "src_endpoint.ip": "45.12.3.9",
+      "src_endpoint.port": "52147",
+      "user.name": "admin"
+    },
+    "observables": [
+      "45.12.3.9",
+      "admin",
+      "core-lnx-07"
+    ],
+    "parse_path": [
+      "syslog:rfc3164",
+      "template:sshd_failed_password_invalid_user"
+    ],
+    "severity_id": 3,
+    "status_id": 2,
+    "template_id": "sshd_failed_password_invalid_user",
+    "tier": 1,
+    "time_source": "event",
+    "type_uid": 300201,
+    "unmapped_keys": [
+      "syslog.app",
+      "syslog.facility",
+      "syslog.pid",
+      "syslog.pri",
+      "syslog.severity",
+      "syslog.timestamp"
+    ],
+    "year_inferred": true
+  },
+  {
+    "activity_id": 1,
+    "category": "iam",
+    "class_uid": 3002,
+    "conformance": "match",
+    "derived_fields": {
+      "severity_id": "const",
+      "status_detail": "const",
+      "status_id": "const"
+    },
+    "dlq_reason": null,
+    "mapped": {
+      "device.hostname": "core-lnx-07",
+      "message": "Failed password for invalid user admin from 45.12.3.9 port 52148 ssh2",
+      "src_endpoint.ip": "45.12.3.9",
+      "src_endpoint.port": "52148",
+      "user.name": "admin"
+    },
+    "observables": [
+      "45.12.3.9",
+      "admin",
+      "core-lnx-07"
+    ],
+    "parse_path": [
+      "syslog:rfc3164",
+      "template:sshd_failed_password_invalid_user"
+    ],
+    "severity_id": 3,
+    "status_id": 2,
+    "template_id": "sshd_failed_password_invalid_user",
+    "tier": 1,
+    "time_source": "event",
+    "type_uid": 300201,
+    "unmapped_keys": [
+      "syslog.app",
+      "syslog.facility",
+      "syslog.pid",
+      "syslog.pri",
+      "syslog.severity",
+      "syslog.timestamp"
+    ],
+    "year_inferred": true
+  },
+  {
+    "activity_id": 1,
+    "category": "iam",
+    "class_uid": 3002,
+    "conformance": "match",
+    "derived_fields": {
+      "severity_id": "const",
+      "status_detail": "const",
+      "status_id": "const"
+    },
+    "dlq_reason": null,
+    "mapped": {
+      "device.hostname": "core-lnx-07",
+      "message": "Failed password for invalid user admin from 45.12.3.9 port 52149 ssh2",
+      "src_endpoint.ip": "45.12.3.9",
+      "src_endpoint.port": "52149",
+      "user.name": "admin"
+    },
+    "observables": [
+      "45.12.3.9",
+      "admin",
+      "core-lnx-07"
+    ],
+    "parse_path": [
+      "syslog:rfc3164",
+      "template:sshd_failed_password_invalid_user"
+    ],
+    "severity_id": 3,
+    "status_id": 2,
+    "template_id": "sshd_failed_password_invalid_user",
+    "tier": 1,
+    "time_source": "event",
+    "type_uid": 300201,
+    "unmapped_keys": [
+      "syslog.app",
+      "syslog.facility",
+      "syslog.pid",
+      "syslog.pri",
+      "syslog.severity",
+      "syslog.timestamp"
+    ],
+    "year_inferred": true
+  },
+  {
+    "activity_id": 99,
+    "category": "uncategorized",
+    "class_uid": 0,
+    "conformance": "unparseable",
+    "derived_fields": {},
+    "dlq_reason": "no_template_match",
+    "mapped": {},
+    "observables": [],
+    "parse_path": [
+      "syslog:rfc3164",
+      "no_template_match"
+    ],
+    "severity_id": 0,
+    "status_id": null,
+    "template_id": null,
+    "tier": 4,
+    "time_source": "received",
+    "type_uid": 99,
+    "unmapped_keys": [
+      "syslog.app",
+      "syslog.facility",
+      "syslog.host",
+      "syslog.pid",
+      "syslog.pri",
+      "syslog.severity",
+      "syslog.timestamp"
+    ],
+    "year_inferred": false
+  },
+  {
+    "activity_id": 1,
+    "category": "iam",
+    "class_uid": 3002,
+    "conformance": "match",
+    "derived_fields": {
+      "severity_id": "const",
+      "status_id": "const"
+    },
+    "dlq_reason": null,
+    "mapped": {
+      "device.hostname": "core-lnx-07",
+      "message": "Failed password for root from 10.4.1.66 port 41022 ssh2",
+      "src_endpoint.ip": "10.4.1.66",
+      "src_endpoint.port": "41022",
+      "user.name": "root"
+    },
+    "observables": [
+      "10.4.1.66",
+      "root",
+      "core-lnx-07"
+    ],
+    "parse_path": [
+      "syslog:rfc3164",
+      "template:sshd_failed_password"
+    ],
+    "severity_id": 3,
+    "status_id": 2,
+    "template_id": "sshd_failed_password",
+    "tier": 1,
+    "time_source": "event",
+    "type_uid": 300201,
+    "unmapped_keys": [
+      "syslog.app",
+      "syslog.facility",
+      "syslog.pid",
+      "syslog.pri",
+      "syslog.severity",
+      "syslog.timestamp"
+    ],
+    "year_inferred": true
+  },
+  {
+    "activity_id": 1,
+    "category": "iam",
+    "class_uid": 3002,
+    "conformance": "match",
+    "derived_fields": {
+      "severity_id": "const",
+      "status_id": "const"
+    },
+    "dlq_reason": null,
+    "mapped": {
+      "device.hostname": "core-lnx-07",
+      "message": "Accepted password for r.patil from 10.4.1.20 port 51002 ssh2",
+      "src_endpoint.ip": "10.4.1.20",
+      "src_endpoint.port": "51002",
+      "user.name": "r.patil"
+    },
+    "observables": [
+      "10.4.1.20",
+      "r.patil",
+      "core-lnx-07"
+    ],
+    "parse_path": [
+      "syslog:rfc3164",
+      "template:sshd_accepted_password"
+    ],
+    "severity_id": 1,
+    "status_id": 1,
+    "template_id": "sshd_accepted_password",
+    "tier": 1,
+    "time_source": "event",
+    "type_uid": 300201,
+    "unmapped_keys": [
+      "syslog.app",
+      "syslog.facility",
+      "syslog.pid",
+      "syslog.pri",
+      "syslog.severity",
+      "syslog.timestamp"
+    ],
+    "year_inferred": true
+  },
+  {
+    "activity_id": 99,
+    "category": "uncategorized",
+    "class_uid": 0,
+    "conformance": "unparseable",
+    "derived_fields": {},
+    "dlq_reason": "no_template_match",
+    "mapped": {},
+    "observables": [],
+    "parse_path": [
+      "syslog:rfc3164",
+      "no_template_match"
+    ],
+    "severity_id": 0,
+    "status_id": null,
+    "template_id": null,
+    "tier": 4,
+    "time_source": "received",
+    "type_uid": 99,
+    "unmapped_keys": [
+      "syslog.app",
+      "syslog.facility",
+      "syslog.host",
+      "syslog.pid",
+      "syslog.pri",
+      "syslog.severity",
+      "syslog.timestamp"
+    ],
+    "year_inferred": false
+  },
+  {
+    "activity_id": 99,
+    "category": "uncategorized",
+    "class_uid": 0,
+    "conformance": "unparseable",
+    "derived_fields": {},
+    "dlq_reason": "no_template_match",
+    "mapped": {},
+    "observables": [],
+    "parse_path": [
+      "syslog:rfc3164",
+      "no_template_match"
+    ],
+    "severity_id": 0,
+    "status_id": null,
+    "template_id": null,
+    "tier": 4,
+    "time_source": "received",
+    "type_uid": 99,
+    "unmapped_keys": [
+      "syslog.app",
+      "syslog.facility",
+      "syslog.host",
+      "syslog.pid",
+      "syslog.pri",
+      "syslog.severity",
+      "syslog.timestamp"
+    ],
+    "year_inferred": false
+  },
+  {
+    "activity_id": 99,
+    "category": "uncategorized",
+    "class_uid": 0,
+    "conformance": "unparseable",
+    "derived_fields": {},
+    "dlq_reason": "no_template_match",
+    "mapped": {},
+    "observables": [],
+    "parse_path": [
+      "syslog:rfc3164",
+      "no_template_match"
+    ],
+    "severity_id": 0,
+    "status_id": null,
+    "template_id": null,
+    "tier": 4,
+    "time_source": "received",
+    "type_uid": 99,
+    "unmapped_keys": [
+      "syslog.app",
+      "syslog.facility",
+      "syslog.host",
+      "syslog.pid",
+      "syslog.pri",
+      "syslog.severity",
+      "syslog.timestamp"
+    ],
+    "year_inferred": false
+  },
+  {
+    "activity_id": 99,
+    "category": "uncategorized",
+    "class_uid": 0,
+    "conformance": "unparseable",
+    "derived_fields": {},
+    "dlq_reason": "no_template_match",
+    "mapped": {},
+    "observables": [],
+    "parse_path": [
+      "syslog:rfc3164",
+      "no_template_match"
+    ],
+    "severity_id": 0,
+    "status_id": null,
+    "template_id": null,
+    "tier": 4,
+    "time_source": "received",
+    "type_uid": 99,
+    "unmapped_keys": [
+      "syslog.app",
+      "syslog.facility",
+      "syslog.host",
+      "syslog.pid",
+      "syslog.pri",
+      "syslog.severity",
+      "syslog.timestamp"
+    ],
+    "year_inferred": false
+  },
+  {
+    "activity_id": 1,
+    "category": "iam",
+    "class_uid": 3002,
+    "conformance": "match",
+    "derived_fields": {
+      "severity_id": "const",
+      "status_detail": "const",
+      "status_id": "const"
+    },
+    "dlq_reason": null,
+    "mapped": {
+      "device.hostname": "core-lnx-07",
+      "message": "Failed password for invalid user postgres from 192.168.9.14 port 33440 ssh2",
+      "src_endpoint.ip": "192.168.9.14",
+      "src_endpoint.port": "33440",
+      "user.name": "postgres"
+    },
+    "observables": [
+      "192.168.9.14",
+      "postgres",
+      "core-lnx-07"
+    ],
+    "parse_path": [
+      "syslog:rfc3164",
+      "template:sshd_failed_password_invalid_user"
+    ],
+    "severity_id": 3,
+    "status_id": 2,
+    "template_id": "sshd_failed_password_invalid_user",
+    "tier": 1,
+    "time_source": "event",
+    "type_uid": 300201,
+    "unmapped_keys": [
+      "syslog.app",
+      "syslog.facility",
+      "syslog.pid",
+      "syslog.pri",
+      "syslog.severity",
+      "syslog.timestamp"
+    ],
+    "year_inferred": true
+  },
+  {
+    "activity_id": 99,
+    "category": "uncategorized",
+    "class_uid": 0,
+    "conformance": "unparseable",
+    "derived_fields": {},
+    "dlq_reason": "no_template_match",
+    "mapped": {},
+    "observables": [],
+    "parse_path": [
+      "syslog:rfc3164",
+      "no_template_match"
+    ],
+    "severity_id": 0,
+    "status_id": null,
+    "template_id": null,
+    "tier": 4,
+    "time_source": "received",
+    "type_uid": 99,
+    "unmapped_keys": [
+      "syslog.app",
+      "syslog.facility",
+      "syslog.host",
+      "syslog.pid",
+      "syslog.pri",
+      "syslog.severity",
+      "syslog.timestamp"
+    ],
+    "year_inferred": false
+  },
+  {
+    "activity_id": 99,
+    "category": "uncategorized",
+    "class_uid": 0,
+    "conformance": "unparseable",
+    "derived_fields": {},
+    "dlq_reason": "no_template_match",
+    "mapped": {},
+    "observables": [],
+    "parse_path": [
+      "syslog:rfc3164",
+      "no_template_match"
+    ],
+    "severity_id": 0,
+    "status_id": null,
+    "template_id": null,
+    "tier": 4,
+    "time_source": "received",
+    "type_uid": 99,
+    "unmapped_keys": [
+      "syslog.app",
+      "syslog.facility",
+      "syslog.host",
+      "syslog.pid",
+      "syslog.pri",
+      "syslog.severity",
+      "syslog.timestamp"
+    ],
+    "year_inferred": false
+  },
+  {
+    "activity_id": 1,
+    "category": "iam",
+    "class_uid": 3002,
+    "conformance": "match",
+    "derived_fields": {
+      "severity_id": "const",
+      "status_id": "const"
+    },
+    "dlq_reason": null,
+    "mapped": {
+      "device.hostname": "core-lnx-07",
+      "message": "Accepted password for v.rao from 10.4.2.9 port 40122 ssh2",
+      "src_endpoint.ip": "10.4.2.9",
+      "src_endpoint.port": "40122",
+      "user.name": "v.rao"
+    },
+    "observables": [
+      "10.4.2.9",
+      "v.rao",
+      "core-lnx-07"
+    ],
+    "parse_path": [
+      "syslog:rfc3164",
+      "template:sshd_accepted_password"
+    ],
+    "severity_id": 1,
+    "status_id": 1,
+    "template_id": "sshd_accepted_password",
+    "tier": 1,
+    "time_source": "event",
+    "type_uid": 300201,
+    "unmapped_keys": [
+      "syslog.app",
+      "syslog.facility",
+      "syslog.pid",
+      "syslog.pri",
+      "syslog.severity",
+      "syslog.timestamp"
+    ],
+    "year_inferred": true
+  },
+  {
+    "activity_id": 99,
+    "category": "uncategorized",
+    "class_uid": 0,
+    "conformance": "unparseable",
+    "derived_fields": {},
+    "dlq_reason": "no_template_match",
+    "mapped": {},
+    "observables": [],
+    "parse_path": [
+      "syslog:rfc3164",
+      "no_template_match"
+    ],
+    "severity_id": 0,
+    "status_id": null,
+    "template_id": null,
+    "tier": 4,
+    "time_source": "received",
+    "type_uid": 99,
+    "unmapped_keys": [
+      "syslog.app",
+      "syslog.facility",
+      "syslog.host",
+      "syslog.pid",
+      "syslog.pri",
+      "syslog.severity",
+      "syslog.timestamp"
+    ],
+    "year_inferred": false
+  },
+  {
+    "activity_id": 99,
+    "category": "uncategorized",
+    "class_uid": 0,
+    "conformance": "unparseable",
+    "derived_fields": {},
+    "dlq_reason": "no_template_match",
+    "mapped": {},
+    "observables": [],
+    "parse_path": [
+      "syslog:rfc3164",
+      "no_template_match"
+    ],
+    "severity_id": 0,
+    "status_id": null,
+    "template_id": null,
+    "tier": 4,
+    "time_source": "received",
+    "type_uid": 99,
+    "unmapped_keys": [
+      "syslog.app",
+      "syslog.facility",
+      "syslog.host",
+      "syslog.pid",
+      "syslog.pri",
+      "syslog.severity",
+      "syslog.timestamp"
+    ],
+    "year_inferred": false
+  },
+  {
+    "activity_id": 99,
+    "category": "uncategorized",
+    "class_uid": 0,
+    "conformance": "unparseable",
+    "derived_fields": {},
+    "dlq_reason": "no_template_match",
+    "mapped": {},
+    "observables": [],
+    "parse_path": [
+      "syslog:rfc3164",
+      "no_template_match"
+    ],
+    "severity_id": 0,
+    "status_id": null,
+    "template_id": null,
+    "tier": 4,
+    "time_source": "received",
+    "type_uid": 99,
+    "unmapped_keys": [
+      "syslog.app",
+      "syslog.facility",
+      "syslog.host",
+      "syslog.pid",
+      "syslog.pri",
+      "syslog.severity",
+      "syslog.timestamp"
+    ],
+    "year_inferred": false
+  },
+  {
+    "activity_id": 1,
+    "category": "iam",
+    "class_uid": 3002,
+    "conformance": "match",
+    "derived_fields": {
+      "severity_id": "const",
+      "status_id": "const"
+    },
+    "dlq_reason": null,
+    "mapped": {
+      "device.hostname": "core-lnx-07",
+      "message": "Accepted password for neel.k from 10.4.1.44 port 52901 ssh2",
+      "src_endpoint.ip": "10.4.1.44",
+      "src_endpoint.port": "52901",
+      "user.name": "neel.k"
+    },
+    "observables": [
+      "10.4.1.44",
+      "neel.k",
+      "core-lnx-07"
+    ],
+    "parse_path": [
+      "syslog:rfc3164",
+      "template:sshd_accepted_password"
+    ],
+    "severity_id": 1,
+    "status_id": 1,
+    "template_id": "sshd_accepted_password",
+    "tier": 1,
+    "time_source": "event",
+    "type_uid": 300201,
+    "unmapped_keys": [
+      "syslog.app",
+      "syslog.facility",
+      "syslog.pid",
+      "syslog.pri",
+      "syslog.severity",
+      "syslog.timestamp"
+    ],
+    "year_inferred": true
+  },
+  {
+    "activity_id": 99,
+    "category": "uncategorized",
+    "class_uid": 0,
+    "conformance": "unparseable",
+    "derived_fields": {},
+    "dlq_reason": "no_template_match",
+    "mapped": {},
+    "observables": [],
+    "parse_path": [
+      "syslog:rfc3164",
+      "no_template_match"
+    ],
+    "severity_id": 0,
+    "status_id": null,
+    "template_id": null,
+    "tier": 4,
+    "time_source": "received",
+    "type_uid": 99,
+    "unmapped_keys": [
+      "syslog.app",
+      "syslog.facility",
+      "syslog.host",
+      "syslog.pid",
+      "syslog.pri",
+      "syslog.severity",
+      "syslog.timestamp"
+    ],
+    "year_inferred": false
+  },
+  {
+    "activity_id": 99,
+    "category": "uncategorized",
+    "class_uid": 0,
+    "conformance": "unparseable",
+    "derived_fields": {},
+    "dlq_reason": "no_template_match",
+    "mapped": {},
+    "observables": [],
+    "parse_path": [
+      "syslog:rfc3164",
+      "no_template_match"
+    ],
+    "severity_id": 0,
+    "status_id": null,
+    "template_id": null,
+    "tier": 4,
+    "time_source": "received",
+    "type_uid": 99,
+    "unmapped_keys": [
+      "syslog.app",
+      "syslog.facility",
+      "syslog.host",
+      "syslog.pid",
+      "syslog.pri",
+      "syslog.severity",
+      "syslog.timestamp"
+    ],
+    "year_inferred": false
+  },
+  {
+    "activity_id": 99,
+    "category": "uncategorized",
+    "class_uid": 0,
+    "conformance": "unparseable",
+    "derived_fields": {},
+    "dlq_reason": "no_template_match",
+    "mapped": {},
+    "observables": [],
+    "parse_path": [
+      "syslog:rfc3164",
+      "no_template_match"
+    ],
+    "severity_id": 0,
+    "status_id": null,
+    "template_id": null,
+    "tier": 4,
+    "time_source": "received",
+    "type_uid": 99,
+    "unmapped_keys": [
+      "syslog.app",
+      "syslog.facility",
+      "syslog.host",
+      "syslog.pid",
+      "syslog.pri",
+      "syslog.severity",
+      "syslog.timestamp"
+    ],
+    "year_inferred": false
+  }
+]

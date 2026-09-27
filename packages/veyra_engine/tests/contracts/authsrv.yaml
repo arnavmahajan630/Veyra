@@ -1,0 +1,58 @@
+# Test-only contract for the demo's Maha Power auth server.
+#
+# It does NOT live in contracts-repo on purpose: in the demo it is created live during Beat 2
+# from three pasted samples, and its third template (the FAILED login) only arrives later as
+# drift in Beat 4. Having it here lets A3-A5 test the syslog -> json -> template path and the
+# tier-3 -> tier-1 upgrade without pretending the contract was seeded.
+#
+# Version 1 covers T1 and T2 only, exactly like the contract the demo creates.
+contract: authsrv
+version: 1
+tenant: t_maha_power
+sources: [src_authsrv_01]
+description: Maha Power auth server (custom app, syslog-wrapped JSON body)
+state: active
+
+envelope:
+  - syslog: {variant: auto}
+  - json: {text_field: msg}
+
+time:
+  field: syslog.timestamp
+  formats: ["%b %d %H:%M:%S"]
+  timezone: Asia/Kolkata
+  year: infer_from_received
+
+templates:
+  - id: auth_ok
+    pattern: 'user=<user> OK login from <src_ip:ip> via <dst_ip:ip>'
+    class: authentication
+    activity: logon
+    map:
+      user.name: $user
+      src_endpoint.ip: $src_ip
+      dst_endpoint.ip: $dst_ip
+      device.hostname: $syslog.host
+      status_id: {const: 1}
+      severity_id: {const: 1}
+      message: $__text
+
+  - id: session_closed
+    pattern: 'session <session_id:int> closed for <user> after <seconds:int>s'
+    class: authentication
+    activity: logoff
+    map:
+      user.name: $user
+      device.hostname: $syslog.host
+      status_id: {const: 1}
+      severity_id: {const: 1}
+      message: $__text
+    unmapped: [session_id, seconds]
+
+required: [time, user.name]
+enrich: []
+pii: [user.name, src_endpoint.ip]
+vocab: []
+provenance:
+  drafted_by: human
+  approved_by: [author@maha, approver@veyra]

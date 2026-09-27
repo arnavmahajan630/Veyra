@@ -1,0 +1,970 @@
+[
+  {
+    "activity_id": 2,
+    "category": "iam",
+    "class_uid": 3002,
+    "conformance": "match",
+    "derived_fields": {
+      "severity_id": "const",
+      "status_id": "const"
+    },
+    "dlq_reason": null,
+    "mapped": {
+      "device.hostname": "fw01",
+      "message": "session 7781 closed for r.patil after 312s",
+      "user.name": "r.patil"
+    },
+    "observables": [
+      "r.patil",
+      "fw01"
+    ],
+    "parse_path": [
+      "syslog:rfc3164",
+      "json",
+      "template:session_closed"
+    ],
+    "severity_id": 1,
+    "status_id": 1,
+    "template_id": "session_closed",
+    "tier": 1,
+    "time_source": "event",
+    "type_uid": 300202,
+    "unmapped_keys": [
+      "json.evt",
+      "json.msg",
+      "seconds",
+      "session_id",
+      "syslog.app",
+      "syslog.facility",
+      "syslog.pid",
+      "syslog.pri",
+      "syslog.severity",
+      "syslog.timestamp"
+    ],
+    "year_inferred": true
+  },
+  {
+    "activity_id": 2,
+    "category": "iam",
+    "class_uid": 3002,
+    "conformance": "match",
+    "derived_fields": {
+      "severity_id": "const",
+      "status_id": "const"
+    },
+    "dlq_reason": null,
+    "mapped": {
+      "device.hostname": "fw01",
+      "message": "session 7782 closed for a.sharma after 319s",
+      "user.name": "a.sharma"
+    },
+    "observables": [
+      "a.sharma",
+      "fw01"
+    ],
+    "parse_path": [
+      "syslog:rfc3164",
+      "json",
+      "template:session_closed"
+    ],
+    "severity_id": 1,
+    "status_id": 1,
+    "template_id": "session_closed",
+    "tier": 1,
+    "time_source": "event",
+    "type_uid": 300202,
+    "unmapped_keys": [
+      "json.evt",
+      "json.msg",
+      "seconds",
+      "session_id",
+      "syslog.app",
+      "syslog.facility",
+      "syslog.pid",
+      "syslog.pri",
+      "syslog.severity",
+      "syslog.timestamp"
+    ],
+    "year_inferred": true
+  },
+  {
+    "activity_id": 2,
+    "category": "iam",
+    "class_uid": 3002,
+    "conformance": "match",
+    "derived_fields": {
+      "severity_id": "const",
+      "status_id": "const"
+    },
+    "dlq_reason": null,
+    "mapped": {
+      "device.hostname": "fw01",
+      "message": "session 7783 closed for neel.k after 326s",
+      "user.name": "neel.k"
+    },
+    "observables": [
+      "neel.k",
+      "fw01"
+    ],
+    "parse_path": [
+      "syslog:rfc3164",
+      "json",
+      "template:session_closed"
+    ],
+    "severity_id": 1,
+    "status_id": 1,
+    "template_id": "session_closed",
+    "tier": 1,
+    "time_source": "event",
+    "type_uid": 300202,
+    "unmapped_keys": [
+      "json.evt",
+      "json.msg",
+      "seconds",
+      "session_id",
+      "syslog.app",
+      "syslog.facility",
+      "syslog.pid",
+      "syslog.pri",
+      "syslog.severity",
+      "syslog.timestamp"
+    ],
+    "year_inferred": true
+  },
+  {
+    "activity_id": 2,
+    "category": "iam",
+    "class_uid": 3002,
+    "conformance": "match",
+    "derived_fields": {
+      "severity_id": "const",
+      "status_id": "const"
+    },
+    "dlq_reason": null,
+    "mapped": {
+      "device.hostname": "fw01",
+      "message": "session 7784 closed for s.iyer after 333s",
+      "user.name": "s.iyer"
+    },
+    "observables": [
+      "s.iyer",
+      "fw01"
+    ],
+    "parse_path": [
+      "syslog:rfc3164",
+      "json",
+      "template:session_closed"
+    ],
+    "severity_id": 1,
+    "status_id": 1,
+    "template_id": "session_closed",
+    "tier": 1,
+    "time_source": "event",
+    "type_uid": 300202,
+    "unmapped_keys": [
+      "json.evt",
+      "json.msg",
+      "seconds",
+      "session_id",
+      "syslog.app",
+      "syslog.facility",
+      "syslog.pid",
+      "syslog.pri",
+      "syslog.severity",
+      "syslog.timestamp"
+    ],
+    "year_inferred": true
+  },
+  {
+    "activity_id": 2,
+    "category": "iam",
+    "class_uid": 3002,
+    "conformance": "match",
+    "derived_fields": {
+      "severity_id": "const",
+      "status_id": "const"
+    },
+    "dlq_reason": null,
+    "mapped": {
+      "device.hostname": "fw01",
+      "message": "session 7785 closed for v.rao after 340s",
+      "user.name": "v.rao"
+    },
+    "observables": [
+      "v.rao",
+      "fw01"
+    ],
+    "parse_path": [
+      "syslog:rfc3164",
+      "json",
+      "template:session_closed"
+    ],
+    "severity_id": 1,
+    "status_id": 1,
+    "template_id": "session_closed",
+    "tier": 1,
+    "time_source": "event",
+    "type_uid": 300202,
+    "unmapped_keys": [
+      "json.evt",
+      "json.msg",
+      "seconds",
+      "session_id",
+      "syslog.app",
+      "syslog.facility",
+      "syslog.pid",
+      "syslog.pri",
+      "syslog.severity",
+      "syslog.timestamp"
+    ],
+    "year_inferred": true
+  },
+  {
+    "activity_id": 2,
+    "category": "iam",
+    "class_uid": 3002,
+    "conformance": "match",
+    "derived_fields": {
+      "severity_id": "const",
+      "status_id": "const"
+    },
+    "dlq_reason": null,
+    "mapped": {
+      "device.hostname": "fw01",
+      "message": "session 7786 closed for admin after 347s",
+      "user.name": "admin"
+    },
+    "observables": [
+      "admin",
+      "fw01"
+    ],
+    "parse_path": [
+      "syslog:rfc3164",
+      "json",
+      "template:session_closed"
+    ],
+    "severity_id": 1,
+    "status_id": 1,
+    "template_id": "session_closed",
+    "tier": 1,
+    "time_source": "event",
+    "type_uid": 300202,
+    "unmapped_keys": [
+      "json.evt",
+      "json.msg",
+      "seconds",
+      "session_id",
+      "syslog.app",
+      "syslog.facility",
+      "syslog.pid",
+      "syslog.pri",
+      "syslog.severity",
+      "syslog.timestamp"
+    ],
+    "year_inferred": true
+  },
+  {
+    "activity_id": 2,
+    "category": "iam",
+    "class_uid": 3002,
+    "conformance": "match",
+    "derived_fields": {
+      "severity_id": "const",
+      "status_id": "const"
+    },
+    "dlq_reason": null,
+    "mapped": {
+      "device.hostname": "fw01",
+      "message": "session 7787 closed for root after 354s",
+      "user.name": "root"
+    },
+    "observables": [
+      "root",
+      "fw01"
+    ],
+    "parse_path": [
+      "syslog:rfc3164",
+      "json",
+      "template:session_closed"
+    ],
+    "severity_id": 1,
+    "status_id": 1,
+    "template_id": "session_closed",
+    "tier": 1,
+    "time_source": "event",
+    "type_uid": 300202,
+    "unmapped_keys": [
+      "json.evt",
+      "json.msg",
+      "seconds",
+      "session_id",
+      "syslog.app",
+      "syslog.facility",
+      "syslog.pid",
+      "syslog.pri",
+      "syslog.severity",
+      "syslog.timestamp"
+    ],
+    "year_inferred": true
+  },
+  {
+    "activity_id": 2,
+    "category": "iam",
+    "class_uid": 3002,
+    "conformance": "match",
+    "derived_fields": {
+      "severity_id": "const",
+      "status_id": "const"
+    },
+    "dlq_reason": null,
+    "mapped": {
+      "device.hostname": "fw01",
+      "message": "session 7788 closed for d.mehta after 361s",
+      "user.name": "d.mehta"
+    },
+    "observables": [
+      "d.mehta",
+      "fw01"
+    ],
+    "parse_path": [
+      "syslog:rfc3164",
+      "json",
+      "template:session_closed"
+    ],
+    "severity_id": 1,
+    "status_id": 1,
+    "template_id": "session_closed",
+    "tier": 1,
+    "time_source": "event",
+    "type_uid": 300202,
+    "unmapped_keys": [
+      "json.evt",
+      "json.msg",
+      "seconds",
+      "session_id",
+      "syslog.app",
+      "syslog.facility",
+      "syslog.pid",
+      "syslog.pri",
+      "syslog.severity",
+      "syslog.timestamp"
+    ],
+    "year_inferred": true
+  },
+  {
+    "activity_id": 2,
+    "category": "iam",
+    "class_uid": 3002,
+    "conformance": "match",
+    "derived_fields": {
+      "severity_id": "const",
+      "status_id": "const"
+    },
+    "dlq_reason": null,
+    "mapped": {
+      "device.hostname": "fw01",
+      "message": "session 7789 closed for r.patil after 368s",
+      "user.name": "r.patil"
+    },
+    "observables": [
+      "r.patil",
+      "fw01"
+    ],
+    "parse_path": [
+      "syslog:rfc3164",
+      "json",
+      "template:session_closed"
+    ],
+    "severity_id": 1,
+    "status_id": 1,
+    "template_id": "session_closed",
+    "tier": 1,
+    "time_source": "event",
+    "type_uid": 300202,
+    "unmapped_keys": [
+      "json.evt",
+      "json.msg",
+      "seconds",
+      "session_id",
+      "syslog.app",
+      "syslog.facility",
+      "syslog.pid",
+      "syslog.pri",
+      "syslog.severity",
+      "syslog.timestamp"
+    ],
+    "year_inferred": true
+  },
+  {
+    "activity_id": 2,
+    "category": "iam",
+    "class_uid": 3002,
+    "conformance": "match",
+    "derived_fields": {
+      "severity_id": "const",
+      "status_id": "const"
+    },
+    "dlq_reason": null,
+    "mapped": {
+      "device.hostname": "fw01",
+      "message": "session 7790 closed for a.sharma after 375s",
+      "user.name": "a.sharma"
+    },
+    "observables": [
+      "a.sharma",
+      "fw01"
+    ],
+    "parse_path": [
+      "syslog:rfc3164",
+      "json",
+      "template:session_closed"
+    ],
+    "severity_id": 1,
+    "status_id": 1,
+    "template_id": "session_closed",
+    "tier": 1,
+    "time_source": "event",
+    "type_uid": 300202,
+    "unmapped_keys": [
+      "json.evt",
+      "json.msg",
+      "seconds",
+      "session_id",
+      "syslog.app",
+      "syslog.facility",
+      "syslog.pid",
+      "syslog.pri",
+      "syslog.severity",
+      "syslog.timestamp"
+    ],
+    "year_inferred": true
+  },
+  {
+    "activity_id": 2,
+    "category": "iam",
+    "class_uid": 3002,
+    "conformance": "match",
+    "derived_fields": {
+      "severity_id": "const",
+      "status_id": "const"
+    },
+    "dlq_reason": null,
+    "mapped": {
+      "device.hostname": "fw01",
+      "message": "session 7791 closed for neel.k after 382s",
+      "user.name": "neel.k"
+    },
+    "observables": [
+      "neel.k",
+      "fw01"
+    ],
+    "parse_path": [
+      "syslog:rfc3164",
+      "json",
+      "template:session_closed"
+    ],
+    "severity_id": 1,
+    "status_id": 1,
+    "template_id": "session_closed",
+    "tier": 1,
+    "time_source": "event",
+    "type_uid": 300202,
+    "unmapped_keys": [
+      "json.evt",
+      "json.msg",
+      "seconds",
+      "session_id",
+      "syslog.app",
+      "syslog.facility",
+      "syslog.pid",
+      "syslog.pri",
+      "syslog.severity",
+      "syslog.timestamp"
+    ],
+    "year_inferred": true
+  },
+  {
+    "activity_id": 2,
+    "category": "iam",
+    "class_uid": 3002,
+    "conformance": "match",
+    "derived_fields": {
+      "severity_id": "const",
+      "status_id": "const"
+    },
+    "dlq_reason": null,
+    "mapped": {
+      "device.hostname": "fw01",
+      "message": "session 7792 closed for s.iyer after 389s",
+      "user.name": "s.iyer"
+    },
+    "observables": [
+      "s.iyer",
+      "fw01"
+    ],
+    "parse_path": [
+      "syslog:rfc3164",
+      "json",
+      "template:session_closed"
+    ],
+    "severity_id": 1,
+    "status_id": 1,
+    "template_id": "session_closed",
+    "tier": 1,
+    "time_source": "event",
+    "type_uid": 300202,
+    "unmapped_keys": [
+      "json.evt",
+      "json.msg",
+      "seconds",
+      "session_id",
+      "syslog.app",
+      "syslog.facility",
+      "syslog.pid",
+      "syslog.pri",
+      "syslog.severity",
+      "syslog.timestamp"
+    ],
+    "year_inferred": true
+  },
+  {
+    "activity_id": 2,
+    "category": "iam",
+    "class_uid": 3002,
+    "conformance": "match",
+    "derived_fields": {
+      "severity_id": "const",
+      "status_id": "const"
+    },
+    "dlq_reason": null,
+    "mapped": {
+      "device.hostname": "fw01",
+      "message": "session 7793 closed for v.rao after 396s",
+      "user.name": "v.rao"
+    },
+    "observables": [
+      "v.rao",
+      "fw01"
+    ],
+    "parse_path": [
+      "syslog:rfc3164",
+      "json",
+      "template:session_closed"
+    ],
+    "severity_id": 1,
+    "status_id": 1,
+    "template_id": "session_closed",
+    "tier": 1,
+    "time_source": "event",
+    "type_uid": 300202,
+    "unmapped_keys": [
+      "json.evt",
+      "json.msg",
+      "seconds",
+      "session_id",
+      "syslog.app",
+      "syslog.facility",
+      "syslog.pid",
+      "syslog.pri",
+      "syslog.severity",
+      "syslog.timestamp"
+    ],
+    "year_inferred": true
+  },
+  {
+    "activity_id": 2,
+    "category": "iam",
+    "class_uid": 3002,
+    "conformance": "match",
+    "derived_fields": {
+      "severity_id": "const",
+      "status_id": "const"
+    },
+    "dlq_reason": null,
+    "mapped": {
+      "device.hostname": "fw01",
+      "message": "session 7794 closed for admin after 403s",
+      "user.name": "admin"
+    },
+    "observables": [
+      "admin",
+      "fw01"
+    ],
+    "parse_path": [
+      "syslog:rfc3164",
+      "json",
+      "template:session_closed"
+    ],
+    "severity_id": 1,
+    "status_id": 1,
+    "template_id": "session_closed",
+    "tier": 1,
+    "time_source": "event",
+    "type_uid": 300202,
+    "unmapped_keys": [
+      "json.evt",
+      "json.msg",
+      "seconds",
+      "session_id",
+      "syslog.app",
+      "syslog.facility",
+      "syslog.pid",
+      "syslog.pri",
+      "syslog.severity",
+      "syslog.timestamp"
+    ],
+    "year_inferred": true
+  },
+  {
+    "activity_id": 2,
+    "category": "iam",
+    "class_uid": 3002,
+    "conformance": "match",
+    "derived_fields": {
+      "severity_id": "const",
+      "status_id": "const"
+    },
+    "dlq_reason": null,
+    "mapped": {
+      "device.hostname": "fw01",
+      "message": "session 7795 closed for root after 410s",
+      "user.name": "root"
+    },
+    "observables": [
+      "root",
+      "fw01"
+    ],
+    "parse_path": [
+      "syslog:rfc3164",
+      "json",
+      "template:session_closed"
+    ],
+    "severity_id": 1,
+    "status_id": 1,
+    "template_id": "session_closed",
+    "tier": 1,
+    "time_source": "event",
+    "type_uid": 300202,
+    "unmapped_keys": [
+      "json.evt",
+      "json.msg",
+      "seconds",
+      "session_id",
+      "syslog.app",
+      "syslog.facility",
+      "syslog.pid",
+      "syslog.pri",
+      "syslog.severity",
+      "syslog.timestamp"
+    ],
+    "year_inferred": true
+  },
+  {
+    "activity_id": 2,
+    "category": "iam",
+    "class_uid": 3002,
+    "conformance": "match",
+    "derived_fields": {
+      "severity_id": "const",
+      "status_id": "const"
+    },
+    "dlq_reason": null,
+    "mapped": {
+      "device.hostname": "fw01",
+      "message": "session 7796 closed for d.mehta after 417s",
+      "user.name": "d.mehta"
+    },
+    "observables": [
+      "d.mehta",
+      "fw01"
+    ],
+    "parse_path": [
+      "syslog:rfc3164",
+      "json",
+      "template:session_closed"
+    ],
+    "severity_id": 1,
+    "status_id": 1,
+    "template_id": "session_closed",
+    "tier": 1,
+    "time_source": "event",
+    "type_uid": 300202,
+    "unmapped_keys": [
+      "json.evt",
+      "json.msg",
+      "seconds",
+      "session_id",
+      "syslog.app",
+      "syslog.facility",
+      "syslog.pid",
+      "syslog.pri",
+      "syslog.severity",
+      "syslog.timestamp"
+    ],
+    "year_inferred": true
+  },
+  {
+    "activity_id": 2,
+    "category": "iam",
+    "class_uid": 3002,
+    "conformance": "match",
+    "derived_fields": {
+      "severity_id": "const",
+      "status_id": "const"
+    },
+    "dlq_reason": null,
+    "mapped": {
+      "device.hostname": "fw01",
+      "message": "session 7797 closed for r.patil after 424s",
+      "user.name": "r.patil"
+    },
+    "observables": [
+      "r.patil",
+      "fw01"
+    ],
+    "parse_path": [
+      "syslog:rfc3164",
+      "json",
+      "template:session_closed"
+    ],
+    "severity_id": 1,
+    "status_id": 1,
+    "template_id": "session_closed",
+    "tier": 1,
+    "time_source": "event",
+    "type_uid": 300202,
+    "unmapped_keys": [
+      "json.evt",
+      "json.msg",
+      "seconds",
+      "session_id",
+      "syslog.app",
+      "syslog.facility",
+      "syslog.pid",
+      "syslog.pri",
+      "syslog.severity",
+      "syslog.timestamp"
+    ],
+    "year_inferred": true
+  },
+  {
+    "activity_id": 2,
+    "category": "iam",
+    "class_uid": 3002,
+    "conformance": "match",
+    "derived_fields": {
+      "severity_id": "const",
+      "status_id": "const"
+    },
+    "dlq_reason": null,
+    "mapped": {
+      "device.hostname": "fw01",
+      "message": "session 7798 closed for a.sharma after 431s",
+      "user.name": "a.sharma"
+    },
+    "observables": [
+      "a.sharma",
+      "fw01"
+    ],
+    "parse_path": [
+      "syslog:rfc3164",
+      "json",
+      "template:session_closed"
+    ],
+    "severity_id": 1,
+    "status_id": 1,
+    "template_id": "session_closed",
+    "tier": 1,
+    "time_source": "event",
+    "type_uid": 300202,
+    "unmapped_keys": [
+      "json.evt",
+      "json.msg",
+      "seconds",
+      "session_id",
+      "syslog.app",
+      "syslog.facility",
+      "syslog.pid",
+      "syslog.pri",
+      "syslog.severity",
+      "syslog.timestamp"
+    ],
+    "year_inferred": true
+  },
+  {
+    "activity_id": 2,
+    "category": "iam",
+    "class_uid": 3002,
+    "conformance": "match",
+    "derived_fields": {
+      "severity_id": "const",
+      "status_id": "const"
+    },
+    "dlq_reason": null,
+    "mapped": {
+      "device.hostname": "fw01",
+      "message": "session 7799 closed for neel.k after 438s",
+      "user.name": "neel.k"
+    },
+    "observables": [
+      "neel.k",
+      "fw01"
+    ],
+    "parse_path": [
+      "syslog:rfc3164",
+      "json",
+      "template:session_closed"
+    ],
+    "severity_id": 1,
+    "status_id": 1,
+    "template_id": "session_closed",
+    "tier": 1,
+    "time_source": "event",
+    "type_uid": 300202,
+    "unmapped_keys": [
+      "json.evt",
+      "json.msg",
+      "seconds",
+      "session_id",
+      "syslog.app",
+      "syslog.facility",
+      "syslog.pid",
+      "syslog.pri",
+      "syslog.severity",
+      "syslog.timestamp"
+    ],
+    "year_inferred": true
+  },
+  {
+    "activity_id": 2,
+    "category": "iam",
+    "class_uid": 3002,
+    "conformance": "match",
+    "derived_fields": {
+      "severity_id": "const",
+      "status_id": "const"
+    },
+    "dlq_reason": null,
+    "mapped": {
+      "device.hostname": "fw01",
+      "message": "session 7800 closed for s.iyer after 445s",
+      "user.name": "s.iyer"
+    },
+    "observables": [
+      "s.iyer",
+      "fw01"
+    ],
+    "parse_path": [
+      "syslog:rfc3164",
+      "json",
+      "template:session_closed"
+    ],
+    "severity_id": 1,
+    "status_id": 1,
+    "template_id": "session_closed",
+    "tier": 1,
+    "time_source": "event",
+    "type_uid": 300202,
+    "unmapped_keys": [
+      "json.evt",
+      "json.msg",
+      "seconds",
+      "session_id",
+      "syslog.app",
+      "syslog.facility",
+      "syslog.pid",
+      "syslog.pri",
+      "syslog.severity",
+      "syslog.timestamp"
+    ],
+    "year_inferred": true
+  },
+  {
+    "activity_id": 2,
+    "category": "iam",
+    "class_uid": 3002,
+    "conformance": "match",
+    "derived_fields": {
+      "severity_id": "const",
+      "status_id": "const"
+    },
+    "dlq_reason": null,
+    "mapped": {
+      "device.hostname": "fw01",
+      "message": "session 7801 closed for v.rao after 452s",
+      "user.name": "v.rao"
+    },
+    "observables": [
+      "v.rao",
+      "fw01"
+    ],
+    "parse_path": [
+      "syslog:rfc3164",
+      "json",
+      "template:session_closed"
+    ],
+    "severity_id": 1,
+    "status_id": 1,
+    "template_id": "session_closed",
+    "tier": 1,
+    "time_source": "event",
+    "type_uid": 300202,
+    "unmapped_keys": [
+      "json.evt",
+      "json.msg",
+      "seconds",
+      "session_id",
+      "syslog.app",
+      "syslog.facility",
+      "syslog.pid",
+      "syslog.pri",
+      "syslog.severity",
+      "syslog.timestamp"
+    ],
+    "year_inferred": true
+  },
+  {
+    "activity_id": 2,
+    "category": "iam",
+    "class_uid": 3002,
+    "conformance": "match",
+    "derived_fields": {
+      "severity_id": "const",
+      "status_id": "const"
+    },
+    "dlq_reason": null,
+    "mapped": {
+      "device.hostname": "fw01",
+      "message": "session 7802 closed for admin after 459s",
+      "user.name": "admin"
+    },
+    "observables": [
+      "admin",
+      "fw01"
+    ],
+    "parse_path": [
+      "syslog:rfc3164",
+      "json",
+      "template:session_closed"
+    ],
+    "severity_id": 1,
+    "status_id": 1,
+    "template_id": "session_closed",
+    "tier": 1,
+    "time_source": "event",
+    "type_uid": 300202,
+    "unmapped_keys": [
+      "json.evt",
+      "json.msg",
+      "seconds",
+      "session_id",
+      "syslog.app",
+      "syslog.facility",
+      "syslog.pid",
+      "syslog.pri",
+      "syslog.severity",
+      "syslog.timestamp"
+    ],
+    "year_inferred": true
+  }
+]

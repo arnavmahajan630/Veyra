@@ -355,16 +355,22 @@ def test_parity_vectors_from_s0_still_hold(cfg: Settings) -> None:
         payloads.append(envelope.raw_bytes)
         expected[envelope.raw_sha256] = vector["name"]
 
+    # These payloads must stay byte-exact, so they cannot carry a marker. Drain by *time* and
+    # match on the hash: counting messages would fill the quota with unrelated traffic whenever
+    # something else is running on the stack.
     consumer = subscribe(cfg)
+    seen: set[str] = set()
     try:
         send_udp(CORE_UDP, payloads, delay=0.05)
-        # These payloads must stay byte-exact, so they cannot carry a marker; over-collect
-        # and match on the hash instead.
-        got = drain(consumer, want=len(payloads) * 5, timeout=40)
+        deadline = time.monotonic() + 40
+        while time.monotonic() < deadline and not set(expected) <= seen:
+            message = consumer.poll(1.0)  # type: ignore[attr-defined]
+            if message is None or message.error():
+                continue
+            seen.add(Envelope.model_validate_json(message.value()).raw_sha256)
     finally:
         consumer.close()  # type: ignore[attr-defined]
 
-    seen = {e.raw_sha256 for _, e in got}
     missing = {sha: name for sha, name in expected.items() if sha not in seen}
     assert not missing, f"the edge did not reproduce these S0 parity vectors: {missing}"
 

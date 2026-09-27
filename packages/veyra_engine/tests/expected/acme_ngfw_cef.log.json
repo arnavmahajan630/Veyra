@@ -1,0 +1,998 @@
+[
+  {
+    "activity_id": 5,
+    "category": "network",
+    "class_uid": 4001,
+    "conformance": "match",
+    "derived_fields": {
+      "disposition_id": "const",
+      "metadata.product.name": "const",
+      "metadata.product.vendor_name": "const",
+      "severity_id": "const"
+    },
+    "dlq_reason": null,
+    "mapped": {
+      "connection_info.protocol_name": "tcp",
+      "dst_endpoint.ip": "10.2.3.4",
+      "dst_endpoint.port": "22",
+      "message": "traffic deny",
+      "src_endpoint.ip": "45.12.3.9"
+    },
+    "observables": [
+      "10.2.3.4",
+      "45.12.3.9"
+    ],
+    "parse_path": [
+      "cef",
+      "template:traffic_deny"
+    ],
+    "severity_id": 3,
+    "status_id": null,
+    "template_id": "traffic_deny",
+    "tier": 1,
+    "time_source": "event",
+    "type_uid": 400105,
+    "unmapped_keys": [
+      "cef.act",
+      "cef.cef_version",
+      "cef.cs1",
+      "cef.cs1Label",
+      "cef.deviceInboundInterface",
+      "cef.device_product",
+      "cef.device_vendor",
+      "cef.device_version",
+      "cef.in",
+      "cef.name",
+      "cef.out",
+      "cef.rt",
+      "cef.severity",
+      "cef.signature_id"
+    ],
+    "year_inferred": false
+  },
+  {
+    "activity_id": 5,
+    "category": "network",
+    "class_uid": 4001,
+    "conformance": "match",
+    "derived_fields": {
+      "disposition_id": "const",
+      "metadata.product.name": "const",
+      "metadata.product.vendor_name": "const",
+      "severity_id": "const"
+    },
+    "dlq_reason": null,
+    "mapped": {
+      "connection_info.protocol_name": "tcp",
+      "dst_endpoint.ip": "10.2.3.4",
+      "dst_endpoint.port": "3389",
+      "message": "traffic deny",
+      "src_endpoint.ip": "45.12.3.9"
+    },
+    "observables": [
+      "10.2.3.4",
+      "45.12.3.9"
+    ],
+    "parse_path": [
+      "cef",
+      "template:traffic_deny"
+    ],
+    "severity_id": 3,
+    "status_id": null,
+    "template_id": "traffic_deny",
+    "tier": 1,
+    "time_source": "event",
+    "type_uid": 400105,
+    "unmapped_keys": [
+      "cef.act",
+      "cef.cef_version",
+      "cef.cs1",
+      "cef.cs1Label",
+      "cef.deviceInboundInterface",
+      "cef.device_product",
+      "cef.device_vendor",
+      "cef.device_version",
+      "cef.in",
+      "cef.name",
+      "cef.out",
+      "cef.rt",
+      "cef.severity",
+      "cef.signature_id"
+    ],
+    "year_inferred": false
+  },
+  {
+    "activity_id": 6,
+    "category": "network",
+    "class_uid": 4001,
+    "conformance": "match",
+    "derived_fields": {
+      "disposition_id": "const",
+      "severity_id": "const"
+    },
+    "dlq_reason": null,
+    "mapped": {
+      "connection_info.protocol_name": "tcp",
+      "dst_endpoint.ip": "10.2.3.9",
+      "dst_endpoint.port": "443",
+      "message": "traffic allow",
+      "src_endpoint.ip": "10.4.1.20",
+      "traffic.bytes_in": "8421",
+      "traffic.bytes_out": "19022"
+    },
+    "observables": [
+      "10.2.3.9",
+      "10.4.1.20"
+    ],
+    "parse_path": [
+      "cef",
+      "template:traffic_allow"
+    ],
+    "severity_id": 1,
+    "status_id": null,
+    "template_id": "traffic_allow",
+    "tier": 1,
+    "time_source": "event",
+    "type_uid": 400106,
+    "unmapped_keys": [
+      "cef.act",
+      "cef.cef_version",
+      "cef.cs1",
+      "cef.cs1Label",
+      "cef.deviceInboundInterface",
+      "cef.device_product",
+      "cef.device_vendor",
+      "cef.device_version",
+      "cef.name",
+      "cef.rt",
+      "cef.severity",
+      "cef.signature_id"
+    ],
+    "year_inferred": false
+  },
+  {
+    "activity_id": 6,
+    "category": "network",
+    "class_uid": 4001,
+    "conformance": "match",
+    "derived_fields": {
+      "disposition_id": "const",
+      "severity_id": "const"
+    },
+    "dlq_reason": null,
+    "mapped": {
+      "connection_info.protocol_name": "tcp",
+      "dst_endpoint.ip": "10.2.3.9",
+      "dst_endpoint.port": "443",
+      "message": "traffic allow",
+      "src_endpoint.ip": "10.4.1.21",
+      "traffic.bytes_in": "1200",
+      "traffic.bytes_out": "4400"
+    },
+    "observables": [
+      "10.2.3.9",
+      "10.4.1.21"
+    ],
+    "parse_path": [
+      "cef",
+      "template:traffic_allow"
+    ],
+    "severity_id": 1,
+    "status_id": null,
+    "template_id": "traffic_allow",
+    "tier": 1,
+    "time_source": "event",
+    "type_uid": 400106,
+    "unmapped_keys": [
+      "cef.act",
+      "cef.cef_version",
+      "cef.cs1",
+      "cef.cs1Label",
+      "cef.deviceInboundInterface",
+      "cef.device_product",
+      "cef.device_vendor",
+      "cef.device_version",
+      "cef.name",
+      "cef.rt",
+      "cef.severity",
+      "cef.signature_id"
+    ],
+    "year_inferred": false
+  },
+  {
+    "activity_id": 5,
+    "category": "network",
+    "class_uid": 4001,
+    "conformance": "match",
+    "derived_fields": {
+      "disposition_id": "const",
+      "metadata.product.name": "const",
+      "metadata.product.vendor_name": "const",
+      "severity_id": "const"
+    },
+    "dlq_reason": null,
+    "mapped": {
+      "connection_info.protocol_name": "tcp",
+      "dst_endpoint.ip": "10.2.3.4",
+      "dst_endpoint.port": "445",
+      "message": "traffic deny",
+      "src_endpoint.ip": "103.21.4.77"
+    },
+    "observables": [
+      "10.2.3.4",
+      "103.21.4.77"
+    ],
+    "parse_path": [
+      "cef",
+      "template:traffic_deny"
+    ],
+    "severity_id": 3,
+    "status_id": null,
+    "template_id": "traffic_deny",
+    "tier": 1,
+    "time_source": "event",
+    "type_uid": 400105,
+    "unmapped_keys": [
+      "cef.act",
+      "cef.cef_version",
+      "cef.cs1",
+      "cef.cs1Label",
+      "cef.deviceInboundInterface",
+      "cef.device_product",
+      "cef.device_vendor",
+      "cef.device_version",
+      "cef.in",
+      "cef.name",
+      "cef.out",
+      "cef.rt",
+      "cef.severity",
+      "cef.signature_id"
+    ],
+    "year_inferred": false
+  },
+  {
+    "activity_id": 6,
+    "category": "network",
+    "class_uid": 4001,
+    "conformance": "match",
+    "derived_fields": {
+      "disposition_id": "const",
+      "severity_id": "const"
+    },
+    "dlq_reason": null,
+    "mapped": {
+      "connection_info.protocol_name": "udp",
+      "dst_endpoint.ip": "8.8.8.8",
+      "dst_endpoint.port": "53",
+      "message": "traffic allow",
+      "src_endpoint.ip": "10.4.2.9",
+      "traffic.bytes_in": "74",
+      "traffic.bytes_out": "190"
+    },
+    "observables": [
+      "8.8.8.8",
+      "10.4.2.9"
+    ],
+    "parse_path": [
+      "cef",
+      "template:traffic_allow"
+    ],
+    "severity_id": 1,
+    "status_id": null,
+    "template_id": "traffic_allow",
+    "tier": 1,
+    "time_source": "event",
+    "type_uid": 400106,
+    "unmapped_keys": [
+      "cef.act",
+      "cef.cef_version",
+      "cef.cs1",
+      "cef.cs1Label",
+      "cef.deviceInboundInterface",
+      "cef.device_product",
+      "cef.device_vendor",
+      "cef.device_version",
+      "cef.name",
+      "cef.rt",
+      "cef.severity",
+      "cef.signature_id"
+    ],
+    "year_inferred": false
+  },
+  {
+    "activity_id": 5,
+    "category": "network",
+    "class_uid": 4001,
+    "conformance": "match",
+    "derived_fields": {
+      "disposition_id": "const",
+      "severity_id": "const"
+    },
+    "dlq_reason": null,
+    "mapped": {
+      "dst_endpoint.ip": "10.2.3.4",
+      "dst_endpoint.port": "80",
+      "message": "threat blocked",
+      "src_endpoint.ip": "45.12.3.9"
+    },
+    "observables": [
+      "10.2.3.4",
+      "45.12.3.9"
+    ],
+    "parse_path": [
+      "cef",
+      "template:threat_blocked"
+    ],
+    "severity_id": 4,
+    "status_id": null,
+    "template_id": "threat_blocked",
+    "tier": 1,
+    "time_source": "event",
+    "type_uid": 400105,
+    "unmapped_keys": [
+      "cef.act",
+      "cef.cef_version",
+      "cef.cs1",
+      "cef.cs1Label",
+      "cef.deviceInboundInterface",
+      "cef.device_product",
+      "cef.device_vendor",
+      "cef.device_version",
+      "cef.in",
+      "cef.name",
+      "cef.out",
+      "cef.proto",
+      "cef.rt",
+      "cef.severity",
+      "cef.signature_id"
+    ],
+    "year_inferred": false
+  },
+  {
+    "activity_id": 6,
+    "category": "network",
+    "class_uid": 4001,
+    "conformance": "match",
+    "derived_fields": {
+      "disposition_id": "const",
+      "severity_id": "const"
+    },
+    "dlq_reason": null,
+    "mapped": {
+      "connection_info.protocol_name": "tcp",
+      "dst_endpoint.ip": "10.2.4.10",
+      "dst_endpoint.port": "8080",
+      "message": "traffic allow",
+      "src_endpoint.ip": "10.4.1.44",
+      "traffic.bytes_in": "3310",
+      "traffic.bytes_out": "9900"
+    },
+    "observables": [
+      "10.2.4.10",
+      "10.4.1.44"
+    ],
+    "parse_path": [
+      "cef",
+      "template:traffic_allow"
+    ],
+    "severity_id": 1,
+    "status_id": null,
+    "template_id": "traffic_allow",
+    "tier": 1,
+    "time_source": "event",
+    "type_uid": 400106,
+    "unmapped_keys": [
+      "cef.act",
+      "cef.cef_version",
+      "cef.cs1",
+      "cef.cs1Label",
+      "cef.deviceInboundInterface",
+      "cef.device_product",
+      "cef.device_vendor",
+      "cef.device_version",
+      "cef.name",
+      "cef.rt",
+      "cef.severity",
+      "cef.signature_id"
+    ],
+    "year_inferred": false
+  },
+  {
+    "activity_id": 5,
+    "category": "network",
+    "class_uid": 4001,
+    "conformance": "match",
+    "derived_fields": {
+      "disposition_id": "const",
+      "metadata.product.name": "const",
+      "metadata.product.vendor_name": "const",
+      "severity_id": "const"
+    },
+    "dlq_reason": null,
+    "mapped": {
+      "connection_info.protocol_name": "tcp",
+      "dst_endpoint.ip": "10.2.3.4",
+      "dst_endpoint.port": "23",
+      "message": "traffic deny",
+      "src_endpoint.ip": "192.168.9.14"
+    },
+    "observables": [
+      "10.2.3.4",
+      "192.168.9.14"
+    ],
+    "parse_path": [
+      "cef",
+      "template:traffic_deny"
+    ],
+    "severity_id": 3,
+    "status_id": null,
+    "template_id": "traffic_deny",
+    "tier": 1,
+    "time_source": "event",
+    "type_uid": 400105,
+    "unmapped_keys": [
+      "cef.act",
+      "cef.cef_version",
+      "cef.cs1",
+      "cef.cs1Label",
+      "cef.deviceInboundInterface",
+      "cef.device_product",
+      "cef.device_vendor",
+      "cef.device_version",
+      "cef.in",
+      "cef.name",
+      "cef.out",
+      "cef.rt",
+      "cef.severity",
+      "cef.signature_id"
+    ],
+    "year_inferred": false
+  },
+  {
+    "activity_id": 6,
+    "category": "network",
+    "class_uid": 4001,
+    "conformance": "match",
+    "derived_fields": {
+      "disposition_id": "const",
+      "severity_id": "const"
+    },
+    "dlq_reason": null,
+    "mapped": {
+      "connection_info.protocol_name": "tcp",
+      "dst_endpoint.ip": "10.2.3.20",
+      "dst_endpoint.port": "22",
+      "message": "traffic allow",
+      "src_endpoint.ip": "10.4.1.31",
+      "traffic.bytes_in": "990",
+      "traffic.bytes_out": "2210"
+    },
+    "observables": [
+      "10.2.3.20",
+      "10.4.1.31"
+    ],
+    "parse_path": [
+      "cef",
+      "template:traffic_allow"
+    ],
+    "severity_id": 1,
+    "status_id": null,
+    "template_id": "traffic_allow",
+    "tier": 1,
+    "time_source": "event",
+    "type_uid": 400106,
+    "unmapped_keys": [
+      "cef.act",
+      "cef.cef_version",
+      "cef.cs1",
+      "cef.cs1Label",
+      "cef.deviceInboundInterface",
+      "cef.device_product",
+      "cef.device_vendor",
+      "cef.device_version",
+      "cef.name",
+      "cef.rt",
+      "cef.severity",
+      "cef.signature_id"
+    ],
+    "year_inferred": false
+  },
+  {
+    "activity_id": 5,
+    "category": "network",
+    "class_uid": 4001,
+    "conformance": "match",
+    "derived_fields": {
+      "disposition_id": "const",
+      "metadata.product.name": "const",
+      "metadata.product.vendor_name": "const",
+      "severity_id": "const"
+    },
+    "dlq_reason": null,
+    "mapped": {
+      "connection_info.protocol_name": "tcp",
+      "dst_endpoint.ip": "10.2.3.4",
+      "dst_endpoint.port": "22",
+      "message": "traffic deny",
+      "src_endpoint.ip": "45.12.3.9"
+    },
+    "observables": [
+      "10.2.3.4",
+      "45.12.3.9"
+    ],
+    "parse_path": [
+      "cef",
+      "template:traffic_deny"
+    ],
+    "severity_id": 3,
+    "status_id": null,
+    "template_id": "traffic_deny",
+    "tier": 1,
+    "time_source": "event",
+    "type_uid": 400105,
+    "unmapped_keys": [
+      "cef.act",
+      "cef.cef_version",
+      "cef.cs1",
+      "cef.cs1Label",
+      "cef.deviceInboundInterface",
+      "cef.device_product",
+      "cef.device_vendor",
+      "cef.device_version",
+      "cef.in",
+      "cef.name",
+      "cef.out",
+      "cef.rt",
+      "cef.severity",
+      "cef.signature_id"
+    ],
+    "year_inferred": false
+  },
+  {
+    "activity_id": 5,
+    "category": "network",
+    "class_uid": 4001,
+    "conformance": "match",
+    "derived_fields": {
+      "disposition_id": "const",
+      "metadata.product.name": "const",
+      "metadata.product.vendor_name": "const",
+      "severity_id": "const"
+    },
+    "dlq_reason": null,
+    "mapped": {
+      "connection_info.protocol_name": "tcp",
+      "dst_endpoint.ip": "10.2.3.4",
+      "dst_endpoint.port": "3389",
+      "message": "traffic deny",
+      "src_endpoint.ip": "45.12.3.9"
+    },
+    "observables": [
+      "10.2.3.4",
+      "45.12.3.9"
+    ],
+    "parse_path": [
+      "cef",
+      "template:traffic_deny"
+    ],
+    "severity_id": 3,
+    "status_id": null,
+    "template_id": "traffic_deny",
+    "tier": 1,
+    "time_source": "event",
+    "type_uid": 400105,
+    "unmapped_keys": [
+      "cef.act",
+      "cef.cef_version",
+      "cef.cs1",
+      "cef.cs1Label",
+      "cef.deviceInboundInterface",
+      "cef.device_product",
+      "cef.device_vendor",
+      "cef.device_version",
+      "cef.in",
+      "cef.name",
+      "cef.out",
+      "cef.rt",
+      "cef.severity",
+      "cef.signature_id"
+    ],
+    "year_inferred": false
+  },
+  {
+    "activity_id": 6,
+    "category": "network",
+    "class_uid": 4001,
+    "conformance": "match",
+    "derived_fields": {
+      "disposition_id": "const",
+      "severity_id": "const"
+    },
+    "dlq_reason": null,
+    "mapped": {
+      "connection_info.protocol_name": "tcp",
+      "dst_endpoint.ip": "10.2.3.9",
+      "dst_endpoint.port": "443",
+      "message": "traffic allow",
+      "src_endpoint.ip": "10.4.1.20",
+      "traffic.bytes_in": "8421",
+      "traffic.bytes_out": "19022"
+    },
+    "observables": [
+      "10.2.3.9",
+      "10.4.1.20"
+    ],
+    "parse_path": [
+      "cef",
+      "template:traffic_allow"
+    ],
+    "severity_id": 1,
+    "status_id": null,
+    "template_id": "traffic_allow",
+    "tier": 1,
+    "time_source": "event",
+    "type_uid": 400106,
+    "unmapped_keys": [
+      "cef.act",
+      "cef.cef_version",
+      "cef.cs1",
+      "cef.cs1Label",
+      "cef.deviceInboundInterface",
+      "cef.device_product",
+      "cef.device_vendor",
+      "cef.device_version",
+      "cef.name",
+      "cef.rt",
+      "cef.severity",
+      "cef.signature_id"
+    ],
+    "year_inferred": false
+  },
+  {
+    "activity_id": 6,
+    "category": "network",
+    "class_uid": 4001,
+    "conformance": "match",
+    "derived_fields": {
+      "disposition_id": "const",
+      "severity_id": "const"
+    },
+    "dlq_reason": null,
+    "mapped": {
+      "connection_info.protocol_name": "tcp",
+      "dst_endpoint.ip": "10.2.3.9",
+      "dst_endpoint.port": "443",
+      "message": "traffic allow",
+      "src_endpoint.ip": "10.4.1.21",
+      "traffic.bytes_in": "1200",
+      "traffic.bytes_out": "4400"
+    },
+    "observables": [
+      "10.2.3.9",
+      "10.4.1.21"
+    ],
+    "parse_path": [
+      "cef",
+      "template:traffic_allow"
+    ],
+    "severity_id": 1,
+    "status_id": null,
+    "template_id": "traffic_allow",
+    "tier": 1,
+    "time_source": "event",
+    "type_uid": 400106,
+    "unmapped_keys": [
+      "cef.act",
+      "cef.cef_version",
+      "cef.cs1",
+      "cef.cs1Label",
+      "cef.deviceInboundInterface",
+      "cef.device_product",
+      "cef.device_vendor",
+      "cef.device_version",
+      "cef.name",
+      "cef.rt",
+      "cef.severity",
+      "cef.signature_id"
+    ],
+    "year_inferred": false
+  },
+  {
+    "activity_id": 5,
+    "category": "network",
+    "class_uid": 4001,
+    "conformance": "match",
+    "derived_fields": {
+      "disposition_id": "const",
+      "metadata.product.name": "const",
+      "metadata.product.vendor_name": "const",
+      "severity_id": "const"
+    },
+    "dlq_reason": null,
+    "mapped": {
+      "connection_info.protocol_name": "tcp",
+      "dst_endpoint.ip": "10.2.3.4",
+      "dst_endpoint.port": "445",
+      "message": "traffic deny",
+      "src_endpoint.ip": "103.21.4.77"
+    },
+    "observables": [
+      "10.2.3.4",
+      "103.21.4.77"
+    ],
+    "parse_path": [
+      "cef",
+      "template:traffic_deny"
+    ],
+    "severity_id": 3,
+    "status_id": null,
+    "template_id": "traffic_deny",
+    "tier": 1,
+    "time_source": "event",
+    "type_uid": 400105,
+    "unmapped_keys": [
+      "cef.act",
+      "cef.cef_version",
+      "cef.cs1",
+      "cef.cs1Label",
+      "cef.deviceInboundInterface",
+      "cef.device_product",
+      "cef.device_vendor",
+      "cef.device_version",
+      "cef.in",
+      "cef.name",
+      "cef.out",
+      "cef.rt",
+      "cef.severity",
+      "cef.signature_id"
+    ],
+    "year_inferred": false
+  },
+  {
+    "activity_id": 6,
+    "category": "network",
+    "class_uid": 4001,
+    "conformance": "match",
+    "derived_fields": {
+      "disposition_id": "const",
+      "severity_id": "const"
+    },
+    "dlq_reason": null,
+    "mapped": {
+      "connection_info.protocol_name": "udp",
+      "dst_endpoint.ip": "8.8.8.8",
+      "dst_endpoint.port": "53",
+      "message": "traffic allow",
+      "src_endpoint.ip": "10.4.2.9",
+      "traffic.bytes_in": "74",
+      "traffic.bytes_out": "190"
+    },
+    "observables": [
+      "8.8.8.8",
+      "10.4.2.9"
+    ],
+    "parse_path": [
+      "cef",
+      "template:traffic_allow"
+    ],
+    "severity_id": 1,
+    "status_id": null,
+    "template_id": "traffic_allow",
+    "tier": 1,
+    "time_source": "event",
+    "type_uid": 400106,
+    "unmapped_keys": [
+      "cef.act",
+      "cef.cef_version",
+      "cef.cs1",
+      "cef.cs1Label",
+      "cef.deviceInboundInterface",
+      "cef.device_product",
+      "cef.device_vendor",
+      "cef.device_version",
+      "cef.name",
+      "cef.rt",
+      "cef.severity",
+      "cef.signature_id"
+    ],
+    "year_inferred": false
+  },
+  {
+    "activity_id": 5,
+    "category": "network",
+    "class_uid": 4001,
+    "conformance": "match",
+    "derived_fields": {
+      "disposition_id": "const",
+      "severity_id": "const"
+    },
+    "dlq_reason": null,
+    "mapped": {
+      "dst_endpoint.ip": "10.2.3.4",
+      "dst_endpoint.port": "80",
+      "message": "threat blocked",
+      "src_endpoint.ip": "45.12.3.9"
+    },
+    "observables": [
+      "10.2.3.4",
+      "45.12.3.9"
+    ],
+    "parse_path": [
+      "cef",
+      "template:threat_blocked"
+    ],
+    "severity_id": 4,
+    "status_id": null,
+    "template_id": "threat_blocked",
+    "tier": 1,
+    "time_source": "event",
+    "type_uid": 400105,
+    "unmapped_keys": [
+      "cef.act",
+      "cef.cef_version",
+      "cef.cs1",
+      "cef.cs1Label",
+      "cef.deviceInboundInterface",
+      "cef.device_product",
+      "cef.device_vendor",
+      "cef.device_version",
+      "cef.in",
+      "cef.name",
+      "cef.out",
+      "cef.proto",
+      "cef.rt",
+      "cef.severity",
+      "cef.signature_id"
+    ],
+    "year_inferred": false
+  },
+  {
+    "activity_id": 6,
+    "category": "network",
+    "class_uid": 4001,
+    "conformance": "match",
+    "derived_fields": {
+      "disposition_id": "const",
+      "severity_id": "const"
+    },
+    "dlq_reason": null,
+    "mapped": {
+      "connection_info.protocol_name": "tcp",
+      "dst_endpoint.ip": "10.2.4.10",
+      "dst_endpoint.port": "8080",
+      "message": "traffic allow",
+      "src_endpoint.ip": "10.4.1.44",
+      "traffic.bytes_in": "3310",
+      "traffic.bytes_out": "9900"
+    },
+    "observables": [
+      "10.2.4.10",
+      "10.4.1.44"
+    ],
+    "parse_path": [
+      "cef",
+      "template:traffic_allow"
+    ],
+    "severity_id": 1,
+    "status_id": null,
+    "template_id": "traffic_allow",
+    "tier": 1,
+    "time_source": "event",
+    "type_uid": 400106,
+    "unmapped_keys": [
+      "cef.act",
+      "cef.cef_version",
+      "cef.cs1",
+      "cef.cs1Label",
+      "cef.deviceInboundInterface",
+      "cef.device_product",
+      "cef.device_vendor",
+      "cef.device_version",
+      "cef.name",
+      "cef.rt",
+      "cef.severity",
+      "cef.signature_id"
+    ],
+    "year_inferred": false
+  },
+  {
+    "activity_id": 5,
+    "category": "network",
+    "class_uid": 4001,
+    "conformance": "match",
+    "derived_fields": {
+      "disposition_id": "const",
+      "metadata.product.name": "const",
+      "metadata.product.vendor_name": "const",
+      "severity_id": "const"
+    },
+    "dlq_reason": null,
+    "mapped": {
+      "connection_info.protocol_name": "tcp",
+      "dst_endpoint.ip": "10.2.3.4",
+      "dst_endpoint.port": "23",
+      "message": "traffic deny",
+      "src_endpoint.ip": "192.168.9.14"
+    },
+    "observables": [
+      "10.2.3.4",
+      "192.168.9.14"
+    ],
+    "parse_path": [
+      "cef",
+      "template:traffic_deny"
+    ],
+    "severity_id": 3,
+    "status_id": null,
+    "template_id": "traffic_deny",
+    "tier": 1,
+    "time_source": "event",
+    "type_uid": 400105,
+    "unmapped_keys": [
+      "cef.act",
+      "cef.cef_version",
+      "cef.cs1",
+      "cef.cs1Label",
+      "cef.deviceInboundInterface",
+      "cef.device_product",
+      "cef.device_vendor",
+      "cef.device_version",
+      "cef.in",
+      "cef.name",
+      "cef.out",
+      "cef.rt",
+      "cef.severity",
+      "cef.signature_id"
+    ],
+    "year_inferred": false
+  },
+  {
+    "activity_id": 6,
+    "category": "network",
+    "class_uid": 4001,
+    "conformance": "match",
+    "derived_fields": {
+      "disposition_id": "const",
+      "severity_id": "const"
+    },
+    "dlq_reason": null,
+    "mapped": {
+      "connection_info.protocol_name": "tcp",
+      "dst_endpoint.ip": "10.2.3.20",
+      "dst_endpoint.port": "22",
+      "message": "traffic allow",
+      "src_endpoint.ip": "10.4.1.31",
+      "traffic.bytes_in": "990",
+      "traffic.bytes_out": "2210"
+    },
+    "observables": [
+      "10.2.3.20",
+      "10.4.1.31"
+    ],
+    "parse_path": [
+      "cef",
+      "template:traffic_allow"
+    ],
+    "severity_id": 1,
+    "status_id": null,
+    "template_id": "traffic_allow",
+    "tier": 1,
+    "time_source": "event",
+    "type_uid": 400106,
+    "unmapped_keys": [
+      "cef.act",
+      "cef.cef_version",
+      "cef.cs1",
+      "cef.cs1Label",
+      "cef.deviceInboundInterface",
+      "cef.device_product",
+      "cef.device_vendor",
+      "cef.device_version",
+      "cef.name",
+      "cef.rt",
+      "cef.severity",
+      "cef.signature_id"
+    ],
+    "year_inferred": false
+  }
+]

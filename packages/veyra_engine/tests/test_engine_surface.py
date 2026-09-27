@@ -1,7 +1,10 @@
-"""Tests that must keep passing when A3 replaces the stub with the real engine.
+"""The IF-ENGINE-LIB surface and the engine's invariants.
 
-They pin the IF-ENGINE-LIB surface (what Track C calls) and the invariants (purity,
-every tier in 1..4, spans that slice back to their value), not the stub's tier-4 answer.
+Written in S0 against the stub and kept unchanged through A3 on purpose: these are the
+promises Track C builds on (names, signatures) and the properties the hot path must hold
+whatever the internals do — purity, every tier in 1..4, never raising, spans that slice back
+to their value. The only edits A3 made were to the three `decode` tests, because `decode` now
+returns a `Decoded` object with the char->byte map instead of a bare tuple.
 """
 
 from __future__ import annotations
@@ -93,9 +96,9 @@ def test_normalize_returns_a_valid_norm_event() -> None:
 def test_tier_two_or_worse_always_carries_a_dlq_record() -> None:
     """P2: nothing is dropped; a degraded parse produces a DLQ copy with a reason."""
     result = Engine().normalize(make_env())
-    if result.tier >= 2:
-        assert isinstance(result.dlq, DlqRecord)
-        assert result.dlq.reason_code
+    assert result.tier >= 2, "no contract is loaded, so this cannot be tier 1"
+    assert isinstance(result.dlq, DlqRecord)
+    assert result.dlq.reason_code == "no_contract"
 
 
 def test_normalize_is_pure_and_deterministic() -> None:
@@ -115,7 +118,7 @@ def test_normalize_never_raises_on_hostile_input() -> None:
 def test_contract_set_swaps_atomically() -> None:
     engine = Engine()
     assert engine.contracts_loaded == 0
-    compiled = {"contract": "authsrv", "version": 1, "sources": ["src_authsrv_01"]}
+    compiled = {"contract": "authsrv", "version": 1, "sources": ["src_authsrv_01"], "templates": []}
     engine.load([compiled])
     assert engine.contracts_loaded == 1
     assert engine.contract_for_source("src_authsrv_01") == compiled
@@ -126,7 +129,7 @@ def test_contract_set_swaps_atomically() -> None:
 
 def test_candidate_set_and_clear() -> None:
     engine = Engine()
-    engine.set_candidate({"contract": "authsrv", "version": 2}, "authsrv")
+    engine.set_candidate({"contract": "authsrv", "version": 2, "templates": []}, "authsrv")
     assert engine.normalize(make_env(), use_candidate=True).ulpf["shadow"] is True
     engine.set_candidate(None, "authsrv")
     assert engine.normalize(make_env()).ulpf["shadow"] is False
@@ -134,7 +137,9 @@ def test_candidate_set_and_clear() -> None:
 
 def test_ulpf_carries_the_contract_reference_when_one_applies() -> None:
     engine = Engine()
-    engine.load([{"contract": "authsrv", "version": 3, "sources": ["src_authsrv_01"]}])
+    engine.load(
+        [{"contract": "authsrv", "version": 3, "sources": ["src_authsrv_01"], "templates": []}]
+    )
     ulpf = engine.normalize(make_env()).ulpf
     assert ulpf["contract"] == {"id": "authsrv", "version": 3}
     assert ulpf["engine_version"] == veyra_engine.__version__
@@ -146,16 +151,18 @@ def test_ulpf_carries_the_contract_reference_when_one_applies() -> None:
     [(b"plain ascii", "utf-8"), (HINDI, "utf-8")],
 )
 def test_decode_utf8_paths(raw: bytes, expected_encoding: str) -> None:
-    text, encoding, confidence, invalid = decode(raw)
-    assert encoding == expected_encoding
-    assert invalid == 0
-    assert confidence > 0.5
-    assert text.encode("utf-8") == raw
+    decoded = decode(raw)
+    assert decoded.encoding == expected_encoding
+    assert decoded.invalid_bytes == 0
+    assert decoded.confidence > 0.5
+    assert decoded.text.encode("utf-8") == raw
+    # The offset map is what makes byte-accurate provenance possible (P4).
+    assert decoded.byte_span((0, len(decoded.text))) == (0, len(raw))
 
 
 def test_decode_invalid_bytes_do_not_raise() -> None:
-    text, encoding, _, _ = decode(b"\xff\xfe\x00bad")
-    assert isinstance(text, str) and encoding
+    decoded = decode(b"\xff\xfe\x00bad")
+    assert isinstance(decoded.text, str) and decoded.encoding
 
 
 # ---------------------------------------------------------------- tokens
@@ -206,7 +213,7 @@ def test_peel_reports_the_text_field() -> None:
 def test_provenance_check_validates_spans() -> None:
     env = make_env()
     result = Engine().normalize(env)
-    assert provenance_check(result.ocsf, env.raw_bytes) == []
+    assert provenance_check(result.ocsf, env.raw_bytes) == [], "nothing mapped, nothing to locate"
     result.ocsf["ulpf"]["field_offsets"] = {"user.name": (10, 5000)}
     checks = provenance_check(result.ocsf, env.raw_bytes)
     assert checks and not checks[0].ok
@@ -219,7 +226,7 @@ def test_mask_keeps_ips() -> None:
 
 def test_backtest_shape() -> None:
     env = make_env()
-    result = backtest(None, {"contract": "authsrv", "version": 2}, [env, env])
+    result = backtest(None, {"contract": "authsrv", "version": 2, "templates": []}, [env, env])
     assert result.n == 2
     assert result.upgraded + result.regressed + result.unchanged == 2
 

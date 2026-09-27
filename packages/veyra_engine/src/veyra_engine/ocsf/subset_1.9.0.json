@@ -1,0 +1,1571 @@
+{
+  "classes": {
+    "0": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": true,
+      "properties": {
+        "action_id": {
+          "enum": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            99
+          ],
+          "type": "integer"
+        },
+        "activity_id": {
+          "enum": [
+            0,
+            99
+          ],
+          "type": "integer"
+        },
+        "actor": {
+          "properties": {
+            "user": {
+              "properties": {
+                "name": {
+                  "type": "string"
+                }
+              },
+              "type": "object"
+            }
+          },
+          "type": "object"
+        },
+        "category_uid": {
+          "const": 0,
+          "type": "integer"
+        },
+        "class_uid": {
+          "const": 0,
+          "type": "integer"
+        },
+        "connection_info": {
+          "properties": {
+            "protocol_name": {
+              "type": "string"
+            }
+          },
+          "type": "object"
+        },
+        "device": {
+          "properties": {
+            "hostname": {
+              "type": "string"
+            },
+            "ip": {
+              "type": "string"
+            },
+            "port": {
+              "maximum": 65535,
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          "type": "object"
+        },
+        "disposition_id": {
+          "enum": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15,
+            16,
+            17,
+            18,
+            19,
+            20,
+            21,
+            22,
+            23,
+            24,
+            25,
+            26,
+            27,
+            99
+          ],
+          "type": "integer"
+        },
+        "dst_endpoint": {
+          "properties": {
+            "hostname": {
+              "type": "string"
+            },
+            "ip": {
+              "type": "string"
+            },
+            "port": {
+              "maximum": 65535,
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          "type": "object"
+        },
+        "enrichments": {
+          "items": {
+            "type": "object"
+          },
+          "type": "array"
+        },
+        "http_request": {
+          "properties": {
+            "http_method": {
+              "type": "string"
+            },
+            "url": {
+              "properties": {
+                "path": {
+                  "type": "string"
+                }
+              },
+              "type": "object"
+            }
+          },
+          "type": "object"
+        },
+        "http_response": {
+          "properties": {
+            "code": {
+              "type": "integer"
+            }
+          },
+          "type": "object"
+        },
+        "message": {
+          "type": "string"
+        },
+        "metadata": {
+          "properties": {
+            "product": {
+              "properties": {
+                "name": {
+                  "type": "string"
+                },
+                "vendor_name": {
+                  "type": "string"
+                }
+              },
+              "type": "object"
+            },
+            "version": {
+              "type": "string"
+            }
+          },
+          "type": "object"
+        },
+        "observables": {
+          "items": {
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "type_id": {
+                "type": "integer"
+              },
+              "value": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "name",
+              "type_id",
+              "value"
+            ],
+            "type": "object"
+          },
+          "type": "array"
+        },
+        "process": {
+          "properties": {
+            "cmd_line": {
+              "type": "string"
+            },
+            "name": {
+              "type": "string"
+            },
+            "pid": {
+              "type": "integer"
+            }
+          },
+          "type": "object"
+        },
+        "raw_data": {
+          "type": "string"
+        },
+        "severity_id": {
+          "enum": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            99
+          ],
+          "type": "integer"
+        },
+        "src_endpoint": {
+          "properties": {
+            "hostname": {
+              "type": "string"
+            },
+            "ip": {
+              "type": "string"
+            },
+            "port": {
+              "maximum": 65535,
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          "type": "object"
+        },
+        "status_detail": {
+          "type": "string"
+        },
+        "status_id": {
+          "enum": [
+            0,
+            1,
+            2,
+            99
+          ],
+          "type": "integer"
+        },
+        "time": {
+          "type": "integer"
+        },
+        "traffic": {
+          "properties": {
+            "bytes_in": {
+              "minimum": 0,
+              "type": "integer"
+            },
+            "bytes_out": {
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          "type": "object"
+        },
+        "type_uid": {
+          "type": "integer"
+        },
+        "ulpf": {
+          "type": "object"
+        },
+        "unmapped": {
+          "type": "object"
+        },
+        "user": {
+          "properties": {
+            "domain": {
+              "type": "string"
+            },
+            "name": {
+              "type": "string"
+            },
+            "uid": {
+              "type": "string"
+            }
+          },
+          "type": "object"
+        }
+      },
+      "required": [
+        "class_uid",
+        "category_uid",
+        "type_uid",
+        "activity_id",
+        "severity_id",
+        "time",
+        "raw_data"
+      ],
+      "title": "OCSF Base Event (VEYRA subset)",
+      "type": "object"
+    },
+    "1007": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": true,
+      "properties": {
+        "action_id": {
+          "enum": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            99
+          ],
+          "type": "integer"
+        },
+        "activity_id": {
+          "enum": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            99
+          ],
+          "type": "integer"
+        },
+        "actor": {
+          "properties": {
+            "user": {
+              "properties": {
+                "name": {
+                  "type": "string"
+                }
+              },
+              "type": "object"
+            }
+          },
+          "type": "object"
+        },
+        "category_uid": {
+          "const": 1,
+          "type": "integer"
+        },
+        "class_uid": {
+          "const": 1007,
+          "type": "integer"
+        },
+        "connection_info": {
+          "properties": {
+            "protocol_name": {
+              "type": "string"
+            }
+          },
+          "type": "object"
+        },
+        "device": {
+          "properties": {
+            "hostname": {
+              "type": "string"
+            },
+            "ip": {
+              "type": "string"
+            },
+            "port": {
+              "maximum": 65535,
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          "type": "object"
+        },
+        "disposition_id": {
+          "enum": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15,
+            16,
+            17,
+            18,
+            19,
+            20,
+            21,
+            22,
+            23,
+            24,
+            25,
+            26,
+            27,
+            99
+          ],
+          "type": "integer"
+        },
+        "dst_endpoint": {
+          "properties": {
+            "hostname": {
+              "type": "string"
+            },
+            "ip": {
+              "type": "string"
+            },
+            "port": {
+              "maximum": 65535,
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          "type": "object"
+        },
+        "enrichments": {
+          "items": {
+            "type": "object"
+          },
+          "type": "array"
+        },
+        "http_request": {
+          "properties": {
+            "http_method": {
+              "type": "string"
+            },
+            "url": {
+              "properties": {
+                "path": {
+                  "type": "string"
+                }
+              },
+              "type": "object"
+            }
+          },
+          "type": "object"
+        },
+        "http_response": {
+          "properties": {
+            "code": {
+              "type": "integer"
+            }
+          },
+          "type": "object"
+        },
+        "message": {
+          "type": "string"
+        },
+        "metadata": {
+          "properties": {
+            "product": {
+              "properties": {
+                "name": {
+                  "type": "string"
+                },
+                "vendor_name": {
+                  "type": "string"
+                }
+              },
+              "type": "object"
+            },
+            "version": {
+              "type": "string"
+            }
+          },
+          "type": "object"
+        },
+        "observables": {
+          "items": {
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "type_id": {
+                "type": "integer"
+              },
+              "value": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "name",
+              "type_id",
+              "value"
+            ],
+            "type": "object"
+          },
+          "type": "array"
+        },
+        "process": {
+          "properties": {
+            "cmd_line": {
+              "type": "string"
+            },
+            "name": {
+              "type": "string"
+            },
+            "pid": {
+              "type": "integer"
+            }
+          },
+          "type": "object"
+        },
+        "raw_data": {
+          "type": "string"
+        },
+        "severity_id": {
+          "enum": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            99
+          ],
+          "type": "integer"
+        },
+        "src_endpoint": {
+          "properties": {
+            "hostname": {
+              "type": "string"
+            },
+            "ip": {
+              "type": "string"
+            },
+            "port": {
+              "maximum": 65535,
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          "type": "object"
+        },
+        "status_detail": {
+          "type": "string"
+        },
+        "status_id": {
+          "enum": [
+            0,
+            1,
+            2,
+            99
+          ],
+          "type": "integer"
+        },
+        "time": {
+          "type": "integer"
+        },
+        "traffic": {
+          "properties": {
+            "bytes_in": {
+              "minimum": 0,
+              "type": "integer"
+            },
+            "bytes_out": {
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          "type": "object"
+        },
+        "type_uid": {
+          "type": "integer"
+        },
+        "ulpf": {
+          "type": "object"
+        },
+        "unmapped": {
+          "type": "object"
+        },
+        "user": {
+          "properties": {
+            "domain": {
+              "type": "string"
+            },
+            "name": {
+              "type": "string"
+            },
+            "uid": {
+              "type": "string"
+            }
+          },
+          "type": "object"
+        }
+      },
+      "required": [
+        "class_uid",
+        "category_uid",
+        "type_uid",
+        "activity_id",
+        "severity_id",
+        "time",
+        "raw_data"
+      ],
+      "title": "OCSF Process Activity (VEYRA subset)",
+      "type": "object"
+    },
+    "3002": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": true,
+      "properties": {
+        "action_id": {
+          "enum": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            99
+          ],
+          "type": "integer"
+        },
+        "activity_id": {
+          "enum": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            99
+          ],
+          "type": "integer"
+        },
+        "actor": {
+          "properties": {
+            "user": {
+              "properties": {
+                "name": {
+                  "type": "string"
+                }
+              },
+              "type": "object"
+            }
+          },
+          "type": "object"
+        },
+        "category_uid": {
+          "const": 3,
+          "type": "integer"
+        },
+        "class_uid": {
+          "const": 3002,
+          "type": "integer"
+        },
+        "connection_info": {
+          "properties": {
+            "protocol_name": {
+              "type": "string"
+            }
+          },
+          "type": "object"
+        },
+        "device": {
+          "properties": {
+            "hostname": {
+              "type": "string"
+            },
+            "ip": {
+              "type": "string"
+            },
+            "port": {
+              "maximum": 65535,
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          "type": "object"
+        },
+        "disposition_id": {
+          "enum": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15,
+            16,
+            17,
+            18,
+            19,
+            20,
+            21,
+            22,
+            23,
+            24,
+            25,
+            26,
+            27,
+            99
+          ],
+          "type": "integer"
+        },
+        "dst_endpoint": {
+          "properties": {
+            "hostname": {
+              "type": "string"
+            },
+            "ip": {
+              "type": "string"
+            },
+            "port": {
+              "maximum": 65535,
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          "type": "object"
+        },
+        "enrichments": {
+          "items": {
+            "type": "object"
+          },
+          "type": "array"
+        },
+        "http_request": {
+          "properties": {
+            "http_method": {
+              "type": "string"
+            },
+            "url": {
+              "properties": {
+                "path": {
+                  "type": "string"
+                }
+              },
+              "type": "object"
+            }
+          },
+          "type": "object"
+        },
+        "http_response": {
+          "properties": {
+            "code": {
+              "type": "integer"
+            }
+          },
+          "type": "object"
+        },
+        "message": {
+          "type": "string"
+        },
+        "metadata": {
+          "properties": {
+            "product": {
+              "properties": {
+                "name": {
+                  "type": "string"
+                },
+                "vendor_name": {
+                  "type": "string"
+                }
+              },
+              "type": "object"
+            },
+            "version": {
+              "type": "string"
+            }
+          },
+          "type": "object"
+        },
+        "observables": {
+          "items": {
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "type_id": {
+                "type": "integer"
+              },
+              "value": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "name",
+              "type_id",
+              "value"
+            ],
+            "type": "object"
+          },
+          "type": "array"
+        },
+        "process": {
+          "properties": {
+            "cmd_line": {
+              "type": "string"
+            },
+            "name": {
+              "type": "string"
+            },
+            "pid": {
+              "type": "integer"
+            }
+          },
+          "type": "object"
+        },
+        "raw_data": {
+          "type": "string"
+        },
+        "severity_id": {
+          "enum": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            99
+          ],
+          "type": "integer"
+        },
+        "src_endpoint": {
+          "properties": {
+            "hostname": {
+              "type": "string"
+            },
+            "ip": {
+              "type": "string"
+            },
+            "port": {
+              "maximum": 65535,
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          "type": "object"
+        },
+        "status_detail": {
+          "type": "string"
+        },
+        "status_id": {
+          "enum": [
+            0,
+            1,
+            2,
+            99
+          ],
+          "type": "integer"
+        },
+        "time": {
+          "type": "integer"
+        },
+        "traffic": {
+          "properties": {
+            "bytes_in": {
+              "minimum": 0,
+              "type": "integer"
+            },
+            "bytes_out": {
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          "type": "object"
+        },
+        "type_uid": {
+          "type": "integer"
+        },
+        "ulpf": {
+          "type": "object"
+        },
+        "unmapped": {
+          "type": "object"
+        },
+        "user": {
+          "properties": {
+            "domain": {
+              "type": "string"
+            },
+            "name": {
+              "type": "string"
+            },
+            "uid": {
+              "type": "string"
+            }
+          },
+          "type": "object"
+        }
+      },
+      "required": [
+        "class_uid",
+        "category_uid",
+        "type_uid",
+        "activity_id",
+        "severity_id",
+        "time",
+        "raw_data"
+      ],
+      "title": "OCSF Authentication (VEYRA subset)",
+      "type": "object"
+    },
+    "4001": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": true,
+      "properties": {
+        "action_id": {
+          "enum": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            99
+          ],
+          "type": "integer"
+        },
+        "activity_id": {
+          "enum": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            99
+          ],
+          "type": "integer"
+        },
+        "actor": {
+          "properties": {
+            "user": {
+              "properties": {
+                "name": {
+                  "type": "string"
+                }
+              },
+              "type": "object"
+            }
+          },
+          "type": "object"
+        },
+        "category_uid": {
+          "const": 4,
+          "type": "integer"
+        },
+        "class_uid": {
+          "const": 4001,
+          "type": "integer"
+        },
+        "connection_info": {
+          "properties": {
+            "protocol_name": {
+              "type": "string"
+            }
+          },
+          "type": "object"
+        },
+        "device": {
+          "properties": {
+            "hostname": {
+              "type": "string"
+            },
+            "ip": {
+              "type": "string"
+            },
+            "port": {
+              "maximum": 65535,
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          "type": "object"
+        },
+        "disposition_id": {
+          "enum": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15,
+            16,
+            17,
+            18,
+            19,
+            20,
+            21,
+            22,
+            23,
+            24,
+            25,
+            26,
+            27,
+            99
+          ],
+          "type": "integer"
+        },
+        "dst_endpoint": {
+          "properties": {
+            "hostname": {
+              "type": "string"
+            },
+            "ip": {
+              "type": "string"
+            },
+            "port": {
+              "maximum": 65535,
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          "type": "object"
+        },
+        "enrichments": {
+          "items": {
+            "type": "object"
+          },
+          "type": "array"
+        },
+        "http_request": {
+          "properties": {
+            "http_method": {
+              "type": "string"
+            },
+            "url": {
+              "properties": {
+                "path": {
+                  "type": "string"
+                }
+              },
+              "type": "object"
+            }
+          },
+          "type": "object"
+        },
+        "http_response": {
+          "properties": {
+            "code": {
+              "type": "integer"
+            }
+          },
+          "type": "object"
+        },
+        "message": {
+          "type": "string"
+        },
+        "metadata": {
+          "properties": {
+            "product": {
+              "properties": {
+                "name": {
+                  "type": "string"
+                },
+                "vendor_name": {
+                  "type": "string"
+                }
+              },
+              "type": "object"
+            },
+            "version": {
+              "type": "string"
+            }
+          },
+          "type": "object"
+        },
+        "observables": {
+          "items": {
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "type_id": {
+                "type": "integer"
+              },
+              "value": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "name",
+              "type_id",
+              "value"
+            ],
+            "type": "object"
+          },
+          "type": "array"
+        },
+        "process": {
+          "properties": {
+            "cmd_line": {
+              "type": "string"
+            },
+            "name": {
+              "type": "string"
+            },
+            "pid": {
+              "type": "integer"
+            }
+          },
+          "type": "object"
+        },
+        "raw_data": {
+          "type": "string"
+        },
+        "severity_id": {
+          "enum": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            99
+          ],
+          "type": "integer"
+        },
+        "src_endpoint": {
+          "properties": {
+            "hostname": {
+              "type": "string"
+            },
+            "ip": {
+              "type": "string"
+            },
+            "port": {
+              "maximum": 65535,
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          "type": "object"
+        },
+        "status_detail": {
+          "type": "string"
+        },
+        "status_id": {
+          "enum": [
+            0,
+            1,
+            2,
+            99
+          ],
+          "type": "integer"
+        },
+        "time": {
+          "type": "integer"
+        },
+        "traffic": {
+          "properties": {
+            "bytes_in": {
+              "minimum": 0,
+              "type": "integer"
+            },
+            "bytes_out": {
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          "type": "object"
+        },
+        "type_uid": {
+          "type": "integer"
+        },
+        "ulpf": {
+          "type": "object"
+        },
+        "unmapped": {
+          "type": "object"
+        },
+        "user": {
+          "properties": {
+            "domain": {
+              "type": "string"
+            },
+            "name": {
+              "type": "string"
+            },
+            "uid": {
+              "type": "string"
+            }
+          },
+          "type": "object"
+        }
+      },
+      "required": [
+        "class_uid",
+        "category_uid",
+        "type_uid",
+        "activity_id",
+        "severity_id",
+        "time",
+        "raw_data"
+      ],
+      "title": "OCSF Network Activity (VEYRA subset)",
+      "type": "object"
+    },
+    "4002": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": true,
+      "properties": {
+        "action_id": {
+          "enum": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            99
+          ],
+          "type": "integer"
+        },
+        "activity_id": {
+          "enum": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15,
+            16,
+            17,
+            18,
+            19,
+            20,
+            21,
+            22,
+            23,
+            24,
+            25,
+            26,
+            27,
+            28,
+            29,
+            30,
+            31,
+            32,
+            33,
+            34,
+            35,
+            36,
+            37,
+            38,
+            39,
+            40,
+            99
+          ],
+          "type": "integer"
+        },
+        "actor": {
+          "properties": {
+            "user": {
+              "properties": {
+                "name": {
+                  "type": "string"
+                }
+              },
+              "type": "object"
+            }
+          },
+          "type": "object"
+        },
+        "category_uid": {
+          "const": 4,
+          "type": "integer"
+        },
+        "class_uid": {
+          "const": 4002,
+          "type": "integer"
+        },
+        "connection_info": {
+          "properties": {
+            "protocol_name": {
+              "type": "string"
+            }
+          },
+          "type": "object"
+        },
+        "device": {
+          "properties": {
+            "hostname": {
+              "type": "string"
+            },
+            "ip": {
+              "type": "string"
+            },
+            "port": {
+              "maximum": 65535,
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          "type": "object"
+        },
+        "disposition_id": {
+          "enum": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15,
+            16,
+            17,
+            18,
+            19,
+            20,
+            21,
+            22,
+            23,
+            24,
+            25,
+            26,
+            27,
+            99
+          ],
+          "type": "integer"
+        },
+        "dst_endpoint": {
+          "properties": {
+            "hostname": {
+              "type": "string"
+            },
+            "ip": {
+              "type": "string"
+            },
+            "port": {
+              "maximum": 65535,
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          "type": "object"
+        },
+        "enrichments": {
+          "items": {
+            "type": "object"
+          },
+          "type": "array"
+        },
+        "http_request": {
+          "properties": {
+            "http_method": {
+              "type": "string"
+            },
+            "url": {
+              "properties": {
+                "path": {
+                  "type": "string"
+                }
+              },
+              "type": "object"
+            }
+          },
+          "type": "object"
+        },
+        "http_response": {
+          "properties": {
+            "code": {
+              "type": "integer"
+            }
+          },
+          "type": "object"
+        },
+        "message": {
+          "type": "string"
+        },
+        "metadata": {
+          "properties": {
+            "product": {
+              "properties": {
+                "name": {
+                  "type": "string"
+                },
+                "vendor_name": {
+                  "type": "string"
+                }
+              },
+              "type": "object"
+            },
+            "version": {
+              "type": "string"
+            }
+          },
+          "type": "object"
+        },
+        "observables": {
+          "items": {
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "type_id": {
+                "type": "integer"
+              },
+              "value": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "name",
+              "type_id",
+              "value"
+            ],
+            "type": "object"
+          },
+          "type": "array"
+        },
+        "process": {
+          "properties": {
+            "cmd_line": {
+              "type": "string"
+            },
+            "name": {
+              "type": "string"
+            },
+            "pid": {
+              "type": "integer"
+            }
+          },
+          "type": "object"
+        },
+        "raw_data": {
+          "type": "string"
+        },
+        "severity_id": {
+          "enum": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            99
+          ],
+          "type": "integer"
+        },
+        "src_endpoint": {
+          "properties": {
+            "hostname": {
+              "type": "string"
+            },
+            "ip": {
+              "type": "string"
+            },
+            "port": {
+              "maximum": 65535,
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          "type": "object"
+        },
+        "status_detail": {
+          "type": "string"
+        },
+        "status_id": {
+          "enum": [
+            0,
+            1,
+            2,
+            99
+          ],
+          "type": "integer"
+        },
+        "time": {
+          "type": "integer"
+        },
+        "traffic": {
+          "properties": {
+            "bytes_in": {
+              "minimum": 0,
+              "type": "integer"
+            },
+            "bytes_out": {
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          "type": "object"
+        },
+        "type_uid": {
+          "type": "integer"
+        },
+        "ulpf": {
+          "type": "object"
+        },
+        "unmapped": {
+          "type": "object"
+        },
+        "user": {
+          "properties": {
+            "domain": {
+              "type": "string"
+            },
+            "name": {
+              "type": "string"
+            },
+            "uid": {
+              "type": "string"
+            }
+          },
+          "type": "object"
+        }
+      },
+      "required": [
+        "class_uid",
+        "category_uid",
+        "type_uid",
+        "activity_id",
+        "severity_id",
+        "time",
+        "raw_data"
+      ],
+      "title": "OCSF HTTP Activity (VEYRA subset)",
+      "type": "object"
+    }
+  },
+  "note": "Hand-written subset; see README.md. cloud/osint are intentionally not required.",
+  "ocsf_version": "1.9.0",
+  "verified_against": "https://schema.ocsf.io/api/1.9.0/classes/<name> on 2026-09-27"
+}

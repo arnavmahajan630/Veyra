@@ -1,0 +1,1036 @@
+[
+  {
+    "activity_id": 1,
+    "category": "iam",
+    "class_uid": 3002,
+    "conformance": "match",
+    "derived_fields": {
+      "severity_id": "const",
+      "status_id": "const"
+    },
+    "dlq_reason": null,
+    "mapped": {
+      "device.hostname": "fw01",
+      "dst_endpoint.ip": "10.2.3.4",
+      "message": "user=r.patil OK login from 10.4.1.20 via 10.2.3.4",
+      "src_endpoint.ip": "10.4.1.20",
+      "user.name": "r.patil"
+    },
+    "observables": [
+      "10.2.3.4",
+      "10.4.1.20",
+      "r.patil",
+      "fw01"
+    ],
+    "parse_path": [
+      "syslog:rfc3164",
+      "json",
+      "template:auth_ok"
+    ],
+    "severity_id": 1,
+    "status_id": 1,
+    "template_id": "auth_ok",
+    "tier": 1,
+    "time_source": "event",
+    "type_uid": 300201,
+    "unmapped_keys": [
+      "json.__rest",
+      "json.evt",
+      "json.msg",
+      "syslog.app",
+      "syslog.facility",
+      "syslog.pid",
+      "syslog.pri",
+      "syslog.severity",
+      "syslog.timestamp"
+    ],
+    "year_inferred": true
+  },
+  {
+    "activity_id": 1,
+    "category": "iam",
+    "class_uid": 3002,
+    "conformance": "match",
+    "derived_fields": {
+      "severity_id": "const",
+      "status_id": "const"
+    },
+    "dlq_reason": null,
+    "mapped": {
+      "device.hostname": "fw01",
+      "dst_endpoint.ip": "10.2.3.4",
+      "message": "user=a.sharma OK login from 10.4.1.21 via 10.2.3.4",
+      "src_endpoint.ip": "10.4.1.21",
+      "user.name": "a.sharma"
+    },
+    "observables": [
+      "10.2.3.4",
+      "10.4.1.21",
+      "a.sharma",
+      "fw01"
+    ],
+    "parse_path": [
+      "syslog:rfc3164",
+      "json",
+      "template:auth_ok"
+    ],
+    "severity_id": 1,
+    "status_id": 1,
+    "template_id": "auth_ok",
+    "tier": 1,
+    "time_source": "event",
+    "type_uid": 300201,
+    "unmapped_keys": [
+      "json.__rest",
+      "json.evt",
+      "json.msg",
+      "syslog.app",
+      "syslog.facility",
+      "syslog.pid",
+      "syslog.pri",
+      "syslog.severity",
+      "syslog.timestamp"
+    ],
+    "year_inferred": true
+  },
+  {
+    "activity_id": 1,
+    "category": "iam",
+    "class_uid": 3002,
+    "conformance": "match",
+    "derived_fields": {
+      "severity_id": "const",
+      "status_id": "const"
+    },
+    "dlq_reason": null,
+    "mapped": {
+      "device.hostname": "fw01",
+      "dst_endpoint.ip": "10.2.3.4",
+      "message": "user=neel.k OK login from 10.4.2.9 via 10.2.3.4",
+      "src_endpoint.ip": "10.4.2.9",
+      "user.name": "neel.k"
+    },
+    "observables": [
+      "10.2.3.4",
+      "10.4.2.9",
+      "neel.k",
+      "fw01"
+    ],
+    "parse_path": [
+      "syslog:rfc3164",
+      "json",
+      "template:auth_ok"
+    ],
+    "severity_id": 1,
+    "status_id": 1,
+    "template_id": "auth_ok",
+    "tier": 1,
+    "time_source": "event",
+    "type_uid": 300201,
+    "unmapped_keys": [
+      "json.__rest",
+      "json.evt",
+      "json.msg",
+      "syslog.app",
+      "syslog.facility",
+      "syslog.pid",
+      "syslog.pri",
+      "syslog.severity",
+      "syslog.timestamp"
+    ],
+    "year_inferred": true
+  },
+  {
+    "activity_id": 1,
+    "category": "iam",
+    "class_uid": 3002,
+    "conformance": "match",
+    "derived_fields": {
+      "severity_id": "const",
+      "status_id": "const"
+    },
+    "dlq_reason": null,
+    "mapped": {
+      "device.hostname": "fw01",
+      "dst_endpoint.ip": "10.2.3.4",
+      "message": "user=s.iyer OK login from 10.4.1.31 via 10.2.3.4",
+      "src_endpoint.ip": "10.4.1.31",
+      "user.name": "s.iyer"
+    },
+    "observables": [
+      "10.2.3.4",
+      "10.4.1.31",
+      "s.iyer",
+      "fw01"
+    ],
+    "parse_path": [
+      "syslog:rfc3164",
+      "json",
+      "template:auth_ok"
+    ],
+    "severity_id": 1,
+    "status_id": 1,
+    "template_id": "auth_ok",
+    "tier": 1,
+    "time_source": "event",
+    "type_uid": 300201,
+    "unmapped_keys": [
+      "json.__rest",
+      "json.evt",
+      "json.msg",
+      "syslog.app",
+      "syslog.facility",
+      "syslog.pid",
+      "syslog.pri",
+      "syslog.severity",
+      "syslog.timestamp"
+    ],
+    "year_inferred": true
+  },
+  {
+    "activity_id": 1,
+    "category": "iam",
+    "class_uid": 3002,
+    "conformance": "match",
+    "derived_fields": {
+      "severity_id": "const",
+      "status_id": "const"
+    },
+    "dlq_reason": null,
+    "mapped": {
+      "device.hostname": "fw01",
+      "dst_endpoint.ip": "10.2.3.4",
+      "message": "user=v.rao OK login from 10.4.1.44 via 10.2.3.4",
+      "src_endpoint.ip": "10.4.1.44",
+      "user.name": "v.rao"
+    },
+    "observables": [
+      "10.2.3.4",
+      "10.4.1.44",
+      "v.rao",
+      "fw01"
+    ],
+    "parse_path": [
+      "syslog:rfc3164",
+      "json",
+      "template:auth_ok"
+    ],
+    "severity_id": 1,
+    "status_id": 1,
+    "template_id": "auth_ok",
+    "tier": 1,
+    "time_source": "event",
+    "type_uid": 300201,
+    "unmapped_keys": [
+      "json.__rest",
+      "json.evt",
+      "json.msg",
+      "syslog.app",
+      "syslog.facility",
+      "syslog.pid",
+      "syslog.pri",
+      "syslog.severity",
+      "syslog.timestamp"
+    ],
+    "year_inferred": true
+  },
+  {
+    "activity_id": 1,
+    "category": "iam",
+    "class_uid": 3002,
+    "conformance": "match",
+    "derived_fields": {
+      "severity_id": "const",
+      "status_id": "const"
+    },
+    "dlq_reason": null,
+    "mapped": {
+      "device.hostname": "fw01",
+      "dst_endpoint.ip": "10.2.3.4",
+      "message": "user=admin OK login from 10.4.1.20 via 10.2.3.4",
+      "src_endpoint.ip": "10.4.1.20",
+      "user.name": "admin"
+    },
+    "observables": [
+      "10.2.3.4",
+      "10.4.1.20",
+      "admin",
+      "fw01"
+    ],
+    "parse_path": [
+      "syslog:rfc3164",
+      "json",
+      "template:auth_ok"
+    ],
+    "severity_id": 1,
+    "status_id": 1,
+    "template_id": "auth_ok",
+    "tier": 1,
+    "time_source": "event",
+    "type_uid": 300201,
+    "unmapped_keys": [
+      "json.__rest",
+      "json.evt",
+      "json.msg",
+      "syslog.app",
+      "syslog.facility",
+      "syslog.pid",
+      "syslog.pri",
+      "syslog.severity",
+      "syslog.timestamp"
+    ],
+    "year_inferred": true
+  },
+  {
+    "activity_id": 1,
+    "category": "iam",
+    "class_uid": 3002,
+    "conformance": "match",
+    "derived_fields": {
+      "severity_id": "const",
+      "status_id": "const"
+    },
+    "dlq_reason": null,
+    "mapped": {
+      "device.hostname": "fw01",
+      "dst_endpoint.ip": "10.2.3.4",
+      "message": "user=root OK login from 10.4.1.21 via 10.2.3.4",
+      "src_endpoint.ip": "10.4.1.21",
+      "user.name": "root"
+    },
+    "observables": [
+      "10.2.3.4",
+      "10.4.1.21",
+      "root",
+      "fw01"
+    ],
+    "parse_path": [
+      "syslog:rfc3164",
+      "json",
+      "template:auth_ok"
+    ],
+    "severity_id": 1,
+    "status_id": 1,
+    "template_id": "auth_ok",
+    "tier": 1,
+    "time_source": "event",
+    "type_uid": 300201,
+    "unmapped_keys": [
+      "json.__rest",
+      "json.evt",
+      "json.msg",
+      "syslog.app",
+      "syslog.facility",
+      "syslog.pid",
+      "syslog.pri",
+      "syslog.severity",
+      "syslog.timestamp"
+    ],
+    "year_inferred": true
+  },
+  {
+    "activity_id": 1,
+    "category": "iam",
+    "class_uid": 3002,
+    "conformance": "match",
+    "derived_fields": {
+      "severity_id": "const",
+      "status_id": "const"
+    },
+    "dlq_reason": null,
+    "mapped": {
+      "device.hostname": "fw01",
+      "dst_endpoint.ip": "10.2.3.4",
+      "message": "user=d.mehta OK login from 10.4.2.9 via 10.2.3.4",
+      "src_endpoint.ip": "10.4.2.9",
+      "user.name": "d.mehta"
+    },
+    "observables": [
+      "10.2.3.4",
+      "10.4.2.9",
+      "d.mehta",
+      "fw01"
+    ],
+    "parse_path": [
+      "syslog:rfc3164",
+      "json",
+      "template:auth_ok"
+    ],
+    "severity_id": 1,
+    "status_id": 1,
+    "template_id": "auth_ok",
+    "tier": 1,
+    "time_source": "event",
+    "type_uid": 300201,
+    "unmapped_keys": [
+      "json.__rest",
+      "json.evt",
+      "json.msg",
+      "syslog.app",
+      "syslog.facility",
+      "syslog.pid",
+      "syslog.pri",
+      "syslog.severity",
+      "syslog.timestamp"
+    ],
+    "year_inferred": true
+  },
+  {
+    "activity_id": 1,
+    "category": "iam",
+    "class_uid": 3002,
+    "conformance": "match",
+    "derived_fields": {
+      "severity_id": "const",
+      "status_id": "const"
+    },
+    "dlq_reason": null,
+    "mapped": {
+      "device.hostname": "fw01",
+      "dst_endpoint.ip": "10.2.3.4",
+      "message": "user=r.patil OK login from 10.4.1.31 via 10.2.3.4",
+      "src_endpoint.ip": "10.4.1.31",
+      "user.name": "r.patil"
+    },
+    "observables": [
+      "10.2.3.4",
+      "10.4.1.31",
+      "r.patil",
+      "fw01"
+    ],
+    "parse_path": [
+      "syslog:rfc3164",
+      "json",
+      "template:auth_ok"
+    ],
+    "severity_id": 1,
+    "status_id": 1,
+    "template_id": "auth_ok",
+    "tier": 1,
+    "time_source": "event",
+    "type_uid": 300201,
+    "unmapped_keys": [
+      "json.__rest",
+      "json.evt",
+      "json.msg",
+      "syslog.app",
+      "syslog.facility",
+      "syslog.pid",
+      "syslog.pri",
+      "syslog.severity",
+      "syslog.timestamp"
+    ],
+    "year_inferred": true
+  },
+  {
+    "activity_id": 1,
+    "category": "iam",
+    "class_uid": 3002,
+    "conformance": "match",
+    "derived_fields": {
+      "severity_id": "const",
+      "status_id": "const"
+    },
+    "dlq_reason": null,
+    "mapped": {
+      "device.hostname": "fw01",
+      "dst_endpoint.ip": "10.2.3.4",
+      "message": "user=a.sharma OK login from 10.4.1.44 via 10.2.3.4",
+      "src_endpoint.ip": "10.4.1.44",
+      "user.name": "a.sharma"
+    },
+    "observables": [
+      "10.2.3.4",
+      "10.4.1.44",
+      "a.sharma",
+      "fw01"
+    ],
+    "parse_path": [
+      "syslog:rfc3164",
+      "json",
+      "template:auth_ok"
+    ],
+    "severity_id": 1,
+    "status_id": 1,
+    "template_id": "auth_ok",
+    "tier": 1,
+    "time_source": "event",
+    "type_uid": 300201,
+    "unmapped_keys": [
+      "json.__rest",
+      "json.evt",
+      "json.msg",
+      "syslog.app",
+      "syslog.facility",
+      "syslog.pid",
+      "syslog.pri",
+      "syslog.severity",
+      "syslog.timestamp"
+    ],
+    "year_inferred": true
+  },
+  {
+    "activity_id": 1,
+    "category": "iam",
+    "class_uid": 3002,
+    "conformance": "match",
+    "derived_fields": {
+      "severity_id": "const",
+      "status_id": "const"
+    },
+    "dlq_reason": null,
+    "mapped": {
+      "device.hostname": "fw01",
+      "dst_endpoint.ip": "10.2.3.4",
+      "message": "user=neel.k OK login from 10.4.1.20 via 10.2.3.4",
+      "src_endpoint.ip": "10.4.1.20",
+      "user.name": "neel.k"
+    },
+    "observables": [
+      "10.2.3.4",
+      "10.4.1.20",
+      "neel.k",
+      "fw01"
+    ],
+    "parse_path": [
+      "syslog:rfc3164",
+      "json",
+      "template:auth_ok"
+    ],
+    "severity_id": 1,
+    "status_id": 1,
+    "template_id": "auth_ok",
+    "tier": 1,
+    "time_source": "event",
+    "type_uid": 300201,
+    "unmapped_keys": [
+      "json.__rest",
+      "json.evt",
+      "json.msg",
+      "syslog.app",
+      "syslog.facility",
+      "syslog.pid",
+      "syslog.pri",
+      "syslog.severity",
+      "syslog.timestamp"
+    ],
+    "year_inferred": true
+  },
+  {
+    "activity_id": 1,
+    "category": "iam",
+    "class_uid": 3002,
+    "conformance": "match",
+    "derived_fields": {
+      "severity_id": "const",
+      "status_id": "const"
+    },
+    "dlq_reason": null,
+    "mapped": {
+      "device.hostname": "fw01",
+      "dst_endpoint.ip": "10.2.3.4",
+      "message": "user=s.iyer OK login from 10.4.1.21 via 10.2.3.4",
+      "src_endpoint.ip": "10.4.1.21",
+      "user.name": "s.iyer"
+    },
+    "observables": [
+      "10.2.3.4",
+      "10.4.1.21",
+      "s.iyer",
+      "fw01"
+    ],
+    "parse_path": [
+      "syslog:rfc3164",
+      "json",
+      "template:auth_ok"
+    ],
+    "severity_id": 1,
+    "status_id": 1,
+    "template_id": "auth_ok",
+    "tier": 1,
+    "time_source": "event",
+    "type_uid": 300201,
+    "unmapped_keys": [
+      "json.__rest",
+      "json.evt",
+      "json.msg",
+      "syslog.app",
+      "syslog.facility",
+      "syslog.pid",
+      "syslog.pri",
+      "syslog.severity",
+      "syslog.timestamp"
+    ],
+    "year_inferred": true
+  },
+  {
+    "activity_id": 1,
+    "category": "iam",
+    "class_uid": 3002,
+    "conformance": "match",
+    "derived_fields": {
+      "severity_id": "const",
+      "status_id": "const"
+    },
+    "dlq_reason": null,
+    "mapped": {
+      "device.hostname": "fw01",
+      "dst_endpoint.ip": "10.2.3.4",
+      "message": "user=v.rao OK login from 10.4.2.9 via 10.2.3.4",
+      "src_endpoint.ip": "10.4.2.9",
+      "user.name": "v.rao"
+    },
+    "observables": [
+      "10.2.3.4",
+      "10.4.2.9",
+      "v.rao",
+      "fw01"
+    ],
+    "parse_path": [
+      "syslog:rfc3164",
+      "json",
+      "template:auth_ok"
+    ],
+    "severity_id": 1,
+    "status_id": 1,
+    "template_id": "auth_ok",
+    "tier": 1,
+    "time_source": "event",
+    "type_uid": 300201,
+    "unmapped_keys": [
+      "json.__rest",
+      "json.evt",
+      "json.msg",
+      "syslog.app",
+      "syslog.facility",
+      "syslog.pid",
+      "syslog.pri",
+      "syslog.severity",
+      "syslog.timestamp"
+    ],
+    "year_inferred": true
+  },
+  {
+    "activity_id": 1,
+    "category": "iam",
+    "class_uid": 3002,
+    "conformance": "match",
+    "derived_fields": {
+      "severity_id": "const",
+      "status_id": "const"
+    },
+    "dlq_reason": null,
+    "mapped": {
+      "device.hostname": "fw01",
+      "dst_endpoint.ip": "10.2.3.4",
+      "message": "user=admin OK login from 10.4.1.31 via 10.2.3.4",
+      "src_endpoint.ip": "10.4.1.31",
+      "user.name": "admin"
+    },
+    "observables": [
+      "10.2.3.4",
+      "10.4.1.31",
+      "admin",
+      "fw01"
+    ],
+    "parse_path": [
+      "syslog:rfc3164",
+      "json",
+      "template:auth_ok"
+    ],
+    "severity_id": 1,
+    "status_id": 1,
+    "template_id": "auth_ok",
+    "tier": 1,
+    "time_source": "event",
+    "type_uid": 300201,
+    "unmapped_keys": [
+      "json.__rest",
+      "json.evt",
+      "json.msg",
+      "syslog.app",
+      "syslog.facility",
+      "syslog.pid",
+      "syslog.pri",
+      "syslog.severity",
+      "syslog.timestamp"
+    ],
+    "year_inferred": true
+  },
+  {
+    "activity_id": 1,
+    "category": "iam",
+    "class_uid": 3002,
+    "conformance": "match",
+    "derived_fields": {
+      "severity_id": "const",
+      "status_id": "const"
+    },
+    "dlq_reason": null,
+    "mapped": {
+      "device.hostname": "fw01",
+      "dst_endpoint.ip": "10.2.3.4",
+      "message": "user=root OK login from 10.4.1.44 via 10.2.3.4",
+      "src_endpoint.ip": "10.4.1.44",
+      "user.name": "root"
+    },
+    "observables": [
+      "10.2.3.4",
+      "10.4.1.44",
+      "root",
+      "fw01"
+    ],
+    "parse_path": [
+      "syslog:rfc3164",
+      "json",
+      "template:auth_ok"
+    ],
+    "severity_id": 1,
+    "status_id": 1,
+    "template_id": "auth_ok",
+    "tier": 1,
+    "time_source": "event",
+    "type_uid": 300201,
+    "unmapped_keys": [
+      "json.__rest",
+      "json.evt",
+      "json.msg",
+      "syslog.app",
+      "syslog.facility",
+      "syslog.pid",
+      "syslog.pri",
+      "syslog.severity",
+      "syslog.timestamp"
+    ],
+    "year_inferred": true
+  },
+  {
+    "activity_id": 1,
+    "category": "iam",
+    "class_uid": 3002,
+    "conformance": "match",
+    "derived_fields": {
+      "severity_id": "const",
+      "status_id": "const"
+    },
+    "dlq_reason": null,
+    "mapped": {
+      "device.hostname": "fw01",
+      "dst_endpoint.ip": "10.2.3.4",
+      "message": "user=d.mehta OK login from 10.4.1.20 via 10.2.3.4",
+      "src_endpoint.ip": "10.4.1.20",
+      "user.name": "d.mehta"
+    },
+    "observables": [
+      "10.2.3.4",
+      "10.4.1.20",
+      "d.mehta",
+      "fw01"
+    ],
+    "parse_path": [
+      "syslog:rfc3164",
+      "json",
+      "template:auth_ok"
+    ],
+    "severity_id": 1,
+    "status_id": 1,
+    "template_id": "auth_ok",
+    "tier": 1,
+    "time_source": "event",
+    "type_uid": 300201,
+    "unmapped_keys": [
+      "json.__rest",
+      "json.evt",
+      "json.msg",
+      "syslog.app",
+      "syslog.facility",
+      "syslog.pid",
+      "syslog.pri",
+      "syslog.severity",
+      "syslog.timestamp"
+    ],
+    "year_inferred": true
+  },
+  {
+    "activity_id": 1,
+    "category": "iam",
+    "class_uid": 3002,
+    "conformance": "match",
+    "derived_fields": {
+      "severity_id": "const",
+      "status_id": "const"
+    },
+    "dlq_reason": null,
+    "mapped": {
+      "device.hostname": "fw01",
+      "dst_endpoint.ip": "10.2.3.4",
+      "message": "user=r.patil OK login from 10.4.1.21 via 10.2.3.4",
+      "src_endpoint.ip": "10.4.1.21",
+      "user.name": "r.patil"
+    },
+    "observables": [
+      "10.2.3.4",
+      "10.4.1.21",
+      "r.patil",
+      "fw01"
+    ],
+    "parse_path": [
+      "syslog:rfc3164",
+      "json",
+      "template:auth_ok"
+    ],
+    "severity_id": 1,
+    "status_id": 1,
+    "template_id": "auth_ok",
+    "tier": 1,
+    "time_source": "event",
+    "type_uid": 300201,
+    "unmapped_keys": [
+      "json.__rest",
+      "json.evt",
+      "json.msg",
+      "syslog.app",
+      "syslog.facility",
+      "syslog.pid",
+      "syslog.pri",
+      "syslog.severity",
+      "syslog.timestamp"
+    ],
+    "year_inferred": true
+  },
+  {
+    "activity_id": 1,
+    "category": "iam",
+    "class_uid": 3002,
+    "conformance": "match",
+    "derived_fields": {
+      "severity_id": "const",
+      "status_id": "const"
+    },
+    "dlq_reason": null,
+    "mapped": {
+      "device.hostname": "fw01",
+      "dst_endpoint.ip": "10.2.3.4",
+      "message": "user=a.sharma OK login from 10.4.2.9 via 10.2.3.4",
+      "src_endpoint.ip": "10.4.2.9",
+      "user.name": "a.sharma"
+    },
+    "observables": [
+      "10.2.3.4",
+      "10.4.2.9",
+      "a.sharma",
+      "fw01"
+    ],
+    "parse_path": [
+      "syslog:rfc3164",
+      "json",
+      "template:auth_ok"
+    ],
+    "severity_id": 1,
+    "status_id": 1,
+    "template_id": "auth_ok",
+    "tier": 1,
+    "time_source": "event",
+    "type_uid": 300201,
+    "unmapped_keys": [
+      "json.__rest",
+      "json.evt",
+      "json.msg",
+      "syslog.app",
+      "syslog.facility",
+      "syslog.pid",
+      "syslog.pri",
+      "syslog.severity",
+      "syslog.timestamp"
+    ],
+    "year_inferred": true
+  },
+  {
+    "activity_id": 1,
+    "category": "iam",
+    "class_uid": 3002,
+    "conformance": "match",
+    "derived_fields": {
+      "severity_id": "const",
+      "status_id": "const"
+    },
+    "dlq_reason": null,
+    "mapped": {
+      "device.hostname": "fw01",
+      "dst_endpoint.ip": "10.2.3.4",
+      "message": "user=neel.k OK login from 10.4.1.31 via 10.2.3.4",
+      "src_endpoint.ip": "10.4.1.31",
+      "user.name": "neel.k"
+    },
+    "observables": [
+      "10.2.3.4",
+      "10.4.1.31",
+      "neel.k",
+      "fw01"
+    ],
+    "parse_path": [
+      "syslog:rfc3164",
+      "json",
+      "template:auth_ok"
+    ],
+    "severity_id": 1,
+    "status_id": 1,
+    "template_id": "auth_ok",
+    "tier": 1,
+    "time_source": "event",
+    "type_uid": 300201,
+    "unmapped_keys": [
+      "json.__rest",
+      "json.evt",
+      "json.msg",
+      "syslog.app",
+      "syslog.facility",
+      "syslog.pid",
+      "syslog.pri",
+      "syslog.severity",
+      "syslog.timestamp"
+    ],
+    "year_inferred": true
+  },
+  {
+    "activity_id": 1,
+    "category": "iam",
+    "class_uid": 3002,
+    "conformance": "match",
+    "derived_fields": {
+      "severity_id": "const",
+      "status_id": "const"
+    },
+    "dlq_reason": null,
+    "mapped": {
+      "device.hostname": "fw01",
+      "dst_endpoint.ip": "10.2.3.4",
+      "message": "user=s.iyer OK login from 10.4.1.44 via 10.2.3.4",
+      "src_endpoint.ip": "10.4.1.44",
+      "user.name": "s.iyer"
+    },
+    "observables": [
+      "10.2.3.4",
+      "10.4.1.44",
+      "s.iyer",
+      "fw01"
+    ],
+    "parse_path": [
+      "syslog:rfc3164",
+      "json",
+      "template:auth_ok"
+    ],
+    "severity_id": 1,
+    "status_id": 1,
+    "template_id": "auth_ok",
+    "tier": 1,
+    "time_source": "event",
+    "type_uid": 300201,
+    "unmapped_keys": [
+      "json.__rest",
+      "json.evt",
+      "json.msg",
+      "syslog.app",
+      "syslog.facility",
+      "syslog.pid",
+      "syslog.pri",
+      "syslog.severity",
+      "syslog.timestamp"
+    ],
+    "year_inferred": true
+  },
+  {
+    "activity_id": 1,
+    "category": "iam",
+    "class_uid": 3002,
+    "conformance": "match",
+    "derived_fields": {
+      "severity_id": "const",
+      "status_id": "const"
+    },
+    "dlq_reason": null,
+    "mapped": {
+      "device.hostname": "fw01",
+      "dst_endpoint.ip": "10.2.3.4",
+      "message": "user=v.rao OK login from 10.4.1.20 via 10.2.3.4",
+      "src_endpoint.ip": "10.4.1.20",
+      "user.name": "v.rao"
+    },
+    "observables": [
+      "10.2.3.4",
+      "10.4.1.20",
+      "v.rao",
+      "fw01"
+    ],
+    "parse_path": [
+      "syslog:rfc3164",
+      "json",
+      "template:auth_ok"
+    ],
+    "severity_id": 1,
+    "status_id": 1,
+    "template_id": "auth_ok",
+    "tier": 1,
+    "time_source": "event",
+    "type_uid": 300201,
+    "unmapped_keys": [
+      "json.__rest",
+      "json.evt",
+      "json.msg",
+      "syslog.app",
+      "syslog.facility",
+      "syslog.pid",
+      "syslog.pri",
+      "syslog.severity",
+      "syslog.timestamp"
+    ],
+    "year_inferred": true
+  },
+  {
+    "activity_id": 1,
+    "category": "iam",
+    "class_uid": 3002,
+    "conformance": "match",
+    "derived_fields": {
+      "severity_id": "const",
+      "status_id": "const"
+    },
+    "dlq_reason": null,
+    "mapped": {
+      "device.hostname": "fw01",
+      "dst_endpoint.ip": "10.2.3.4",
+      "message": "user=admin OK login from 10.4.1.21 via 10.2.3.4",
+      "src_endpoint.ip": "10.4.1.21",
+      "user.name": "admin"
+    },
+    "observables": [
+      "10.2.3.4",
+      "10.4.1.21",
+      "admin",
+      "fw01"
+    ],
+    "parse_path": [
+      "syslog:rfc3164",
+      "json",
+      "template:auth_ok"
+    ],
+    "severity_id": 1,
+    "status_id": 1,
+    "template_id": "auth_ok",
+    "tier": 1,
+    "time_source": "event",
+    "type_uid": 300201,
+    "unmapped_keys": [
+      "json.__rest",
+      "json.evt",
+      "json.msg",
+      "syslog.app",
+      "syslog.facility",
+      "syslog.pid",
+      "syslog.pri",
+      "syslog.severity",
+      "syslog.timestamp"
+    ],
+    "year_inferred": true
+  }
+]
