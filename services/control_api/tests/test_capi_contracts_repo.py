@@ -15,6 +15,8 @@ from control_api.contracts_repo import (
     seed_commit,
 )
 from dulwich import porcelain
+from dulwich.objects import Commit, Tree
+from dulwich.repo import Repo
 
 
 def make_seed(root: Path) -> Path:
@@ -62,6 +64,35 @@ def test_reset_to_seed_restores_files_and_drops_later_work(tmp_path: Path) -> No
     assert (repo / "README.md").read_text(encoding="utf-8") == "seed\n"
     assert not (repo / "t_a" / "two.yaml").exists()
     assert not (repo / "stray.txt").exists()
+
+
+def test_commit_all_stages_a_deleted_file(tmp_path: Path) -> None:
+    repo = make_seed(tmp_path / "cr")
+    ensure_repo(repo)
+    (repo / "t_a" / "one.yaml").unlink()
+    sha = commit_all(repo, "drop one.yaml", author="author@maha")
+
+    with Repo(str(repo)) as r:
+        commit = r[sha.encode("ascii")]
+        assert isinstance(commit, Commit)
+        tree = r[commit.tree]
+        assert isinstance(tree, Tree)
+        with pytest.raises(KeyError):
+            tree.lookup_path(r.get_object, b"t_a/one.yaml")
+
+
+def test_commit_all_is_a_noop_when_nothing_changed(tmp_path: Path) -> None:
+    repo = make_seed(tmp_path / "cr")
+    seed = ensure_repo(repo)
+    with Repo(str(repo)) as r:
+        commits_before = len(list(r.get_walker()))
+
+    again = commit_all(repo, "no-op", author="author@maha")
+
+    assert again == seed
+    with Repo(str(repo)) as r:
+        commits_after = len(list(r.get_walker()))
+    assert commits_after == commits_before
 
 
 @pytest.mark.skipif(shutil.which("git") is None, reason="needs the git CLI")

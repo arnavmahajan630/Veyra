@@ -9,6 +9,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from dulwich import porcelain
+from dulwich.objects import Commit
 from dulwich.refs import Ref
 from dulwich.repo import Repo
 
@@ -52,9 +53,26 @@ def ensure_repo(path: Path) -> str:
 
 
 def commit_all(path: Path, message: str, *, author: str) -> str:
+    """Stage and commit every change under `path`, matching `git add -A && git commit`.
+
+    Deletions are staged too: the paths handed to `WorkTree.stage()` are the union of
+    what's on disk and what the index already tracks, and dulwich's stage() drops index
+    entries for paths that no longer exist on disk. If the resulting tree is identical
+    to HEAD's tree, nothing is committed and the current HEAD sha is returned instead —
+    except on an unborn repo (no HEAD yet), which always commits, so `ensure_repo`'s
+    seed path still works even for an empty directory.
+    """
     identity = author if "<" in author else f"{author} <{author}>"
     with Repo(str(path)) as repo:
-        porcelain.add(repo, paths=[str(p) for p in _work_files(path)])
+        work_paths = {p.relative_to(path).as_posix() for p in _work_files(path)}
+        tracked_paths = {entry.decode("utf-8") for entry in repo.open_index()}
+        repo.get_worktree().stage(sorted(work_paths | tracked_paths))
+        if _has_commits(repo):
+            staged_tree = repo.open_index().commit(repo.object_store)
+            head_obj = repo[repo.head()]
+            assert isinstance(head_obj, Commit)
+            if staged_tree == head_obj.tree:
+                return repo.head().decode("ascii")
         sha = porcelain.commit(
             repo,
             message=message.encode("utf-8"),
