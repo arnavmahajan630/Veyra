@@ -206,6 +206,23 @@ services:
       - ../data:/app/data
       - ../data/sinks:/sinks
 
+  control-api:
+    <<: *py
+    container_name: veyra-control-api
+    profiles: ["c1"]
+    command: ["python", "-m", "control_api"]
+    # Writes the contracts repository and the edge inventory on the host, so it runs as the
+    # invoking user (make writes VEYRA_UID/GID), like immudb.
+    user: "${VEYRA_UID:-1000}:${VEYRA_GID:-1000}"
+    ports: ["8000:8000"]
+    volumes:
+      - ../data:/app/data
+      # The separate contracts repository sits beside Veyra/. Mounted at /contracts-repo so
+      # the default VEYRA_CONTRACTS_REPO=../contracts-repo resolves the same from /app.
+      - ../../contracts-repo:/contracts-repo
+      - ../edge/vector/inventory:/app/edge/vector/inventory
+      - ../edge/vector/reload.stamp:/app/edge/vector/reload.stamp
+
 networks:
   veyra_net:
     name: veyra_net
