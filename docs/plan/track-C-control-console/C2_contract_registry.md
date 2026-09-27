@@ -6,7 +6,7 @@ contracts: v1.3
 depends_on: [C1, A3 (veyra_engine real; stub OK to start)]   unblocks: [CP2, CP3, C3, C4, C6, A5]
 consumes: [IF-CONTRACT-YAML, IF-OCSF-SUBSET, IF-ENGINE-LIB, IF-API-EVIDENCE (raw fetch, template events), IF-TOPICS (replay.raw)]
 provides: [IF-CONTRACT-COMPILED, IF-API-CONTROL (contracts, replay), IF-CONTROL (contract:* with candidate)]
-directories: [packages/veyra_contracts/, services/control_api/ (contracts, replay modules), contracts-repo/]
+directories: [packages/veyra_contracts/, services/control_api/ (contracts, replay modules), ../contracts-repo (separate repository)]
 ```
 
 ## Goal
@@ -42,7 +42,7 @@ Turn Log Contracts into governed, versioned, tested, deterministic parse plans, 
   - PII paths not mapped.
 
 ### Registry in control-api
-- **Storage:** YAML in `contracts-repo/<tenant>/<id>.yaml`, committed with GitPython (or `git` via subprocess), author = the session user. Version N = the `version:` field; the commit sha is stored in `contract_versions.git_commit`. The seed commit is tagged `seed` (used by reset).
+- **Storage:** YAML in the contract registry repository (`VEYRA_CONTRACTS_REPO`, default `../contracts-repo`) as `<tenant>/<id>.yaml`, committed with GitPython (or `git` via subprocess), author = the session user. Version N = the `version:` field; the commit sha is stored in `contract_versions.git_commit`. The seed commit is tagged `seed` (used by reset).
 - **Tables:**
   - `contracts(id, tenant_id, active_version, canary_version)`;
   - `contract_versions(contract_id, version, state, yaml, compiled_json, author, approved_by, golden_report_json, backtest_json, git_commit, created_at, draft_id)`.
@@ -77,7 +77,7 @@ Turn Log Contracts into governed, versioned, tested, deterministic parse plans, 
 - [ ] 5. Backtest integration (with B4 raw fetch; use corpus envelopes as a fallback in tests).
 - [ ] 6. Diff endpoint (YAML + semantic).
 - [ ] 7. Replay jobs + progress + SSE.
-- [ ] 8. `make contracts-test`: runs compile + lint + golden for every contract in contracts-repo (CI hook).
+- [ ] 8. `make contracts-test`: runs compile + lint + golden for every contract in the contract registry (`CONTRACTS_REPO`, default `../contracts-repo`; CI must check that repository out beside this one).
 
 ## Acceptance criteria
 - [ ] AC1: The library contracts compile and pass golden tests. Compiled JSON is byte-identical across two runs.

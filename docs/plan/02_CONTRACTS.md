@@ -203,7 +203,7 @@ Consumers rebuild their state by reading the compacted topic from the beginning 
 
 ## IF-CONTRACT-YAML — Log Contract (v1 "Source Pack")
 
-Stored in `contracts-repo/<tenant_id>/<contract_id>.yaml`. Versions are git commits plus the `version:` field.
+Stored in the contract registry, a separate git repository checked out next to the code at `../contracts-repo` (path: `VEYRA_CONTRACTS_REPO`), as `<tenant_id>/<contract_id>.yaml`. Versions are git commits plus the `version:` field. <!-- synced: registry moved out of the code repo (05_CHANGELOG, 2026-09-27) -->
 
 ```yaml
 contract: authsrv
@@ -590,7 +590,7 @@ GET  /stream (SSE): events {type: overview|drift|draft|contract|replay|source, d
 
 Internal (docker network only, not routed by caddy):
 POST /internal/drift {source_id, template_sig, drain_template, count, samples_masked, first_seen, last_seen} (drift-worker upsert)
-POST /internal/reset {scenario} → wipe SQLite + reset contracts-repo to seed tag + reseed + republish control   (demo-engine)
+POST /internal/reset {scenario} → wipe SQLite + reset the contract registry (../contracts-repo) to seed tag + reseed + republish control   (demo-engine)
 GET  /internal/demo/last-key → {key_id, secret, source_id}   (only when VEYRA_DEMO_MODE=1; lets demo-engine use the key issued live)
 ```
 

@@ -78,7 +78,7 @@ auto:                                               # demo-auto script: human cl
 
 ### Reset (`POST /reset`, `make demo-reset`), with step timings recorded
 1. Pause baseline traffic.
-2. `control-api /internal/reset {scenario: sih_main}`: SQLite wiped and reseeded (tenants, users, NTRO sources, library contracts active, no Maha Power source); contracts-repo reset to the `seed` tag; control topic republished; inventory CSV rewritten.
+2. `control-api /internal/reset {scenario: sih_main}`: SQLite wiped and reseeded (tenants, users, NTRO sources, library contracts active, no Maha Power source); the contract registry (`../contracts-repo`, a separate repository) reset to the `seed` tag; <!-- synced from C: registry moved out of the code repo (05_CHANGELOG, 2026-09-27) --> control topic republished; inventory CSV rewritten.
 3. Kafka: delete and recreate all topics except `control` (IF-TOPICS, profile partitions). The admin client waits for completion. `control` is compacted and rewritten by step 2; delete/recreate it **before** step 2 if its tombstones would confuse consumers, and test which order works.
 4. ClickHouse: `TRUNCATE` every table in `veyra` (MVs included).
 5. Vault: remove segments, ledger, integrity head, tamper backups. **Keep `data/keys/`.**

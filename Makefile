@@ -22,6 +22,8 @@ WAZUH        ?= local
 SERVICES     ?=
 PROFILE_FILE := profiles/$(PROFILE).env
 RUNTIME_ENV  := .env.runtime
+# The Log Contract registry is its own repository, checked out next to this one.
+CONTRACTS_REPO ?= ../contracts-repo
 COMPOSE_BASE := -f compose/docker-compose.yml
 UV           := uv
 
@@ -98,13 +100,16 @@ edge-test: ## run Vector's own unit tests against the rendered edge config
 	docker run --rm -v $(PWD)/edge/vector:/etc/vector:ro \
 	  timberio/vector:0.58.0-debian test /etc/vector/vector-core.toml /etc/vector/unit_tests.toml
 
-contracts-repo-init: ## give the contract registry its own git history (idempotent)
-	@if [ -d contracts-repo/.git ]; then echo "contracts-repo already initialised"; else \
-	  git -C contracts-repo init -q . && \
-	  git -C contracts-repo add -A && \
-	  git -C contracts-repo -c user.email=veyra@localhost -c user.name="VEYRA seed" \
-	    commit -q -m "seed: library contracts from the tracked seed files" && \
-	  git -C contracts-repo tag seed && echo "contracts-repo initialised at tag seed"; fi
+contracts-repo-init: ## give the contract registry ($(CONTRACTS_REPO)) its git history (idempotent)
+	@test -d $(CONTRACTS_REPO) || { echo "no contracts repo at $(CONTRACTS_REPO); clone it there or set CONTRACTS_REPO="; exit 1; }
+	@if git -C $(CONTRACTS_REPO) rev-parse -q --verify refs/tags/seed >/dev/null 2>&1; then \
+	  echo "$(CONTRACTS_REPO) already initialised (tag seed exists)"; else \
+	  { [ -d $(CONTRACTS_REPO)/.git ] || git -C $(CONTRACTS_REPO) init -q .; } && \
+	  { git -C $(CONTRACTS_REPO) rev-parse -q --verify HEAD >/dev/null 2>&1 || { \
+	    git -C $(CONTRACTS_REPO) add -A && \
+	    git -C $(CONTRACTS_REPO) -c user.email=veyra@localhost -c user.name="VEYRA seed" \
+	      commit -q -m "seed: library contracts"; }; } && \
+	  git -C $(CONTRACTS_REPO) tag seed && echo "$(CONTRACTS_REPO) tagged seed"; fi
 
 # Host-side tools talk to Kafka's EXTERNAL listener; inside compose it is kafka:9092.
 HOST_ENV := VEYRA_KAFKA_BOOTSTRAP=$$(grep -E '^VEYRA_KAFKA_BOOTSTRAP_HOST=' $(RUNTIME_ENV) | cut -d= -f2)

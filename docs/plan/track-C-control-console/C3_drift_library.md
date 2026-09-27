@@ -6,7 +6,7 @@ contracts: v1.3
 depends_on: [C2, A4 (template_sig, mask, extract_tokens)]   unblocks: [CP3, C4, Beat 4]
 consumes: [IF-DLQ, IF-TEMPLATE-SIG, IF-API-CONTROL (/internal/drift)]
 provides: [drift items, library packs, library_match()]
-directories: [services/drift_worker/, services/control_api/ (drift module), contracts-repo/library/]
+directories: [services/drift_worker/, services/control_api/ (drift module), ../contracts-repo/library/ (separate repository)]
 ```
 
 ## Goal
@@ -29,7 +29,7 @@ Notice new message shapes automatically (v1 §11.1) and turn them into reviewabl
 - SSE `drift` events on create/update.
 - **Auto-draft setting** `VEYRA_DRIFT_AUTODRAFT=1`: when an item is created, start a draft in the background (C4), so the drift card in Beat 4 already has a draft by the time the presenter opens it.
 
-### Library packs (`contracts-repo/library/`)
+### Library packs (`library/` in the contract registry, `../contracts-repo`)
 - `linux_sshd.yaml`, `acme_ngfw_cef.yaml`: imported from A3's fixtures, with their samples and expected files.
 - `generic_cef.yaml`: a CEF header + extension → Network Activity with common keys (`src`, `dst`, `spt`, `dpt`, `act`, `suser`).
 - `generic_leef.yaml`.

@@ -179,12 +179,13 @@ veyra/
   edge/vector/                  vector-dmz.toml, vector-core.toml, VRL, inventory CSV            (A)
   wazuh/                        ossec.conf fragments, rules/veyra_rules.xml                      (A)
   console/                      React app                                                        (C shell; B pages)
-  contracts-repo/               git repo of Log Contracts (runtime data; seeded)                 (C)
   demo/                         scenarios/, corpus/, expected/                                   (B; corpus in S0)
   data/                         runtime volumes (gitignored)
   docs/plan -> this folder      (copy this plan folder into the repo as docs/plan)
   Makefile                      up, down, reset, seed, test, demo-*, bench-*
+contracts-repo/                 SEPARATE repository beside veyra/: git repo of Log Contracts     (C)
 ```
+<!-- synced: the contract registry is its own repository at ../contracts-repo (05_CHANGELOG, 2026-09-27) -->
 
 ## 10. Quality bar
 
