@@ -1,0 +1,4 @@
+host,ip,criticality,owner
+fw-dmz-01,172.20.0.21,high,t_ntro_core
+core-lnx-07,172.20.0.31,high,t_ntro_core
+fw01,10.2.3.4,high,t_maha_power

@@ -1,0 +1,12 @@
+{
+  "name": "status_words",
+  "version": 1,
+  "entries": {
+    "FAILED": {"status_id": 2},
+    "failure": {"status_id": 2},
+    "denied": {"status_id": 2},
+    "OK": {"status_id": 1},
+    "success": {"status_id": 1},
+    "accepted": {"status_id": 1}
+  }
+}
