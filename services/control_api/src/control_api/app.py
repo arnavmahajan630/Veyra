@@ -8,7 +8,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
-from control_api import auth
+from control_api import auth, routes_sources, routes_tenants
 from control_api.context import AppContext
 
 
@@ -21,6 +21,6 @@ def create_app(ctx: AppContext) -> FastAPI:
 
     app = FastAPI(title="VEYRA control-api", version="0.1.0", lifespan=lifespan)
     app.state.ctx = ctx
-    for router in (auth.router,):
+    for router in (auth.router, routes_tenants.router, routes_sources.router):
         app.include_router(router)
     return app
