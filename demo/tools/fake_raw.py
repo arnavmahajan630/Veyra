@@ -181,6 +181,7 @@ def main() -> int:
     producer = None if args.dry_run else make_producer()
     sent = 0
     errors = 0
+    started = time.monotonic()
 
     def on_delivery(err: object, _msg: object) -> None:
         nonlocal errors
@@ -207,7 +208,11 @@ def main() -> int:
                 producer.poll(0)
             sent += 1
             if interval:
-                time.sleep(interval)
+                # Absolute schedule: sleep until event N is due, not "interval" from now.
+                due = started + sent * interval
+                delay = due - time.monotonic()
+                if delay > 0:
+                    time.sleep(delay)
     except KeyboardInterrupt:
         print("\ninterrupted", file=sys.stderr)
     finally:

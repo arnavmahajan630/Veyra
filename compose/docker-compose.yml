@@ -93,11 +93,17 @@ services:
   immudb:
     image: codenotary/immudb:1.11.2-bullseye-slim
     container_name: veyra-immudb
+    # Runs as the invoking user (make writes VEYRA_UID/GID), so ./data/immudb stays
+    # writable and nothing in data/ ends up owned by root.
+    user: "${VEYRA_UID:-1000}:${VEYRA_GID:-1000}"
     environment:
       IMMUDB_ADDRESS: 0.0.0.0
       IMMUDB_PGSQL_SERVER: "true"
       IMMUDB_ADMIN_PASSWORD: ${VEYRA_IMMUDB_PASSWORD:-immudb}
-    ports: ["3322:3322", "5432:5432", "9497:9497"]
+      # Required because the container runs as a numeric uid: immudb's Go binary has no
+      # cgo and falls back to $USER for user.Current().
+      USER: immudb
+    ports: ["3322:3322", "${VEYRA_IMMUDB_PG_HOST_PORT:-5433}:5432", "9497:9497"]
     volumes: ["../data/immudb:/var/lib/immudb"]
     mem_limit: ${VEYRA_MEM_IMMUDB:-256m}
     restart: unless-stopped
@@ -161,7 +167,7 @@ services:
   caddy:
     image: caddy:2.11.4-alpine
     container_name: veyra-caddy
-    ports: ["8080:8080"]
+    ports: ["${VEYRA_CONSOLE_PORT:-8080}:8080"]
     volumes:
       - ../Caddyfile:/etc/caddy/Caddyfile:ro
       - ../console/dist:/srv/console:ro

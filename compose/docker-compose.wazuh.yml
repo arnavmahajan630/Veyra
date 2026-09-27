@@ -29,7 +29,9 @@ services:
     mem_limit: ${VEYRA_MEM_WAZUH_INDEXER:-1.8g}
     restart: unless-stopped
     volumes:
-      - ../data/wazuh/indexer:/var/lib/wazuh-indexer
+      # Named volume, not a bind mount: the indexer runs as its own uid and cannot write
+      # into a host-owned directory (AccessDeniedException on performance_analyzer_enabled.conf).
+      - wazuh_indexer_data:/var/lib/wazuh-indexer
       - ../data/wazuh/certs/root-ca.pem:/usr/share/wazuh-indexer/certs/root-ca.pem:ro
       - ../data/wazuh/certs/wazuh.indexer-key.pem:/usr/share/wazuh-indexer/certs/wazuh.indexer.key:ro
       - ../data/wazuh/certs/wazuh.indexer.pem:/usr/share/wazuh-indexer/certs/wazuh.indexer.pem:ro
@@ -60,19 +62,25 @@ services:
     restart: unless-stopped
     ports: ["1514:1514", "1515:1515", "514:514/udp", "55000:55000"]
     volumes:
-      - ../data/wazuh/manager/api-config:/var/ossec/api/configuration
-      - ../data/wazuh/manager/etc:/var/ossec/etc
-      - ../data/wazuh/manager/logs:/var/ossec/logs
-      - ../data/wazuh/manager/queue:/var/ossec/queue
-      - ../data/wazuh/manager/wodles:/var/ossec/wodles
-      - ../data/wazuh/manager/filebeat-etc:/etc/filebeat
-      - ../data/wazuh/manager/filebeat-var:/var/lib/filebeat
+      # Named volumes, seeded from the image on first start. Bind-mounting empty host
+      # directories here wipes the image's own /etc/filebeat and /var/ossec contents.
+      - wazuh_api_configuration:/var/ossec/api/configuration
+      - wazuh_etc:/var/ossec/etc
+      - wazuh_logs:/var/ossec/logs
+      - wazuh_queue:/var/ossec/queue
+      - wazuh_var_multigroups:/var/ossec/var/multigroups
+      - wazuh_integrations:/var/ossec/integrations
+      - wazuh_active_response:/var/ossec/active-response/bin
+      - wazuh_agentless:/var/ossec/agentless
+      - wazuh_wodles:/var/ossec/wodles
+      - filebeat_etc:/etc/filebeat
+      - filebeat_var:/var/lib/filebeat
       - ../data/wazuh/certs/root-ca-manager.pem:/etc/ssl/root-ca.pem:ro
       - ../data/wazuh/certs/wazuh.manager.pem:/etc/ssl/filebeat.pem:ro
       - ../data/wazuh/certs/wazuh.manager-key.pem:/etc/ssl/filebeat.key:ro
       # VEYRA's own bits: the NDJSON sink the router writes, plus rules and localfile.
       - ../data/sinks/wazuh:/sinks/wazuh
-      - ../wazuh/rules/veyra_rules.xml:/var/ossec/etc/rules/veyra_rules.xml
+      - ../wazuh/rules/veyra_rules.xml:/veyra/veyra_rules.xml:ro
       - ../wazuh/ossec.conf.d/veyra_localfile.xml:/veyra/veyra_localfile.xml:ro
       - ../wazuh/entrypoint-veyra.sh:/veyra/entrypoint-veyra.sh:ro
     entrypoint: ["/bin/bash", "/veyra/entrypoint-veyra.sh"]
@@ -97,9 +105,25 @@ services:
       - ../data/wazuh/certs/wazuh.dashboard.pem:/usr/share/wazuh-dashboard/certs/wazuh.dashboard.pem:ro
       - ../data/wazuh/certs/wazuh.dashboard-key.pem:/usr/share/wazuh-dashboard/certs/wazuh.dashboard-key.pem:ro
       - ../data/wazuh/certs/root-ca.pem:/usr/share/wazuh-dashboard/certs/root-ca.pem:ro
-      - ../data/wazuh/dashboard/config:/usr/share/wazuh-dashboard/data/wazuh/config
+      - wazuh_dashboard_config:/usr/share/wazuh-dashboard/data/wazuh/config
+      - ./wazuh/dashboard.yml:/usr/share/wazuh-dashboard/config/opensearch_dashboards.yml:ro
     depends_on: [wazuh-indexer]
     networks: [veyra_net]
+
+volumes:
+  wazuh_api_configuration:
+  wazuh_etc:
+  wazuh_logs:
+  wazuh_queue:
+  wazuh_var_multigroups:
+  wazuh_integrations:
+  wazuh_active_response:
+  wazuh_agentless:
+  wazuh_wodles:
+  filebeat_etc:
+  filebeat_var:
+  wazuh_indexer_data:
+  wazuh_dashboard_config:
 
 networks:
   # Merged with the base file's definition (same name), so `docker compose -f base -f

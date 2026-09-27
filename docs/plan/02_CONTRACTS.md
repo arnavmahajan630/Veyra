@@ -80,7 +80,7 @@ Exact digests of the pulled images are recorded in `reports/S0.md`.
 | 5524/udp, 5525/tcp | edge-core syslog |
 | 9092 | kafka |
 | 8123 | clickhouse HTTP |
-| 3322, 5432 | immudb gRPC, pg-wire |
+| 3322, 5433 | immudb gRPC, pg-wire. <!-- synced from S0 --> Inside `veyra_net` the pg wire is 5432; the **host** mapping is `VEYRA_IMMUDB_PG_HOST_PORT` (default 5433), because a local PostgreSQL usually owns 5432 |
 | 11434 | ollama |
 | 8443 | wazuh dashboard |
 | 8200 | openbao (optional) |

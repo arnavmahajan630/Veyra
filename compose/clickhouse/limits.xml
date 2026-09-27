@@ -4,8 +4,11 @@
 <clickhouse>
     <max_server_memory_usage_to_ram_ratio>0.7</max_server_memory_usage_to_ram_ratio>
     <mark_cache_size>268435456</mark_cache_size>
-    <!-- One node, small disks: keep merges from eating the laptop. -->
-    <background_pool_size>4</background_pool_size>
+    <!-- background_pool_size is deliberately NOT overridden: ClickHouse refuses to
+         start when background_pool_size * background_merges_mutations_concurrency_ratio
+         (default 2) falls below number_of_free_entries_in_pool_to_execute_mutation
+         (default 20), so any value under 10 is a boot failure, not a saving. Memory is
+         bounded by the container's mem_limit and max_server_memory_usage_to_ram_ratio. -->
     <max_concurrent_queries>32</max_concurrent_queries>
     <logger>
         <level>warning</level>

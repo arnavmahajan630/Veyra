@@ -66,12 +66,18 @@ class Settings(BaseSettings):
 
     # ------------------------------------------------------------------ kafka / infra endpoints
     kafka_bootstrap: str = "kafka:9092"
+    # Host-side bootstrap for tools run outside the compose network (make topics,
+    # make test-int, demo/tools/*): kafka publishes an EXTERNAL listener on 29092.
+    kafka_bootstrap_host: str = "localhost:29092"
     clickhouse_url: str = "http://clickhouse:8123"
     clickhouse_db: str = "veyra"
     clickhouse_user: str = "default"
     clickhouse_password: str = ""
     immudb_host: str = "immudb"
     immudb_pg_port: int = 5432
+    # Host-published port for immudb's pg wire. Inside veyra_net it is always 5432; the
+    # host mapping is a knob because a local PostgreSQL usually already owns 5432.
+    immudb_pg_host_port: int = 5433
     immudb_grpc_port: int = 3322
     immudb_user: str = "immudb"
     immudb_password: str = "immudb"

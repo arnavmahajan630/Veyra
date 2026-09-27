@@ -125,7 +125,12 @@ def ac2_topics() -> list[Row]:
 
 # ---------------------------------------------------------------- AC3
 def ac3_envelopes(eps: float, seconds: float) -> list[Row]:
-    """fake_raw at `eps` for `seconds`, then count and validate what landed on raw.*."""
+    """fake_raw at `eps` for `seconds`, then count and validate what landed on raw.*.
+
+    The pass condition is **no loss**: everything the producer reports sending must come
+    back out of Kafka, validate against the IF-ENVELOPE model, and re-hash to the same
+    raw_sha256. A host too slow to hit the requested rate is a WARN, not a failure.
+    """
     from veyra_common.hashing import sha256_hex
     from veyra_common.kafka import make_consumer
     from veyra_common.models import Envelope
@@ -136,7 +141,7 @@ def ac3_envelopes(eps: float, seconds: float) -> list[Row]:
     cfg = Settings(kafka_bootstrap=bootstrap)
     group = f"s0-ac3-{int(time.time())}"
     consumer = make_consumer(group, pattern=RAW_PATTERN, cfg=cfg, auto_offset_reset="latest")
-    # Force the subscription to settle before producing, so nothing is missed.
+    # Let the subscription settle before producing, so nothing is missed.
     deadline = time.monotonic() + 20
     while not consumer.assignment() and time.monotonic() < deadline:
         consumer.poll(0.5)
@@ -160,34 +165,46 @@ def ac3_envelopes(eps: float, seconds: float) -> list[Row]:
     )
 
     valid = invalid = hash_bad = 0
-    stop = time.monotonic() + seconds + 25
-    while time.monotonic() < stop and valid + invalid < expected:
-        msg = consumer.poll(1.0)
-        if msg is None:
-            continue
-        if msg.error():
-            continue
-        try:
-            envelope = Envelope.model_validate_json(msg.value())
-        except Exception:
-            invalid += 1
-            continue
-        valid += 1
-        if sha256_hex(base64.b64decode(envelope.raw_b64)) != envelope.raw_sha256:
-            hash_bad += 1
-    consumer.close()
-    producer.wait(timeout=30)
 
-    rows = [
+    def drain(until: float) -> None:
+        nonlocal valid, invalid, hash_bad
+        while time.monotonic() < until:
+            msg = consumer.poll(1.0)
+            if msg is None or msg.error():
+                continue
+            try:
+                envelope = Envelope.model_validate_json(msg.value())
+            except Exception:  # a bad record is counted, never raised
+                invalid += 1
+                continue
+            valid += 1
+            if sha256_hex(base64.b64decode(envelope.raw_b64)) != envelope.raw_sha256:
+                hash_bad += 1
+
+    drain(time.monotonic() + seconds)
+    out, _ = producer.communicate(timeout=120)
+    produced = 0
+    for line in (out or "").splitlines():
+        if line.startswith("sent ") and "envelopes" in line:
+            produced = int(line.split()[1])
+    # Give the tail of the stream time to arrive after the producer's final flush.
+    drain(time.monotonic() + 20)
+    consumer.close()
+
+    return [
         (
-            PASS if valid >= expected * 0.98 else FAIL,
-            "envelopes consumed",
-            f"{valid} valid of ~{expected} expected at {eps} eps for {seconds:.0f}s",
+            PASS if produced and valid >= produced else FAIL,
+            "no events lost",
+            f"{valid} consumed of {produced} produced",
+        ),
+        (
+            PASS if produced >= expected * 0.98 else WARN,
+            "rate achieved",
+            f"{produced} in {seconds:.0f}s = {produced / max(seconds, 1):.1f} eps (target {eps})",
         ),
         (PASS if invalid == 0 else FAIL, "model validation", f"{invalid} invalid records"),
         (PASS if hash_bad == 0 else FAIL, "raw_sha256 recomputed", f"{hash_bad} mismatches"),
     ]
-    return rows
 
 
 # ---------------------------------------------------------------- AC4

@@ -33,7 +33,7 @@ from veyra_common.settings import Settings
 pytestmark = pytest.mark.int
 
 # From the host, the broker is reachable on the EXTERNAL listener.
-BOOTSTRAP = os.environ.get("VEYRA_KAFKA_BOOTSTRAP_HOST", "localhost:29092")
+BOOTSTRAP = os.environ.get("VEYRA_KAFKA_BOOTSTRAP", "localhost:29092")
 
 
 @pytest.fixture(scope="module")
