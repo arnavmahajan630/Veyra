@@ -189,3 +189,88 @@ def test_a_non_mapping_document_is_rejected() -> None:
 
 def test_compiled_contract_type_is_exported() -> None:
     assert isinstance(compile(AUTHSRV), CompiledContract)
+
+
+@pytest.mark.parametrize(
+    "new",
+    ["status_id: {const: 2.0}", "status_id: {const: true}"],
+)
+def test_const_enum_rejects_non_exact_type_matches(new: str) -> None:
+    text = AUTHSRV.replace("status_id: {const: 2}", new, 1)
+    with pytest.raises(ContractError, match="not a valid status_id") as info:
+        compile(text)
+    assert info.value.line == line_of(text, "status_id")
+
+
+def test_const_enum_accepts_a_valid_int() -> None:
+    compiled = compile(AUTHSRV).to_dict()
+    entries = {e["ocsf_path"]: e for e in compiled["templates"][0]["map"]}
+    assert entries["status_id"]["kind"] == "const"
+    assert entries["status_id"]["value"] == 2
+
+
+VOCAB_TS = """\
+contract: authsrv
+version: 1
+tenant: t_maha_power
+sources: [src_authsrv_01]
+templates:
+  - id: auth_status
+    pattern: 'status=<status_word> at <ts_raw:rest>'
+    class: authentication
+    activity: logon
+    map:
+      status_detail: {vocab: status_words, from: $status_word}
+      time: {ts: $ts_raw, formats: ["%b %d %H:%M:%S"]}
+vocab: [status_words]
+"""
+
+
+def test_vocab_map_entry_compiles() -> None:
+    compiled = compile(VOCAB_TS).to_dict()
+    entries = {e["ocsf_path"]: e for e in compiled["templates"][0]["map"]}
+    entry = entries["status_detail"]
+    assert entry["kind"] == "vocab"
+    assert entry["ref"] == "status_word"
+    assert entry["vocab"] == "status_words"
+
+
+def test_ts_map_entry_compiles() -> None:
+    compiled = compile(VOCAB_TS).to_dict()
+    entries = {e["ocsf_path"]: e for e in compiled["templates"][0]["map"]}
+    entry = entries["time"]
+    assert entry["kind"] == "ts"
+    assert entry["ref"] == "ts_raw"
+    assert entry["value"] == ["%b %d %H:%M:%S"]
+
+
+@pytest.mark.parametrize(
+    ("old", "new", "message", "needle"),
+    [
+        (
+            "vocab: [status_words]",
+            "vocab: []",
+            "not in the contract's vocab list",
+            "status_detail:",
+        ),
+        (
+            "from: $status_word",
+            "from: $missing_word",
+            "not a capture of this template",
+            "status_detail:",
+        ),
+        (
+            "ts: $ts_raw",
+            "ts: $missing_ts",
+            "not a capture of this template",
+            "time:",
+        ),
+    ],
+)
+def test_vocab_and_ts_semantic_errors_point_at_the_yaml_line(
+    old: str, new: str, message: str, needle: str
+) -> None:
+    text = VOCAB_TS.replace(old, new, 1)
+    with pytest.raises(ContractError, match=message) as info:
+        compile(text)
+    assert info.value.line == line_of(text, needle)

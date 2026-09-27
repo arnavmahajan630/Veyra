@@ -213,7 +213,9 @@ class _Compiler:
             return MapEntry(ocsf_path=path, kind="capture", ref=ref)
         if isinstance(value, ConstValue):
             enum = ENUMS.get(path)
-            if enum is not None and (isinstance(value.const, bool) or value.const not in enum):
+            if enum is not None and not any(
+                type(member) is type(value.const) and member == value.const for member in enum
+            ):
                 self.fail(loc, f"{value.const!r} is not a valid {path} (allowed: {sorted(enum)})")
             return MapEntry(ocsf_path=path, kind="const", value=value.const)
         if isinstance(value, VocabValue):
