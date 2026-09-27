@@ -16,6 +16,7 @@ makes snapshotting honest in the first place.
 from __future__ import annotations
 
 import json
+import os
 import sys
 from pathlib import Path
 from typing import Any
@@ -30,7 +31,10 @@ REPO = Path(__file__).resolve().parents[3]
 CORPUS = REPO / "demo" / "corpus"
 EXPECTED = Path(__file__).resolve().parent / "expected"
 TEST_CONTRACTS = Path(__file__).resolve().parent / "contracts"
-SEED_CONTRACTS = REPO / "contracts-repo" / "t_ntro_core"
+# The contract registry is its own repository, checked out beside this one
+# (VEYRA_CONTRACTS_REPO overrides; see 05_CHANGELOG 2026-09-28).
+REGISTRY = Path(os.environ.get("VEYRA_CONTRACTS_REPO", REPO.parent / "contracts-repo"))
+SEED_CONTRACTS = REGISTRY / "t_ntro_core"
 
 # A fixed arrival time, so year inference and clock skew are deterministic.
 RECEIVED = "2026-09-26T14:10:00.000000000Z"

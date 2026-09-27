@@ -41,14 +41,15 @@ ACTION REQUIRED:
   - [ ] @A @B @C Clone the contracts repository next to `Veyra/` (same parent folder):
         `git clone https://github.com/arnavmahajan630/contracts-repo` — tests,
         `make contracts-repo-init` and the demo need it there.
-  - [ ] @A REQUEST: three A3 files still read the seed from inside this repo
+  - [x] @A REQUEST (done by C 2026-09-28, please review): the move merged before A switched, so
+        C patched the three A3 files that still read the seed from inside this repo
         (`REPO / "contracts-repo" / "t_ntro_core"`): packages/veyra_engine/tests/test_golden.py,
         packages/veyra_engine/tests/test_invariants.py, tools/bench/engine_bench.py. Point them at
         `os.environ.get("VEYRA_CONTRACTS_REPO", REPO.parent / "contracts-repo")`. Until then those
         tests need the sibling checkout. (C checked: A3's golden suite passes unchanged with
         veyra_contracts.compile swapped in for mini_compile, 24/24.)
-  - [ ] @C Add a checkout step for the contracts repository to .github/workflows/ci.yml before any
-        test depends on it in CI.
+  - [x] @C CI checks out the contracts repository (done 2026-09-28). It is private: an admin must
+        add a `CONTRACTS_REPO_TOKEN` secret with read access, or make the repository public.
   - [ ] @B In B7, nothing changes in the API call (`/internal/reset` still resets the registry);
         the demo laptop just needs the checkout beside `Veyra/`.
 

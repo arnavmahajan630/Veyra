@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import datetime as datetime_module
 import json
+import os
 import subprocess
 import sys
 import time as time_module
@@ -25,7 +26,10 @@ from veyra_engine import Engine, EngineContext, mini_compile, serialize
 REPO = Path(__file__).resolve().parents[3]
 CORPUS = REPO / "demo" / "corpus"
 CONTRACT = REPO / "packages" / "veyra_engine" / "tests" / "contracts" / "authsrv.yaml"
-SEED = REPO / "contracts-repo" / "t_ntro_core" / "linux_sshd.yaml"
+# The contract registry is its own repository, checked out beside this one
+# (VEYRA_CONTRACTS_REPO overrides; see 05_CHANGELOG 2026-09-28).
+REGISTRY = Path(os.environ.get("VEYRA_CONTRACTS_REPO", REPO.parent / "contracts-repo"))
+SEED = REGISTRY / "t_ntro_core" / "linux_sshd.yaml"
 RECEIVED = "2026-09-26T14:10:00.000000000Z"
 
 

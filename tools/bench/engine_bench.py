@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import statistics
 import time
 from pathlib import Path
@@ -28,7 +29,10 @@ from veyra_engine.validate import validate_event
 
 REPO = Path(__file__).resolve().parents[2]
 CORPUS = REPO / "demo" / "corpus"
-SEED = REPO / "contracts-repo" / "t_ntro_core"
+# The contract registry is its own repository, checked out beside this one
+# (VEYRA_CONTRACTS_REPO overrides; see 05_CHANGELOG 2026-09-28).
+REGISTRY = Path(os.environ.get("VEYRA_CONTRACTS_REPO", REPO.parent / "contracts-repo"))
+SEED = REGISTRY / "t_ntro_core"
 TEST_CONTRACTS = REPO / "packages" / "veyra_engine" / "tests" / "contracts"
 RECEIVED = "2026-09-26T14:10:00.000000000Z"
 
