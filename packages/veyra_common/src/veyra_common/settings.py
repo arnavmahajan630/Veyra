@@ -133,6 +133,9 @@ class Settings(BaseSettings):
     route_breaker_fails: int = 5
     route_fsync_ms: int = 200
     wazuh_mode: WazuhMode = "local"
+    # Image defaults; S2 rotates them with wazuh-passwords-tool.
+    wazuh_indexer_user: str = "admin"
+    wazuh_indexer_password: str = "admin"
     wazuh_remote_host: str = ""
     wazuh_remote_port: int = 514
 

@@ -1,14 +1,23 @@
 <!--
   VEYRA custom rules, id range 100100-100199 (IF-WAZUH).
-  S0 ships only the parent rule 100100 so that S0-AC4 can be observed: any VEYRA event
-  becomes visible in Discover / alerts. A6 adds 100110 (auth failure), 100111 (brute
-  force, frequency 5 in 60s on the same src_endpoint.ip), 100120/100121 (tier 3/4) and
-  100130 (corrected event, ulpf.revision > 1), each with wazuh-logtest samples.
+
+  Why 100100 is a child of 99000: Wazuh ships rule 99000 ("Amazon Security Lake rules
+  grouped", level 0), which matches ANY json-decoded event carrying activity_id and
+  category_uid — that is every OCSF event, so every VEYRA event. A sibling rule of ours
+  would lose to it and, because 99000 is level 0, no alert would be generated at all.
+  Hanging our tree under it keeps the OCSF payload exactly as IF-NORM-EVENT defines it
+  (no shape changes to please the SIEM) and gets VEYRA events alerting.
+
+  S0 ships only the parent so S0-AC4 is observable: any VEYRA event becomes visible in
+  Discover and in alerts. A6 adds, as children of 100100: 100110 (auth failure), 100111
+  (brute force, frequency 5 in 60 s on the same src_endpoint.ip), 100120/100121 (tier 3/4)
+  and 100130 (corrected event, ulpf.revision > 1), each with wazuh-logtest samples in
+  wazuh/tests/.
 -->
 <group name="veyra,">
 
   <rule id="100100" level="3">
-    <decoded_as>json</decoded_as>
+    <if_sid>99000</if_sid>
     <field name="veyra.tier">\.+</field>
     <description>VEYRA: normalized event delivered (tier $(veyra.tier), source $(veyra.source))</description>
     <options>no_full_log</options>

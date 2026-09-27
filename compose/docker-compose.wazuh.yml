@@ -22,7 +22,7 @@ services:
       DISCOVERY_SERVICE: wazuh.indexer
       INDEXER_URL: https://wazuh.indexer:9200
       INDEXER_USERNAME: admin
-      INDEXER_PASSWORD: ${VEYRA_WAZUH_INDEXER_PASSWORD:-SecretPassword}
+      INDEXER_PASSWORD: ${VEYRA_WAZUH_INDEXER_PASSWORD:-admin}
     ulimits:
       memlock: { soft: -1, hard: -1 }
       nofile: { soft: 65536, hard: 65536 }
@@ -32,12 +32,16 @@ services:
       # Named volume, not a bind mount: the indexer runs as its own uid and cannot write
       # into a host-owned directory (AccessDeniedException on performance_analyzer_enabled.conf).
       - wazuh_indexer_data:/var/lib/wazuh-indexer
-      - ../data/wazuh/certs/root-ca.pem:/usr/share/wazuh-indexer/certs/root-ca.pem:ro
-      - ../data/wazuh/certs/wazuh.indexer-key.pem:/usr/share/wazuh-indexer/certs/wazuh.indexer.key:ro
-      - ../data/wazuh/certs/wazuh.indexer.pem:/usr/share/wazuh-indexer/certs/wazuh.indexer.pem:ro
-      - ../data/wazuh/certs/admin.pem:/usr/share/wazuh-indexer/certs/admin.pem:ro
-      - ../data/wazuh/certs/admin-key.pem:/usr/share/wazuh-indexer/certs/admin-key.pem:ro
-      - ./wazuh/indexer.yml:/usr/share/wazuh-indexer/opensearch.yml:ro
+      # The 4.14 image generates its own config/opensearch.yml from the environment and
+      # reads certificates from ${OPENSEARCH_PATH_CONF}/certs with fixed names
+      # (indexer.pem / indexer-key.pem / root-ca.pem / admin*.pem). Mounting a custom
+      # opensearch.yml elsewhere is silently ignored, which leaves the demo certs in
+      # place and makes securityadmin fail with "path does not chain".
+      - ../data/wazuh/certs/root-ca.pem:/usr/share/wazuh-indexer/config/certs/root-ca.pem:ro
+      - ../data/wazuh/certs/wazuh.indexer-key.pem:/usr/share/wazuh-indexer/config/certs/indexer-key.pem:ro
+      - ../data/wazuh/certs/wazuh.indexer.pem:/usr/share/wazuh-indexer/config/certs/indexer.pem:ro
+      - ../data/wazuh/certs/admin.pem:/usr/share/wazuh-indexer/config/certs/admin.pem:ro
+      - ../data/wazuh/certs/admin-key.pem:/usr/share/wazuh-indexer/config/certs/admin-key.pem:ro
     ports: ["9200:9200"]
     networks: [veyra_net]
 
@@ -48,7 +52,7 @@ services:
     environment:
       INDEXER_URL: https://wazuh.indexer:9200
       INDEXER_USERNAME: admin
-      INDEXER_PASSWORD: ${VEYRA_WAZUH_INDEXER_PASSWORD:-SecretPassword}
+      INDEXER_PASSWORD: ${VEYRA_WAZUH_INDEXER_PASSWORD:-admin}
       FILEBEAT_SSL_VERIFICATION_MODE: full
       SSL_CERTIFICATE_AUTHORITIES: /etc/ssl/root-ca.pem
       SSL_CERTIFICATE: /etc/ssl/filebeat.pem
@@ -92,7 +96,7 @@ services:
     hostname: wazuh.dashboard
     environment:
       INDEXER_USERNAME: admin
-      INDEXER_PASSWORD: ${VEYRA_WAZUH_INDEXER_PASSWORD:-SecretPassword}
+      INDEXER_PASSWORD: ${VEYRA_WAZUH_INDEXER_PASSWORD:-admin}
       WAZUH_API_URL: https://wazuh.manager
       DASHBOARD_USERNAME: kibanaserver
       DASHBOARD_PASSWORD: ${VEYRA_WAZUH_DASHBOARD_PASSWORD:-kibanaserver}

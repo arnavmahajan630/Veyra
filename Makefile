@@ -11,7 +11,7 @@
 SHELL := /bin/bash
 .DEFAULT_GOAL := help
 .PHONY: help up down ps logs restart build topics wipe-data test test-int lint fmt typecheck ci \
-        plan-check wazuh-certs wazuh-logtest console-dev console-build contracts-repo-init \
+        plan-check wazuh-certs wazuh-init wazuh-logtest console-dev console-build contracts-repo-init \
         e2e-smoke llm-warm \
         bench-llm bench-throughput demo-reset demo-preflight demo-stage doctor env-print
 
@@ -133,6 +133,17 @@ wazuh-certs: ## generate Wazuh certificates into data/wazuh/certs (run once)
 		-c "/entrypoint.sh"
 	@# The generator writes root-ca-manager.pem itself and sets container UIDs; do not chown.
 	@echo "certs written to data/wazuh/certs"
+
+wazuh-init: ## upload the indexer security config with our CA (once, after wazuh-certs)
+	@# The image generates its own opensearch.yml and reads certs from config/certs, so the
+	@# security index must be (re)initialised with the certificates we generated, or the
+	@# indexer answers "OpenSearch Security not initialized" and the dashboard shows 503.
+	docker exec -e JAVA_HOME=/usr/share/wazuh-indexer/jdk veyra-wazuh-indexer bash -c '\
+	  C=/usr/share/wazuh-indexer/config/certs; \
+	  bash /usr/share/wazuh-indexer/plugins/opensearch-security/tools/securityadmin.sh \
+	    -cd /usr/share/wazuh-indexer/config/opensearch-security/ -nhnv \
+	    -cacert $$C/root-ca.pem -cert $$C/admin.pem -key $$C/admin-key.pem -p 9200 -icl' \
+	  | tail -3
 
 wazuh-logtest: ## pipe a sample NDJSON line through the manager's rule engine
 	@test -n "$(LINE)" || { echo 'usage: make wazuh-logtest LINE=<json line>'; exit 1; }

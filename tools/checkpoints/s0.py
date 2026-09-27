@@ -220,7 +220,9 @@ def ac4_wazuh() -> list[Row]:
         "activity_id": 99,
         "severity_id": 3,
         "time": int(time.time() * 1000),
-        "message": f"S0 AC4 probe {marker}",
+        # The marker IS the whole message: data.message is a keyword field in the
+        # wazuh-alerts template, so a partial phrase query never matches it.
+        "message": marker,
         "raw_data": f"S0 AC4 probe {marker}",
         "veyra": {
             "tier": 4,
@@ -240,12 +242,29 @@ def ac4_wazuh() -> list[Row]:
     ctx = ssl.create_default_context()
     ctx.check_hostname = False
     ctx.verify_mode = ssl.CERT_NONE
-    password = os.environ.get("VEYRA_WAZUH_INDEXER_PASSWORD", "SecretPassword")
+    password = os.environ.get("VEYRA_WAZUH_INDEXER_PASSWORD", "admin")
     auth = base64.b64encode(f"admin:{password}".encode()).decode()
-    query = json.dumps({"query": {"match_phrase": {"data.message": marker}}, "size": 1}).encode()
+    # Match our rule and our marker: the manager polls the file, analysisd writes
+    # alerts.json, then filebeat ships it, so this can take well over a minute on a
+    # laptop under load.
+    query = json.dumps(
+        {
+            "query": {
+                "bool": {
+                    "filter": [
+                        # match_phrase, not term: rule.id is mapped as analyzed text in
+                        # the wazuh-alerts template, so a term query never matches it.
+                        {"match_phrase": {"rule.id": "100100"}},
+                        {"term": {"data.message": marker}},
+                    ]
+                }
+            },
+            "size": 1,
+        }
+    ).encode()
 
     found = False
-    deadline = time.monotonic() + 90  # the manager polls the file every few seconds
+    deadline = time.monotonic() + 180  # logcollector poll + analysisd + filebeat ship
     last_error = ""
     while time.monotonic() < deadline and not found:
         request = urllib.request.Request(
@@ -268,7 +287,7 @@ def ac4_wazuh() -> list[Row]:
             "indexer alert",
             "probe visible in wazuh-alerts-*"
             if found
-            else f"not found within 90s ({last_error or 'no hits'}) — check rule 100100",
+            else f"not found within 180s ({last_error or 'no hits'}) — check rule 100100",
         )
     )
     rows.append((WARN, "dashboard (human)", "open https://localhost:8443 and confirm in Discover"))
