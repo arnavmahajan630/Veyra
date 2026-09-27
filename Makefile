@@ -11,7 +11,9 @@
 SHELL := /bin/bash
 .DEFAULT_GOAL := help
 .PHONY: help up down ps logs restart build topics wipe-data test test-int lint fmt typecheck ci \
-        plan-check wazuh-certs wazuh-init wazuh-logtest console-dev console-build contracts-repo-init \
+        test-int-slow plan-check wazuh-certs wazuh-init wazuh-logtest console-dev console-build \
+        contracts-repo-init \
+        edge-render edge-check edge-test \
         e2e-smoke llm-warm \
         bench-llm bench-throughput demo-reset demo-preflight demo-stage doctor env-print
 
@@ -53,7 +55,7 @@ env-print: $(RUNTIME_ENV) ## show the merged runtime env
 	@cat $(RUNTIME_ENV)
 
 # ---------------------------------------------------------------------------- stack
-up: $(RUNTIME_ENV) ## build if needed and start the stack
+up: $(RUNTIME_ENV) edge-render ## build if needed and start the stack
 	mkdir -p data/{kafka,clickhouse,immudb,caddy,vault,keys,state,sinks/wazuh,sinks/partner,vector/dmz,vector/core,llm_cache,wazuh}
 	@# The route sinks are created here, owned by the invoking user, so both the router
 	@# container (A6) and host tools can append to them.
@@ -82,6 +84,20 @@ wipe-data: ## delete every runtime volume (asks first)
 	sudo rm -rf data
 	@echo "data/ removed"
 
+edge-render: ## render edge/vector/vector-<zone>.toml from the template + profile
+	$(UV) run --env-file $(RUNTIME_ENV) python edge/render.py
+
+edge-check: $(RUNTIME_ENV) ## fail if the rendered edge configs are stale, then validate them
+	$(UV) run --env-file $(RUNTIME_ENV) python edge/render.py --check
+	@for z in dmz core; do \
+	  docker run --rm -v $(PWD)/edge/vector:/etc/vector:ro \
+	    timberio/vector:0.58.0-debian validate --no-environment /etc/vector/vector-$$z.toml; \
+	done
+
+edge-test: ## run Vector's own unit tests against the rendered edge config
+	docker run --rm -v $(PWD)/edge/vector:/etc/vector:ro \
+	  timberio/vector:0.58.0-debian test /etc/vector/vector-core.toml /etc/vector/unit_tests.toml
+
 contracts-repo-init: ## give the contract registry its own git history (idempotent)
 	@if [ -d contracts-repo/.git ]; then echo "contracts-repo already initialised"; else \
 	  git -C contracts-repo init -q . && \
@@ -101,7 +117,10 @@ test: ## unit tests (no containers needed)
 	$(UV) run pytest -q -m "not int"
 
 test-int: $(RUNTIME_ENV) ## integration tests against the running stack
-	$(HOST_ENV) $(UV) run --env-file $(RUNTIME_ENV) pytest -q -m int
+	$(HOST_ENV) $(UV) run --env-file $(RUNTIME_ENV) pytest -q -m "int and not slow"
+
+test-int-slow: $(RUNTIME_ENV) ## slow integration tests that stop/start infrastructure
+	$(HOST_ENV) $(UV) run --env-file $(RUNTIME_ENV) pytest -q -m "int and slow"
 
 lint: ## ruff check + format check
 	$(UV) run ruff check .
@@ -117,7 +136,7 @@ typecheck: ## mypy (lenient)
 plan-check: ## list plan files whose contracts header is stale
 	$(UV) run python tools/plan_check.py
 
-ci: lint test plan-check ## what CI runs
+ci: lint test plan-check ## what CI runs (edge-test needs docker, so it is separate)
 	@echo "ci: green"
 
 doctor: ## check the host has what the laptop profile needs

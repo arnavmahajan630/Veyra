@@ -44,8 +44,8 @@ zone = "string"
 [sources.syslog_udp]
 type = "socket"
 mode = "udp"
-address = "0.0.0.0:5514"
-max_length = 65536
+address = "0.0.0.0:${UDP_PORT}"
+max_length = ${MAX_EVENT_BYTES}
 host_key = "peer_host"
 port_key = "peer_port"
 
@@ -55,8 +55,8 @@ codec = "bytes"
 [sources.syslog_tcp]
 type = "socket"
 mode = "tcp"
-address = "0.0.0.0:5515"
-max_length = 65536
+address = "0.0.0.0:${TCP_PORT}"
+max_length = ${MAX_EVENT_BYTES}
 host_key = "peer_host"
 port_key = "peer_port"
 
@@ -73,7 +73,7 @@ inputs = ["syslog_udp"]
 source = '''
 # A datagram is exactly one event; the kernel already framed it for us.
 .transport = "syslog_udp"
-.listener = "dmz-udp"
+.listener = "${LISTENER_UDP}"
 .framing_method = "datagram"
 .parts = 1
 '''
@@ -84,7 +84,7 @@ inputs = ["syslog_tcp"]
 source = '''
 line = string!(.message)
 .transport = "syslog_tcp"
-.listener = "dmz-tcp"
+.listener = "${LISTENER_TCP}"
 .framing_method = "newline"
 .parts = 1
 # The continuation rule, identical to veyra_common.framing.is_continuation: leading
@@ -107,8 +107,8 @@ group_by = ["join_key"]
 starts_when = '!bool!(.is_continuation)'
 # Flush an open event this long after its last line, so a trailing stack trace cannot
 # hold an event forever.
-expire_after_ms = 500
-flush_period_ms = 500
+expire_after_ms = ${MULTILINE_FLUSH_MS}
+flush_period_ms = ${MULTILINE_FLUSH_MS}
 
 [transforms.tcp_join.merge_strategies]
 message = "concat_newline"
@@ -124,7 +124,7 @@ raw = string!(.message)
 # 1-2. Size. length() is the BYTE length (strlen() would be characters, which would be
 # wrong for the Devanagari OT historian lines).
 raw_len = length(raw)
-truncated = raw_len >= 65536
+truncated = raw_len >= ${MAX_EVENT_BYTES}
 
 # 3-4. Seal the bytes before anything parses them.
 raw_sha256 = sha2(raw, variant: "SHA-256")
@@ -181,12 +181,12 @@ if row == null && syslog_host != "" {
 source_id = "unregistered"
 tenant_id = "unassigned"
 vendor = "unregistered"
-zone = "dmz"
+zone = "${ZONE}"
 if row != null {
     source_id = to_string(get!(row, ["source_id"])) ?? "unregistered"
     tenant_id = to_string(get!(row, ["tenant_id"])) ?? "unassigned"
     vendor = to_string(get!(row, ["vendor"])) ?? "unregistered"
-    zone = to_string(get!(row, ["zone"])) ?? "dmz"
+    zone = to_string(get!(row, ["zone"])) ?? "${ZONE}"
 }
 
 # Build IF-ENVELOPE explicitly, so no Vector metadata leaks onto the wire and the field
@@ -198,7 +198,7 @@ if row != null {
   "source_id": source_id,
   "vendor": vendor,
   "zone": zone,
-  "collector_id": "edge-dmz-01",
+  "collector_id": "${COLLECTOR_ID}",
   "transport": transport,
   "peer_ip": peer_ip_out,
   "peer_port": peer_port_out,
@@ -219,7 +219,7 @@ if row != null {
 [sinks.kafka_raw]
 type = "kafka"
 inputs = ["stamp"]
-bootstrap_servers = "kafka:9092"
+bootstrap_servers = "${KAFKA_BOOTSTRAP}"
 # One topic per vendor (IF-TOPICS); the key is source_id so a source's events keep order.
 topic = "raw.{{ vendor }}"
 key_field = "source_id"
@@ -242,5 +242,5 @@ enabled = false
 # applies backpressure rather than dropping them (P2, v1 §13 edge failure).
 [sinks.kafka_raw.buffer]
 type = "disk"
-max_size = 268435488
+max_size = ${EDGE_BUFFER_BYTES}
 when_full = "block"

@@ -50,7 +50,10 @@ known-first-party = [
 [tool.pytest.ini_options]
 testpaths = ["packages", "services", "tests"]
 asyncio_mode = "auto"
-markers = ["int: integration test, needs `make up` (deselect with -m 'not int')"]
+markers = [
+    "int: integration test, needs `make up` (deselect with -m 'not int')",
+    "slow: minutes-long test that stops or restarts infrastructure; run deliberately",
+]
 filterwarnings = ["error::DeprecationWarning:veyra_.*"]
 
 [tool.mypy]

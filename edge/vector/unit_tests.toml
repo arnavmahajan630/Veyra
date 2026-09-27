@@ -1,0 +1,154 @@
+# Vector's own unit tests for the edge transforms (A1 task 3).
+#
+#   make edge-test
+#   # or: vector test /etc/vector/vector-core.toml /etc/vector/unit_tests.toml
+#
+# These run the real VRL against synthetic events, with no sockets and no Kafka, so a
+# stamping or resolution mistake is caught in under a second. The socket-level guarantees
+# (framing, disk buffer, reload) need real I/O and live in tests/int/test_edge*.py instead.
+#
+# Written against the **core** zone's rendered config: core-udp is the listener that
+# edge/vector/inventory/sources.csv maps for core-lnx-07.
+
+[[tests]]
+name = "stamps evidence fields before anything parses the payload"
+
+[[tests.inputs]]
+insert_at = "pre_udp"
+type = "raw"
+value = "<86>Sep 26 14:05:12 core-lnx-07 sshd[4410]: Failed password for invalid user admin from 45.12.3.9 port 52144 ssh2"
+
+[[tests.outputs]]
+extract_from = "stamp"
+
+[[tests.outputs.conditions]]
+type = "vrl"
+source = '''
+# The seal. This sha is also vector 2 in docs/plan/reference/spec_vectors.py, so the edge
+# and the reference implementation are pinned to the same value.
+assert_eq!(.raw_sha256, "d0d2cdd323470fb723e6a4b8f74e802e59af7d6efbe9a221bf2d12e4adcba4dc", "raw_sha256 must be the sha256 of the exact payload bytes")
+assert_eq!(.raw_len, 113)
+assert_eq!(decode_base64!(.raw_b64), "<86>Sep 26 14:05:12 core-lnx-07 sshd[4410]: Failed password for invalid user admin from 45.12.3.9 port 52144 ssh2", "raw_b64 must decode back to the original bytes")
+assert_eq!(.event_uid, downcase(string!(.event_uid)), "event_uid is lowercase")
+assert!(is_string(.received_time))
+'''
+
+[[tests]]
+name = "resolves a registered source by its syslog host"
+
+[[tests.inputs]]
+insert_at = "pre_udp"
+type = "raw"
+value = "<86>Sep 26 14:05:12 core-lnx-07 sshd[4410]: Failed password for root from 10.4.1.66 port 41022 ssh2"
+
+[[tests.outputs]]
+extract_from = "stamp"
+
+[[tests.outputs.conditions]]
+type = "vrl"
+source = '''
+assert_eq!(.source_id, "src_lnx_core_07", "syslog_host lookup did not resolve")
+assert_eq!(.tenant_id, "t_ntro_core")
+assert_eq!(.vendor, "linux")
+assert_eq!(.zone, "core")
+assert_eq!(.transport, "syslog_udp")
+assert_eq!(.listener, "core-udp")
+assert_eq!(.framing.method, "datagram")
+assert_eq!(.framing.parts, 1)
+assert_eq!(.custody, "realtime")
+assert_eq!(.auth.method, "ip_map")
+assert_eq!(.v, 1)
+'''
+
+[[tests]]
+name = "an unknown host is unregistered, not an error"
+
+[[tests.inputs]]
+insert_at = "pre_udp"
+type = "raw"
+value = "<86>Sep 26 14:05:13 mystery-box app: nobody knows me"
+
+[[tests.outputs]]
+extract_from = "stamp"
+
+[[tests.outputs.conditions]]
+type = "vrl"
+source = '''
+assert_eq!(.source_id, "unregistered")
+assert_eq!(.tenant_id, "unassigned")
+assert_eq!(.vendor, "unregistered")
+'''
+
+[[tests]]
+name = "raw_len is the byte length, not the character count"
+
+[[tests.inputs]]
+insert_at = "pre_udp"
+type = "raw"
+# 5 Devanagari characters, 15 UTF-8 bytes, inside a longer line.
+value = "26-09-2026 14:05:00;HIST01;TAG0001;दबाव;OK"
+
+[[tests.outputs]]
+extract_from = "stamp"
+
+[[tests.outputs.conditions]]
+type = "vrl"
+source = '''
+# The line is 42 characters but 50 bytes. strlen() would record 42 and every byte offset
+# in ulpf.field_offsets computed against it would be wrong, so length() is mandatory.
+assert_eq!(.raw_len, 50, "raw_len must count bytes, not characters")
+decoded = decode_base64!(.raw_b64)
+assert_eq!(strlen(decoded), 42, "the same text is 42 characters")
+'''
+
+[[tests]]
+name = "a continuation line is marked, a normal line is not"
+
+[[tests.inputs]]
+insert_at = "pre_tcp"
+type = "raw"
+value = "  at com.x.Auth.login(Auth.java:88)"
+
+[[tests.outputs]]
+extract_from = "pre_tcp"
+
+[[tests.outputs.conditions]]
+type = "vrl"
+source = '''
+assert!(bool!(.is_continuation), "a whitespace-led line must be a continuation")
+assert_eq!(.parts, 1)
+'''
+
+[[tests]]
+name = "a JVM stack frame without leading whitespace still continues"
+
+[[tests.inputs]]
+insert_at = "pre_tcp"
+type = "raw"
+value = "at com.x.Auth.login(Auth.java:88)"
+
+[[tests.outputs]]
+extract_from = "pre_tcp"
+
+[[tests.outputs.conditions]]
+type = "vrl"
+source = 'assert!(bool!(.is_continuation))'
+
+[[tests]]
+name = "a syslog line starts a new event"
+
+[[tests.inputs]]
+insert_at = "pre_tcp"
+type = "raw"
+value = "<134>Sep 26 14:05:11 fw01 app[233]: hello"
+
+[[tests.outputs]]
+extract_from = "pre_tcp"
+
+[[tests.outputs.conditions]]
+type = "vrl"
+source = '''
+assert!(!bool!(.is_continuation))
+assert_eq!(.transport, "syslog_tcp")
+assert_eq!(.listener, "core-tcp")
+'''

@@ -120,7 +120,8 @@ class Settings(BaseSettings):
 
     # Edge (A1)
     edge_multiline_flush_ms: int = 500
-    edge_buffer_bytes: int = 268435456  # 256 MB disk buffer per edge sink
+    # 256 MiB + 32 B, which is Vector's minimum disk-buffer size (it rejects less).
+    edge_buffer_bytes: int = 268_435_488
 
     # Gateway (A2)
     gateway_ack_timeout_ms: int = 5000
