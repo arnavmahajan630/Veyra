@@ -1,0 +1,14 @@
+{
+  "name": "severity_words",
+  "version": 1,
+  "entries": {
+    "fail": {"severity_id": 3},
+    "failed": {"severity_id": 3},
+    "error": {"severity_id": 3},
+    "denied": {"severity_id": 3},
+    "blocked": {"severity_id": 3},
+    "critical": {"severity_id": 5},
+    "alert": {"severity_id": 5},
+    "panic": {"severity_id": 6}
+  }
+}

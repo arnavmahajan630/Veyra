@@ -159,6 +159,21 @@ class Settings(BaseSettings):
     drift_min_cluster: int = 5
     sse_tick_ms: int = 1000
 
+    # ------------------------------------------------------------------ control plane (C1)
+    control_api_port: int = 8000
+    control_db: Path = Path("data/control/control.db")
+    contracts_repo: Path = Path("../contracts-repo")  # separate repo, beside Veyra/
+    inventory_file: Path = Path("edge/vector/inventory/sources.csv")
+    inventory_reload_stamp: Path = Path("edge/vector/reload.stamp")
+    session_ttl_min: int = 480
+    demo_password: str = "veyra-demo"
+    public_host: str = "localhost"
+    control_publish_timeout_s: float = 5.0
+    sse_heartbeat_s: int = 15
+    sse_queue_max: int = 256
+    api_page_default: int = 200
+    api_page_max: int = 1000
+
     # ------------------------------------------------------------------ derived paths
     @computed_field  # type: ignore[prop-decorator]
     @property
