@@ -28,13 +28,13 @@ export interface NavItem {
 export const NAV: readonly NavItem[] = [
   { to: "/", labelKey: "nav.overview", icon: LayoutDashboard },
   { to: "/sources", labelKey: "nav.sources", icon: Radio },
-  { to: "/onboard", labelKey: "nav.onboard", icon: CirclePlus, roles: ["admin", "pack_author"], phase: "C6" },
-  { to: "/contracts", labelKey: "nav.contracts", icon: FileText, phase: "C6" },
-  { to: "/drift", labelKey: "nav.drift", icon: GitBranch, phase: "C6" },
+  { to: "/onboard", labelKey: "nav.onboard", icon: CirclePlus, roles: ["admin", "pack_author"] },
+  { to: "/contracts", labelKey: "nav.contracts", icon: FileText },
+  { to: "/drift", labelKey: "nav.drift", icon: GitBranch },
   { to: "/lineage", labelKey: "nav.lineage", icon: Spline, phase: "B6" },
   { to: "/evidence", labelKey: "nav.evidence", icon: ShieldCheck, phase: "B6" },
-  { to: "/delivery", labelKey: "nav.delivery", icon: Send, phase: "C6" },
-  { to: "/audit", labelKey: "nav.audit", icon: ClipboardList, phase: "C6" },
+  { to: "/delivery", labelKey: "nav.delivery", icon: Send },
+  { to: "/audit", labelKey: "nav.audit", icon: ClipboardList },
   { to: "/demo", labelKey: "nav.demo", icon: Presentation, demoOnly: true, phase: "B7" },
 ];
 
