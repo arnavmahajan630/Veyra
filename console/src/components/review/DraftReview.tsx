@@ -84,13 +84,15 @@ export function DraftReview({ draft: given, mode, templateIndex = 0, onSubmit, s
       <div className="lg:col-span-2">
         {draft.backtest ? <BacktestStrip backtest={draft.backtest} sig={template.template_sig} /> : null}
       </div>
-      <div className="flex items-center gap-3 lg:col-span-2">
-        <button type="button" className="rounded-control bg-thread px-3 py-1 text-paper disabled:opacity-50"
-                disabled={failure !== null || busy || !onSubmit} onClick={onSubmit}>
-          {submitLabel ?? t("review.submit")}
-        </button>
-        {failure ? <p role="status" className="text-meta">{failure}</p> : null}
-      </div>
+      {onSubmit ? (
+        <div className="flex items-center gap-3 lg:col-span-2">
+          <button type="button" className="rounded-control bg-thread px-3 py-1 text-paper disabled:opacity-50"
+                  disabled={failure !== null || busy} onClick={onSubmit}>
+            {submitLabel ?? t("review.submit")}
+          </button>
+          {failure ? <p role="status" className="text-meta">{failure}</p> : null}
+        </div>
+      ) : null}
       <ThreadOverlay from={rowRect} to={activeSpan ? raw.current?.getSpanRect(activeSpan) ?? null : null} />
     </section>
   );

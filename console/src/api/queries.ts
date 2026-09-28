@@ -149,6 +149,7 @@ export function useContract(id: string) {
   return useQuery({
     queryKey: queryKeys.contract(id),
     queryFn: () => api.get<ContractDetail>(`${CONTROL}/contracts/${encodeURIComponent(id)}`),
+    enabled: id !== "",
   });
 }
 
@@ -217,13 +218,17 @@ export function useStartDraft(driftId: string) {
   });
 }
 
+/** A draft; polls while it is still drafting, so a missed SSE `draft` event can't strand the page. */
 export function useDraft(id: string | null) {
   return useQuery({
     queryKey: queryKeys.draft(id ?? ""),
     queryFn: () => api.get<Draft>(`${CONTROL}/drafts/${encodeURIComponent(id ?? "")}`),
     enabled: id !== null,
+    refetchInterval: (query) => (query.state.data?.state === "drafting" ? DRAFT_POLL_MS : false),
   });
 }
+
+export const DRAFT_POLL_MS = 1_000;
 
 export function usePatchDraft(id: string) {
   const client = useQueryClient();
