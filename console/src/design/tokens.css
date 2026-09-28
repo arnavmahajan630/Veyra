@@ -1,0 +1,73 @@
+@import "tailwindcss";
+
+/* VEYRA design tokens (C5). The palette is C5's table verbatim; `ink-2` and `highlight`
+   are derived (secondary text; turmeric at 35% over paper, behind raw bytes).
+   src/design/contrast.test.ts checks every text/background pair (make console-contrast). */
+@theme {
+  --color-paper: #fbfbf8;
+  --color-ink: #1d2330;
+  --color-ink-2: #5a6275;
+  --color-rule: #d9dde3;
+  --color-thread: #2e3a8c;
+  --color-turmeric: #c98a0b;
+  --color-highlight: #e9d3a5;
+  --color-tier1: #2f7d5b;
+  --color-tier2: #b7791f;
+  --color-tier3: #6b5ca5;
+  --color-tier4: #a23b3b;
+
+  --font-sans: "Mukta", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+
+  --text-meta: 13px;
+  --text-body: 15px;
+  --text-lead: 18px;
+  --text-title: 24px;
+  --text-display: 32px;
+
+  --radius-control: 6px;
+}
+
+@layer base {
+  body {
+    font-family: var(--font-sans);
+    font-size: var(--text-body);
+    line-height: 1.5;
+    background-color: var(--color-paper);
+    color: var(--color-ink);
+  }
+
+  pre,
+  code,
+  kbd,
+  samp {
+    font-family: var(--font-mono);
+    line-height: 1.35;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-thread);
+    outline-offset: 2px;
+  }
+}
+
+/* The thread is the one animated element in the product (C5). */
+@keyframes thread-draw {
+  from {
+    stroke-dashoffset: 1;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+.thread-draw {
+  stroke-dasharray: 1;
+  animation: thread-draw 180ms ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .thread-draw {
+    animation: none;
+  }
+}
