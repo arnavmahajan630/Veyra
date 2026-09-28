@@ -38,9 +38,10 @@ Exact digests of the pulled images are recorded in `reports/S0.md`.
 | Node | ~~20 or 22 LTS~~ 25.x, build only (decision D17) | 25.2.1 / npm 11.7.0 <!-- synced from S0 --> |
 | React / Vite / Tailwind | current majors | pinned by C5 when `console/package.json` is created |
 | Caddy | 2.x | `caddy:2.11.4-alpine` |
-| Drain3 | latest | pinned by C3 (not installed in S0; no S0 code imports it) |
+| Drain3 | latest | 0.9.11 (pulls jsonpickle 1.5.1, cachetools 4.2.1) <!-- synced from C3 --> |
 | google-re2 | latest | 1.1.20251105 |
 | fastjsonschema | latest | 2.21.2 <!-- synced from A3 --> compiles the vendored OCSF subset to Python for the hot path (~10 µs/event vs ~216 µs for `jsonschema`, measured in A3). `jsonschema` stays for full error detail when an event is actually invalid. |
+| Control-plane Python libs | — | sqlmodel 0.0.47, argon2-cffi 25.1.0, dulwich 1.2.15 (pure-Python git: the service image has no `git` binary), httpx 0.28.1 <!-- synced from C1/C2 --> |
 | Other pinned Python libs | — | pydantic 2.13.5, pydantic-settings 2.15.0, jsonschema 4.26.0, charset-normalizer 3.5.1, uuid-utils 1.0.0, prometheus-client 0.26.0, clickhouse-connect 1.9.0, cryptography 50.0.1, zstandard 0.25.0, fastapi 0.141.1, uvicorn 0.54.0, ruff 0.16.9, pytest 9.1.1. `uv.lock` is the authority |
 | Optional profiles | — | `openbao/openbao:2.4.1` (secure), `prom/prometheus:v3.7.3` + `grafana/grafana:12.4.1` (obs) |
 
@@ -101,10 +102,10 @@ Partitions and retention come from the profile (`03_INFRA_PROFILES.md`). Default
 
 | Topic | Key | Value | Partitions | Retention | Producer | Consumers |
 |---|---|---|---|---|---|---|
-| `raw.<vendor>` | source_id (salted `source_id#n` for heavy hitters) | IF-ENVELOPE | 3 / 12 per vendor | 3 d | edge, gateway | normalizer, archiver, lineage-indexer |
+| `raw.<vendor>` | source_id (salted `source_id#n` for heavy hitters) | IF-ENVELOPE | 3 / 12 per vendor | 3 d | edge, gateway | normalizer, archiver, lineage-indexer; control-api reads single records by `raw_ref` (assign-only, no group) for backtests and replays <!-- synced from C2 --> |
 | `replay.raw` | source_id | IF-ENVELOPE + `replay` block | 3 / 12 | 1 d | control-api | normalizer |
 | `norm.<category>` | event_uid | IF-NORM-EVENT | 3 / 12 | 3 d | normalizer | router, lineage-indexer |
-| `lineage` | event_uid | IF-LINEAGE | 3 / 12 | 3 d | normalizer | lineage-indexer |
+| `lineage` | event_uid | IF-LINEAGE | 3 / 12 | 3 d | normalizer | lineage-indexer; control-api counts a replay job's records by `replay_job_id` (assign-only) <!-- synced from C2 --> |
 | `dlq` | source_id | IF-DLQ | 1 / 6 | 14 d | normalizer | drift-worker, lineage-indexer |
 | `shadow` | event_uid | IF-SHADOW | 1 / 6 | 1 d | normalizer | lineage-indexer |
 | `vault_index` | event_uid | IF-VAULT-INDEX | 3 / 12 | 3 d | archiver | integrity, lineage-indexer |
@@ -206,6 +207,12 @@ Key → value (JSON). A `null` value is a tombstone.
 | `routes` | full IF-ROUTES document |
 
 Consumers rebuild their state by reading the compacted topic from the beginning at startup, then keep following it.
+
+<!-- synced from C1/C2 --> Details fixed by control-api:
+- `apikey:*`: `secret_sha256 = sha256(pepper_bytes + secret_utf8)`, where the pepper is the 64 hex characters in `<data_dir>/keys/api_pepper` and `pepper_id = "p_" + sha256(pepper)[:8]`. The gateway (A2) must hash identically.
+- `source:*`: `transport` is IF-ENVELOPE's vocabulary; control-api's `http_push` is published as `http_hec_event`.
+- `contract:*`: published only once a contract has an active version. A brand-new contract's first version is not on `control` while it is a canary; it appears when promoted.
+- `/internal/reset` tombstones every key the pre-reset state had published that the seed does not have.
 
 ---
 
@@ -577,9 +584,11 @@ Auth: session cookie. Roles: `admin`, `pack_author`, `pack_approver`, `org_viewe
 
 ```
 POST /auth/login {email,password} → {user, role, tenant}      POST /auth/logout      GET /auth/me
+POST /auth/demo-switch {email} → {user, role, tenant}   (demo mode only; else 404)
 GET/POST /tenants                     GET/PATCH /tenants/{id}
 GET/POST /sources                     GET/PATCH /sources/{id}      (POST triggers inventory + control publish)
 POST /sources/{id}/keys → {key_id, secret (once), endpoints{hec_url, batch_url, syslog{host,port,listener}}, curl_example}
+GET  /sources/{id}/keys → [{key_id, source_id, status, quota_eps, created_by, created_at, revoked_at}]
 POST /keys/{key_id}/revoke
 POST /onboarding/analyze {tenant_id, source_name, transport, samples:[str]} → {classification, peel preview,
       templates:[{sig, drain_template, count, tokens:[Token]}], library_match|null, draft_id}
@@ -590,14 +599,19 @@ GET/POST /contracts, GET /contracts/{id}, GET /contracts/{id}/versions/{v}, GET 
 POST /contracts/{id}/versions/{v}/approve   (403 if approver == author)
 POST /contracts/{id}/versions/{v}/promote   (canary → active; publishes control)
 POST /contracts/{id}/rollback {to_version}
+POST /contracts/{id}/versions/{v}/backtest {template_sigs?, samples?} → backtest result (also run automatically at canary)
 GET  /drift?state=open → [{drift_id, source_id, template_sig, drain_template, count, first_seen, last_seen, samples_masked, draft_id|null}]
+GET  /drift/{id} → one item (+ related_sigs, sample_event_uids, state, resolved_by)      POST /drift/{id}/dismiss
 POST /drift/{id}/draft → starts a draft (LLM or heuristic per settings)
 POST /replay {contract_id, template_sigs?, source_id?, from?, to?} → {job_id}      GET /replay/{job_id} → progress
+GET  /replay?contract_id= → jobs, newest first
 GET  /routes        GET /audit
 GET  /stream (SSE): events {type: overview|drift|draft|contract|replay|source, data}
+     <!-- synced from C2/C3 --> contract: {id, version, state, action}; replay: {job_id, contract_id, status, total, published, normalized, detail}; drift: {drift_id, source_id, template_sig, count, state, created}
 
 Internal (docker network only, not routed by caddy):
-POST /internal/drift {source_id, template_sig, drain_template, count, samples_masked, first_seen, last_seen} (drift-worker upsert)
+POST /internal/drift {source_id, template_sig, drain_template, count, samples_masked, first_seen, last_seen,
+      related_sigs, sample_event_uids} (drift-worker upsert; 404 for an unknown source) <!-- synced from C3 -->
 POST /internal/reset {scenario} → wipe SQLite + reset the contract registry (../contracts-repo) to seed tag + reseed + republish control   (demo-engine)
 GET  /internal/demo/last-key → {key_id, secret, source_id}   (only when VEYRA_DEMO_MODE=1; lets demo-engine use the key issued live)
 ```
@@ -628,6 +642,7 @@ POST /untamper → restores from the pristine copy (demo only)
 GET  /scenario → the loaded scenario with stage descriptions
 GET  /preflight → [{check, status: PASS|WARN|FAIL, detail}]
 (drift-worker, internal, :8206) POST /flush → forces drift emission for all open groups (stage 4 fallback)
+(drift-worker, internal, :8206) POST /reset → forgets every group and cluster; control-api's /internal/reset calls it <!-- synced from C3 -->
 ```
 
 ## IF-LLM-DRAFT — drafter I/O (owner C)

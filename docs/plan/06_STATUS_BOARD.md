@@ -18,12 +18,12 @@ Update your row after every phase (status, one line, report link). Status values
 | B5 Tamper lab | B | todo | v1.0 | | |
 | B6 Console pages: Lineage + Evidence | B | todo | v1.0 | | |
 | B7 Demo engine + demo panel | B | todo | v1.0 | | |
-| C1 Control API foundation | C | todo | v1.0 | | |
-| C2 Contract registry + compiler + lifecycle | C | todo | v1.0 | | |
-| C3 Drift worker + library packs | C | todo | v1.0 | | |
-| C4 LLM drafter + provenance + bench | C | todo | v1.0 | | |
-| C5 Console shell + design system + Overview/Sources | C | todo | v1.0 | | |
-| C6 Console: Onboarding + Contracts/Drift + Delivery/Audit | C | todo | v1.0 | | |
+| C1 Control API foundation | C | done | v1.4 | Merged (PR #2): auth/roles/tenant scoping, sources + keys, compacted `control` publisher, inventory writer, audit, SSE, seed/reset. Contract compiler (C2 task 1) pulled forward and merged with it. AC3–AC5 pass in unit tests; AC1/AC2 live halves wait for CP1 (normalizer, gateway) | [C1.md](reports/C1.md) |
+| C2 Contract registry + compiler + lifecycle | C | in-progress | v1.4 | Code complete on branch `c2-c3-registry-drift` (not yet merged): golden runner, lint, `make contracts-test` (7/7 contracts), lifecycle with four-eyes, backtest, diff, replay jobs. AC1, AC3, AC5 pass; AC2/AC4 pass standalone, live halves need A5 + B (CP3). Plan-doc sync pending | [C2.md](reports/C2.md) |
+| C3 Drift worker + library packs | C | in-progress | v1.4 | Code complete on branch `c2-c3-registry-drift` (not yet merged): drift worker (Drain3 0.9.11, persisted state), drift inbox with auto-resolve on promote, 5 library packs (76 goldens, all tier 1), `library_match`. AC1–AC4 pass standalone; live timing smoke pending | [C3.md](reports/C3.md) |
+| C4 LLM drafter + provenance + bench | C | todo | v1.4 | Plan written. Needs the GPU vs `LLM_MODE=cache` decision (S0 REQUEST @C) before the bench | |
+| C5 Console shell + design system + Overview/Sources | C | todo | v1.4 | Plan written and verified outside the repo (114 unit tests, build, Playwright smoke); not yet implemented in `console/` | |
+| C6 Console: Onboarding + Contracts/Drift + Delivery/Audit | C | todo | v1.4 | Plan written; starts after C5 lands | |
 | CP1 First light | all | todo | | | |
 | CP2 Messy + evidence | all | todo | | | |
 | CP3 Loop closed | all | todo | | | |

@@ -74,6 +74,47 @@ def compile_pattern(pattern: str) -> tuple[str, list[Capture]]:
     return regex, captures
 
 
+# One plausible value per capture type, for example_text().
+_EXAMPLES: dict[str, str] = {
+    "string": "x1",
+    "ip": "10.0.0.1",
+    "int": "7",
+    "word": "w1",
+    "rest": "rest",
+    "quoted": '"q"',
+}
+
+
+def example_text(pattern: str) -> str:
+    """A line the pattern matches: literals kept, whitespace runs as one space, and each
+    token replaced by a typical value of its type (``<*>`` → ``x1``). Lint uses it to find
+    templates an earlier template would always catch first."""
+    out: list[str] = []
+    i = 0
+    while i < len(pattern):
+        ch = pattern[i]
+        if ch == "\\" and i + 1 < len(pattern) and pattern[i + 1] in "<>\\":
+            out.append(pattern[i + 1])
+            i += 2
+            continue
+        if ch == "<":
+            end = pattern.find(">", i + 1)
+            if end == -1:
+                raise ContractError(f"unterminated '<' at pattern column {i + 1}", column=i + 1)
+            _, _, kind = pattern[i + 1 : end].partition(":")
+            out.append(_EXAMPLES[_TYPES[kind][0] if kind in _TYPES else "string"])
+            i = end + 1
+            continue
+        if ch.isspace():
+            while i < len(pattern) and pattern[i].isspace():
+                i += 1
+            out.append(" ")
+            continue
+        out.append(ch)
+        i += 1
+    return "".join(out)
+
+
 def _literal_regex(text: str) -> str:
     out: list[str] = []
     i = 0

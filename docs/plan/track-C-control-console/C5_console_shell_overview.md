@@ -124,6 +124,8 @@ Sources ─── Edge / Gateway ─── Kafka ─┬─ Normalizer ─── 
 
 **Silent-source alert:** actual EPS 0 for more than 60 s while expected > 0 → an amber row with "No events for 1m 20s". This is v1's missing-logs detection, cheap and visible.
 
+<!-- synced from C2 --> `POST /auth/demo-switch {email}` (demo mode) and `GET /sources/{id}/keys` now exist in control-api (IF-API-CONTROL v1.4).
+
 ## Tasks
 - [ ] 1. Vite + TS + Tailwind scaffold; tokens; self-hosted fonts; contrast check script.
   <!-- synced from S0 --> Toolchain is **Node 25.2.1 / npm 11.7.0** (IF-VERSIONS, decision D17),

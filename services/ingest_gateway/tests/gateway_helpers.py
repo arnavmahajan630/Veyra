@@ -16,13 +16,15 @@ SECRET = "s3cr3t-token-value"
 KEY_ID = "k_authsrv_01"
 SOURCE_ID = "src_authsrv_01"
 TENANT = "t_maha_power"
+# C1 derives this from the pepper file; a key whose pepper_id does not match is refused.
+PEPPER_ID = "p_" + sha256_hex(PEPPER)[:8]
 
 
 def apikey_message(**overrides: Any) -> dict[str, Any]:
     message = {
         "key_id": KEY_ID,
         "secret_sha256": sha256_hex(PEPPER + SECRET.encode()),
-        "pepper_id": "p_0000",
+        "pepper_id": PEPPER_ID,
         "source_id": SOURCE_ID,
         "tenant_id": TENANT,
         "status": "active",

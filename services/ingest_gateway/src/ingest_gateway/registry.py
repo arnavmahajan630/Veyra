@@ -52,6 +52,10 @@ class KeyRegistry:
 
     def __init__(self, pepper: bytes, *, cfg: GatewaySettings, group: str | None = None) -> None:
         self.pepper = pepper
+        # C1's formula (`control_api.keys.ensure_pepper`). A key minted under a different pepper
+        # cannot match our digest anyway, but saying "pepper mismatch" in the log turns a confusing
+        # "every key is wrong" into an obvious "the pepper file changed".
+        self.pepper_id = "p_" + sha256_hex(pepper)[:8]
         self.cfg = cfg
         self._keys: dict[str, dict[str, Any]] = {}  # secret_sha256 -> apikey message
         self._by_id: dict[str, dict[str, Any]] = {}  # key_id -> apikey message
@@ -116,6 +120,12 @@ class KeyRegistry:
         # difference cannot distinguish "wrong secret" from "wrong length of secret".
         if not hmac.compare_digest(str(record.get("secret_sha256", "")), self.digest(secret)):
             raise AuthFailure("digest mismatch")
+        expected_pepper = str(record.get("pepper_id") or "")
+        if expected_pepper and expected_pepper != self.pepper_id:
+            raise AuthFailure(
+                f"key {record.get('key_id')} was minted under pepper {expected_pepper}, "
+                f"this gateway has {self.pepper_id}"
+            )
         if record.get("status") != "active":
             raise AuthFailure(f"key {record.get('key_id')} is {record.get('status')}")
 

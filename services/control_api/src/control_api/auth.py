@@ -100,6 +100,21 @@ def _me(email: str, name: str, role: str, tenant_id: str, ctx: AppContext) -> Me
     )
 
 
+def _start_session(user: User, response: Response, ctx: AppContext, db: DbSession) -> None:
+    """Add a session row (the caller commits) and set its cookie on the response."""
+    token = new_session_token()
+    expires_at = rfc3339_ns(ctx.clock() + ctx.cfg.session_ttl_min * NS_PER_MINUTE)
+    db.add(SessionRow(token_sha256=token_digest(token), email=user.email, expires_at=expires_at))
+    response.set_cookie(
+        COOKIE,
+        token,
+        max_age=ctx.cfg.session_ttl_min * 60,
+        httponly=True,
+        samesite="strict",
+        path="/",
+    )
+
+
 @router.post("/login", response_model=MeOut)
 def login(
     body: LoginBody,
@@ -110,9 +125,7 @@ def login(
     user = db.get(User, body.email)
     if user is None or not verify_password(user.password_hash, body.password):
         raise HTTPException(status_code=401, detail="wrong email or password")
-    token = new_session_token()
-    expires_at = rfc3339_ns(ctx.clock() + ctx.cfg.session_ttl_min * NS_PER_MINUTE)
-    db.add(SessionRow(token_sha256=token_digest(token), email=user.email, expires_at=expires_at))
+    _start_session(user, response, ctx, db)
     ctx.audit.record(
         db,
         actor=user.email,
@@ -122,14 +135,46 @@ def login(
         tenant_id=user.tenant_id,
     )
     db.commit()
-    response.set_cookie(
-        COOKIE,
-        token,
-        max_age=ctx.cfg.session_ttl_min * 60,
-        httponly=True,
-        samesite="strict",
-        path="/",
+    return _me(user.email, user.name, user.role, user.tenant_id, ctx)
+
+
+class DemoSwitchBody(BaseModel):
+    email: str
+
+
+@router.post("/demo-switch", response_model=MeOut)
+def demo_switch(
+    body: DemoSwitchBody,
+    request: Request,
+    response: Response,
+    principal: Principal = Depends(current_principal),
+    ctx: AppContext = Depends(get_ctx),
+    db: DbSession = Depends(get_db),
+) -> MeOut:
+    """Demo mode only (C5 AC5): become another seeded user without typing a password.
+
+    The caller's session ends and a new one starts for ``email``. Outside demo mode the
+    route answers 404, so a production deployment has no password-free login.
+    """
+    if not ctx.cfg.demo_mode:
+        raise HTTPException(status_code=404, detail="Not Found")
+    user = db.get(User, body.email)
+    if user is None:
+        raise HTTPException(status_code=404, detail=f"demo user {body.email} not found")
+    old = request.cookies.get(COOKIE)
+    session = db.get(SessionRow, token_digest(old)) if old else None
+    if session is not None:
+        db.delete(session)
+    _start_session(user, response, ctx, db)
+    ctx.audit.record(
+        db,
+        actor=principal.email,
+        role=principal.role,
+        action="auth.demo_switch",
+        target=user.email,
+        tenant_id=principal.tenant_id,
     )
+    db.commit()
     return _me(user.email, user.name, user.role, user.tenant_id, ctx)
 
 

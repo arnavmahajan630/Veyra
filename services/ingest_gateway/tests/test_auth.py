@@ -80,6 +80,18 @@ def test_a_rotated_secret_does_not_leave_the_old_one_working(registry: KeyRegist
         registry.resolve(SECRET)
 
 
+def test_the_pepper_id_is_computed_c1s_way(cfg: GatewaySettings) -> None:
+    registry = KeyRegistry(PEPPER, cfg=cfg)
+    assert registry.pepper_id == "p_" + sha256_hex(PEPPER)[:8]
+
+
+def test_a_key_from_another_pepper_is_named_as_such(registry: KeyRegistry) -> None:
+    """The digest would miss anyway; the point is a log line that identifies the real fault."""
+    registry._handle(f"apikey:{KEY_ID}", apikey_message(pepper_id="p_deadbeef"))
+    with pytest.raises(AuthFailure, match="minted under pepper p_deadbeef"):
+        registry.resolve(SECRET)
+
+
 def test_a_paused_source_is_refused(registry: KeyRegistry) -> None:
     registry._handle(f"source:{SOURCE_ID}", source_message(status="paused"))
     with pytest.raises(AuthFailure, match="paused"):

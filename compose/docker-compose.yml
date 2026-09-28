@@ -226,6 +226,14 @@ services:
       - ../edge/vector/inventory:/app/edge/vector/inventory
       - ../edge/vector/reload.stamp:/app/edge/vector/reload.stamp
 
+  drift-worker:
+    <<: *py
+    container_name: veyra-drift-worker
+    profiles: ["c3"]
+    command: ["python", "-m", "drift_worker"]
+    # /flush and /reset for demo-engine and control-api; state in data/state/{drift,drain3}
+    ports: ["8206:8206"]
+
 networks:
   veyra_net:
     name: veyra_net

@@ -178,6 +178,27 @@ class Settings(BaseSettings):
     api_page_default: int = 200
     api_page_max: int = 1000
 
+    # ------------------------------------------------------------------ registry (C2)
+    backtest_max: int = 200
+    replay_max: int = 10000
+    replay_timeout_s: int = 60
+    replay_poll_ms: int = 500
+    # evidence-api as Caddy forwards it: /api/lineage/* arrives at the service root.
+    evidence_api_url: str = "http://evidence-api:8100"
+    evidence_timeout_s: float = 5.0
+
+    # ------------------------------------------------------------------ drift (C3)
+    drift_debounce_ms: int = 2000
+    drift_max_samples: int = 5
+    drift_drain_sim_th: float = 0.4
+    drift_drain_depth: int = 4
+    drift_checkpoint_ms: int = 5000
+    drift_poll_ms: int = 500
+    drift_worker_port: int = 8206
+    drift_worker_url: str = "http://drift-worker:8206"
+    control_api_url: str = "http://control-api:8000"
+    library_match_min: float = 0.8
+
     # ------------------------------------------------------------------ derived paths
     @computed_field  # type: ignore[prop-decorator]
     @property

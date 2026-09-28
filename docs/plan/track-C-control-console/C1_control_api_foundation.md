@@ -77,24 +77,34 @@ Note: the Maha Power auth server is **not** seeded; it is onboarded live, and it
 - `GET /internal/demo/last-key`.
 
 ## Tasks
-- [ ] 1. Service skeleton, settings, DB, migrations list, password hashing, sessions, role/tenant dependencies.
-- [ ] 2. Tenants, sources, keys endpoints; tenant-isolation tests.
-- [ ] 3. The control publisher + `republish_all` + vocab/enrich/routes seeding.
-- [ ] 4. Inventory writer + reload trigger (coordinate with A1).
-- [ ] 5. Audit (SQLite + topic) + `GET /audit`.
-- [ ] 6. SSE hub + `/stream`.
-- [ ] 7. Seed CLI + `/internal/reset` + `/internal/demo/last-key`.
-- [ ] 8. Integration test: create source + key → the gateway (or a mock consumer) sees `apikey:` and `source:` on `control` within 1 s; revoke → tombstone/`status=revoked` within 1 s.
+- [x] 1. Service skeleton, settings, DB, migrations list, password hashing, sessions, role/tenant dependencies.
+- [x] 2. Tenants, sources, keys endpoints; tenant-isolation tests.
+- [x] 3. The control publisher + `republish_all` + vocab/enrich/routes seeding.
+- [x] 4. Inventory writer + reload trigger (coordinate with A1).
+- [x] 5. Audit (SQLite + topic) + `GET /audit`.
+- [x] 6. SSE hub + `/stream`.
+- [x] 7. Seed CLI + `/internal/reset` + `/internal/demo/last-key`.
+- [x] 8. Integration test: create source + key → the gateway (or a mock consumer) sees `apikey:` and `source:` on `control` within 1 s; revoke → tombstone/`status=revoked` within 1 s.
 
 ## Acceptance criteria
 - [ ] AC1: `republish_all` after a fresh Kafka → the normalizer loads the library contracts and CP1 passes.
 - [ ] AC2: Key issue → a HEC request with the key succeeds (with A2); revoke → 401 within 2 s.
-- [ ] AC3: Tenant isolation tests pass (404 across tenants for non-platform users).
-- [ ] AC4: `/internal/reset` < 10 s, and the state equals a fresh seed.
-- [ ] AC5: Every mutation produces an audit row visible via `GET /audit`.
+- [x] AC3: Tenant isolation tests pass (404 across tenants for non-platform users).
+- [x] AC4: `/internal/reset` < 10 s, and the state equals a fresh seed.
+- [x] AC5: Every mutation produces an audit row visible via `GET /audit`.
 
 ## Settings
 `VEYRA_SESSION_TTL_MIN` (480), `VEYRA_DEMO_PASSWORD`, `VEYRA_PUBLIC_HOST`, `VEYRA_CONTROL_DB`, `VEYRA_DEMO_MODE`.
 
 ## Implementation notes
-_(filled after execution)_
+<!-- synced from C1 --> Done, merged in PR #2; full report in `reports/C1.md`.
+- **AC1 and AC2:** the publish halves pass in unit tests. The normalizer and gateway halves are checked at CP1. The task 8 integration test (`test_capi_int_control.py`) is written but has not yet run against a live stack.
+- **Compiler:** C2 task 1 was pulled into C1, because AC1 publishes *compiled* contracts.
+- **Git:** dulwich, not the `git` CLI; the image has no `git` binary.
+- **Knobs:** in the shared `Settings`, with all three profiles.
+- **IF-CONTROL details** (pepper hashing, `pepper_id`, transport vocabulary) are now written into 02_CONTRACTS (v1.4).
+- **Library contracts:** the seed reads them from the separate registry (`../contracts-repo/t_ntro_core/`), not from `packages/veyra_engine/tests/contracts/`.
+- **Known issues:**
+  - a publish failure doesn't purge the producer queue;
+  - `/internal/*` is still reachable through Caddy (needs a shared Caddyfile rule);
+  - inventory writes are not batched.

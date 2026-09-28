@@ -80,6 +80,13 @@ A single page with a progressive flow, not a multi-page wizard: each section unl
 - Export CSV.
 - Platform/auditor roles see all; tenant users see their tenant only.
 
+<!-- synced from C2/C3 --> SSE payloads to consume (IF-API-CONTROL v1.4):
+- `contract` `{id, version, state, action}`;
+- `replay` `{job_id, contract_id, status, total, published, normalized, detail}`;
+- `drift` `{drift_id, source_id, template_sig, count, state, created}`.
+
+`GET /replay?contract_id=` lists jobs. Four-eyes refusals are 403 with a message containing `four-eyes`.
+
 ## Tasks
 - [ ] 1. The `DraftReview` component (compact + full), with edit, hover-thread and row states.
   <!-- synced from S0 --> Same toolchain as C5: Node 25.2.1 (IF-VERSIONS, D17). No separate setup.
