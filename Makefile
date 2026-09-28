@@ -12,6 +12,7 @@ SHELL := /bin/bash
 .DEFAULT_GOAL := help
 .PHONY: help up down ps logs restart build topics wipe-data test test-int lint fmt typecheck ci \
         test-int-slow plan-check wazuh-certs wazuh-init wazuh-logtest console-dev console-build \
+        console-mock console-test console-contrast console-e2e \
         contracts-repo-init contracts-test \
         edge-render edge-check edge-test \
         e2e-smoke llm-warm llm-cache-seed \
@@ -177,11 +178,23 @@ wazuh-logtest: ## pipe a sample NDJSON line through the manager's rule engine
 	echo '$(LINE)' | docker exec -i veyra-wazuh-manager /var/ossec/bin/wazuh-logtest -v
 
 # ---------------------------------------------------------------------------- console
-console-dev: ## run the console dev server (C5)
-	@echo "TODO (C5): console/ is scaffolded in C5 — Vite dev server behind caddy"
+console-dev: ## console dev server on :5173, /api proxied to caddy (C5)
+	cd console && npm run dev
 
-console-build: ## build the static console bundle (C5)
-	@echo "TODO (C5): npm ci && npm run build -> console/dist, served by caddy"
+console-mock: ## console on :5173 against built-in fixtures, no backend needed (C5)
+	cd console && npm run dev:mock
+
+console-build: ## build the static console bundle into console/dist (C5)
+	cd console && npm ci && npm run build
+
+console-test: ## console unit tests (C5)
+	cd console && npm test
+
+console-contrast: ## WCAG AA check of the design tokens (C5)
+	cd console && npx vitest run src/design/contrast.test.ts
+
+console-e2e: ## Playwright smoke against the mock console (C5)
+	cd console && npx playwright test
 
 # ---------------------------------------------------------------------------- stubs owned by later phases
 e2e-smoke: ## end-to-end smoke test (CP1, tools/checkpoints/cp1.py)

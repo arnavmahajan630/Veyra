@@ -132,9 +132,7 @@ def analyze(ctx: AppContext, principal: Principal, body: AnalyzeIn) -> Iterator[
             drafted_by=entries[0]["source"],
             draft_id=draft_id,
         )
-        verification = verify(
-            yaml_text, raws, {t.id for t in templates}, ctx=engine_context(ctx)
-        )
+        verification = verify(yaml_text, raws, {t.id for t in templates}, ctx=engine_context(ctx))
         with DbSession(ctx.engine) as db:
             db.add(
                 Draft(

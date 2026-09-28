@@ -17,6 +17,60 @@ ACTION REQUIRED:
 
 ---
 
+## 2026-09-29 — C4 — CLARIFICATION  (contracts v1.4, no bump)
+TYPE: CLARIFICATION
+What:     PR #5 (`c4-drafter`) is on `main`. C4 stays in-progress: the live p95 bench and the
+          two-model report (AC2, AC5) wait for a GPU (TC40).
+Why:      The status board and reports/C4.md still described C4 as unmerged.
+IDs:      none
+Files patched: 06_STATUS_BOARD.md, reports/C4.md.
+ACTION REQUIRED:
+  - (none)
+
+## 2026-09-29 — C5 — VERSION-PIN  (contracts v1.4)
+TYPE: VERSION-PIN
+What:     Console toolchain (C5), exact versions in `console/package-lock.json`: vite 7.3.6, react 19.3.0,
+          react-router 7.18.4, @tanstack/react-query 5.104.0, tailwindcss 4.3.3, vitest 4.1.11,
+          jsdom 27.4.0, typescript 5.9.3, msw 2.15.0, @playwright/test 1.63.0, lucide-react 1.48.0.
+          Node 25 (D17) for the build only; npm 11 (npm 10.8 crashes on jsdom's optional `canvas` peer).
+Why:      These majors are the newest whose declared `engines` accept Node 25 (plan TC12). Vite 8,
+          react-router 8, vitest 5 and jsdom 30 exclude odd Node majors or need Node ≥ 22.22. The
+          IF-VERSIONS row was reserved for C5, so filling it is not a contract bump.
+IDs:      IF-VERSIONS
+Files patched: 02_CONTRACTS.md (IF-VERSIONS React/Vite/Tailwind row), reports/C5.md,
+          track-C-control-console/C5 (implementation notes), C6 (downstream note), 06_STATUS_BOARD.md.
+ACTION REQUIRED:
+  - (none; closes the S0 follow-ups "@C Pin React/Vite/Tailwind (C5)" and "@C set engines in C5")
+
+## 2026-09-29 — C5 — REQUEST  (contracts v1.4)
+TYPE: REQUEST
+What:     The console reads IF-API-EVIDENCE's overview and source-health endpoints in these exact shapes
+          (`console/src/api/types.ts`; worked examples in `console/src/mocks/fixtures.ts`):
+          - `GET /lineage/overview?tenant=` → `{eps_1m, totals_by_tier: {"1".."4": n},
+            sources: [{source_id, zone, eps, tiers, last_seen|null}],
+            routes: [{route_id, delivered_per_min, failed_per_min, lag_s|null, breaker: closed|open|half_open|null}],
+            vault: {segments, last_sealed_at|null, last_root: {window_id, window_end, immudb_verified}|null, chain_ok},
+            as_of, tier_history?: [{"1".."4": n}, …]}`. `tier_history` is optional: per-second tier
+            counts for the last 15 minutes, oldest first, ending at `as_of`. Send it with the HTTP
+            response so the tier bar opens full; SSE ticks may omit it.
+          - `GET /lineage/sources?tenant=` → `[{source_id, tenant_id, zone, transport, contract_ref|null,
+            expected_eps, actual_eps, last_seen|null, tiers, clock_skew_p50_ms|null}]`
+          - `GET /lineage/stream` (SSE): `event: overview`, data = the whole overview object above, about
+            once a second. Omitting `tenant` means all tenants (platform users).
+          - Tenant scope comes from the session, not the query: a user pinned to a tenant sees only
+            that tenant whatever `?tenant=` says; only platform users (`tenant: "*"`) may choose.
+Why:      IF-API-EVIDENCE lists these fields loosely; C5 had to pick exact names to build against mocks
+          (plan TC14). Agreeing now avoids a rename at CP2. B may choose other names: tell C, and C
+          changes the types and fixtures in one place.
+IDs:      IF-API-EVIDENCE
+Files patched: none (B owns IF-API-EVIDENCE).
+ACTION REQUIRED:
+  - [ ] @B (B1/B4) Confirm or amend these shapes in IF-API-EVIDENCE, including `tier_history` on
+        the HTTP overview (without it the Overview tier bar starts empty) and session-enforced
+        tenant scope.
+  - [ ] @B (B6) The frozen component APIs are in reports/C5.md ("Notes for downstream phases");
+        the lineage and evidence routes are placeholders in `console/src/shell/AppShell.tsx`.
+
 ## 2026-09-29 01:10 — C4 — CLARIFICATION  (contracts v1.4, no bump)
 TYPE: CLARIFICATION
 What:     S1 CP4 check 5 reads `LLM_MODE=live_then_cache` with Ollama stopped → the cached draft
@@ -60,7 +114,7 @@ Why:      The section already named the routes. The bodies were the Plan 5 shape
 IDs:      IF-API-CONTROL
 Files patched: 02_CONTRACTS.md (IF-API-CONTROL).
 ACTION REQUIRED:
-  - [ ] @C C5/C6 should call these bodies, not the old `{tenant_id, source_name, transport}` analyze sketch.
+  - [ ] @C C5/C6 should call these bodies, not the old `{tenant_id, source_name, transport}` analyze sketch.  <!-- C5: calls none of these routes; C6 still open -->
 
 ## 2026-09-28 23:55 — C2/C3 — CLARIFICATION + DECISION  (contracts v1.4, no bump)
 TYPE: CLARIFICATION
@@ -189,7 +243,7 @@ Why:      S0 left Drain3 to C3; the control-plane libraries arrived with C1 and 
 IDs:      IF-VERSIONS
 Files patched: 02_CONTRACTS.md (IF-VERSIONS), uv.lock.
 ACTION REQUIRED:
-  - [ ] @C Pin React/Vite/Tailwind when C5 lands in `console/` (Drain3 is now done).
+  - [x] @C Pin React/Vite/Tailwind when C5 lands in `console/` (Drain3 is now done).  <!-- C: 2026-09-29, C5 VERSION-PIN -->
 
 ## 2026-09-28 — C2/C3 — DECISION  (contracts v1.4)
 TYPE: DECISION
@@ -452,7 +506,7 @@ Files patched: shared/S0_bootstrap.md (implementation notes), reports/S0.md, 06_
 ACTION REQUIRED:
   - [ ] @C Before C4's bench: get Ollama onto the GPU (or record CPU numbers honestly and set
         LLM_MODE=cache in profiles/laptop.env as the demo default).
-  - [ ] @C Pin Drain3 (C3) and React/Vite/Tailwind (C5) with a VERSION-PIN entry each; S0 left  <!-- C: Drain3 pinned 2026-09-28; React stack with C5 -->
+  - [x] @C Pin Drain3 (C3) and React/Vite/Tailwind (C5) with a VERSION-PIN entry each; S0 left  <!-- C: Drain3 pinned 2026-09-28; React stack 2026-09-29 (C5) -->
         those rows open rather than guessing.
 
 ## 2026-09-26 18:30 — S0 — VERSION-PIN  (contracts v1.0 → v1.1)
@@ -472,7 +526,7 @@ Files patched: 02_CONTRACTS.md (IF-VERSIONS + header v1.1), every track/shared/p
 ACTION REQUIRED:
   - [ ] @B Use `codenotary/immudb:1.11.2-bullseye-slim` for B3; the pg-wire port is published
         on 5432 and `IMMUDB_PGSQL_SERVER=true` is already set in compose.
-  - [ ] @C Pin Drain3 in C3 and React/Vite/Tailwind in C5, then add a VERSION-PIN entry each.  <!-- C: Drain3 done 2026-09-28 -->
+  - [x] @C Pin Drain3 in C3 and React/Vite/Tailwind in C5, then add a VERSION-PIN entry each.  <!-- C: Drain3 done 2026-09-28; React stack 2026-09-29 -->
 
 ## 2026-09-26 18:30 — S0 — CLARIFICATION  (contracts v1.1)
 TYPE: CLARIFICATION
@@ -487,7 +541,7 @@ Files patched: 02_CONTRACTS.md (IF-VERSIONS Node row), 00_MASTER.md (D17),
           track-C-control-console/C5_console_shell_overview.md (task 1),
           track-C-control-console/C6_console_pages.md (task 1), .github/workflows/ci.yml.
 ACTION REQUIRED:
-  - [ ] @C In C5, set `"engines": {"node": ">=25"}` in console/package.json and commit
+  - [x] @C In C5, set `"engines": {"node": ">=25"}` in console/package.json and commit
         package-lock.json; CI's `console` job runs `npm ci && npm run build` on Node 25.
 
 ## 2026-09-26 18:30 — S0 — DECISION  (contracts v1.1)

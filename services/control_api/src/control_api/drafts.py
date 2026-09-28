@@ -220,9 +220,7 @@ def start_drift_draft(
 ) -> Draft:
     source = db.get(Source, item.source_id)
     contract_id = (
-        source.contract_id
-        if source and source.contract_id
-        else contract_id_for(item.source_id)
+        source.contract_id if source and source.contract_id else contract_id_for(item.source_id)
     )
     draft = Draft(
         draft_id=f"dr_{uuid7().hex}",
