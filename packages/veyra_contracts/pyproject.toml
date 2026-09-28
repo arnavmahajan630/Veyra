@@ -9,6 +9,7 @@ dependencies = [
     "PyYAML>=6.0",
     "google-re2>=1.1",
     "pydantic>=2.11",
+    "httpx>=0.28",
 ]
 
 [build-system]

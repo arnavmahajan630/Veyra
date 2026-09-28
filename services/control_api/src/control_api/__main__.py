@@ -14,6 +14,9 @@ from control_api.publisher import ProducerLike
 from veyra_common.kafka import make_consumer, make_producer
 from veyra_common.service import ServiceApp
 from veyra_common.settings import settings
+from veyra_contracts.drafting.cache import DraftCache
+from veyra_contracts.drafting.drafter import Drafter
+from veyra_contracts.drafting.ollama import OllamaClient
 
 
 def reset_drift_worker() -> None:
@@ -28,6 +31,17 @@ def main() -> None:
     )
     # confluent_kafka.Producer's produce() is a structural superset of ProducerLike
     # (extra keyword params with defaults); the cast documents that compatibility.
+    drafter = Drafter(
+        mode=settings.llm_mode,
+        cache=DraftCache(settings.llm_cache_dir),
+        client=OllamaClient(
+            settings.ollama_url,
+            settings.llm_model,
+            num_ctx=settings.llm_num_ctx,
+            timeout_s=settings.llm_timeout_s,
+            keep_alive=settings.llm_keep_alive,
+        ),
+    )
     ctx = build_context(
         settings,
         cast(ProducerLike, make_producer()),
@@ -38,6 +52,7 @@ def main() -> None:
             lambda: make_consumer("control-api-replay"), settings.replay_poll_ms / 1000
         ),
         drift_reset=reset_drift_worker,
+        drafter=drafter,
     )
     first_boot(ctx)  # seed if empty, republish_all, rewrite the inventory: ready means complete
     app = create_app(ctx)

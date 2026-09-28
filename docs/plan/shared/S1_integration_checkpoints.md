@@ -62,7 +62,7 @@ Every checkpoint script lives in `tools/checkpoints/cp<n>.py`, is run by `make c
 | 2 | Scripted demo run (`make demo-auto`, which triggers stages with the script's timings) | All beat assertions pass |
 | 3 | 10 consecutive runs of reset + auto | 10/10 pass; record timings |
 | 4 | Memory headroom during the run | ≥ 3 GB free at the peak |
-| 5 | `LLM_MODE=live` with Ollama stopped | Cache fallback engages; the demo still passes |
+| 5 | `LLM_MODE=live_then_cache` with Ollama stopped | Cached draft is used; the demo still passes |
 
 After CP4: tag `demo-freeze-1`. From then on, only bug fixes from S2 are merged.
 

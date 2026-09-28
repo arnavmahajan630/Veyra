@@ -17,6 +17,51 @@ ACTION REQUIRED:
 
 ---
 
+## 2026-09-29 01:10 — C4 — CLARIFICATION  (contracts v1.4, no bump)
+TYPE: CLARIFICATION
+What:     S1 CP4 check 5 reads `LLM_MODE=live_then_cache` with Ollama stopped → the cached draft
+          is used and the demo still passes. `live` alone does not fall back to the cache.
+Why:      Plan 5's mode table: only `live_then_cache` consults the cache when the model is down.
+IDs:      IF-LLM-DRAFT
+Files patched: shared/S1_integration_checkpoints.md.
+ACTION REQUIRED:
+  - [ ] @A @B Nothing to do.
+
+## 2026-09-29 01:10 — C4 — DECISION  (contracts v1.4, no bump)
+TYPE: DECISION
+What:     TC32–TC40, as executed on `c4-drafter`. Onboarding takes an existing `source_id`; the
+          contract id drops `src_` and a trailing `_NN` (`src_authsrv_01` → `authsrv`), and that
+          id is the template-sig scope. Layer detection uses A4's detectors and still returns
+          contract-envelope layers. Auto-draft creates a draft and does not submit. TC40: the
+          laptop stays on `VEYRA_LLM_MODE=cache` until a GPU works. The live p95 bench and the
+          two-model report (AC2, AC5) are deferred. `make llm-warm`, `make bench-llm` and
+          `make llm-cache-seed` are in the Makefile; they call Ollama and were not run here.
+Why:      Those decisions were locked before coding. The bench measurement needs a GPU this
+          laptop does not have.
+IDs:      IF-LLM-DRAFT, IF-API-CONTROL
+Files patched: 06_STATUS_BOARD.md, track-C-control-console/C4_llm_drafter.md, reports/C4.md,
+          profiles/laptop.env (mode set when the drafter landed).
+ACTION REQUIRED:
+  - [ ] @C Run `make bench-llm MODELS=qwen2.5:3b,llama3.2:3b` when a GPU is available, and set
+        `VEYRA_LLM_MODEL` from the winner.
+
+## 2026-09-29 01:10 — C4 — CONTRACT-ADDITIVE  (contracts v1.4, no bump)
+TYPE: CONTRACT-ADDITIVE
+What:     IF-API-CONTROL's draft and onboarding lines now match what control-api serves.
+          `POST /drift/{id}/draft {mode?}` → 202 `{draft_id}` (the author is whoever later
+          submits). `PATCH /drafts/{id}` takes `{template_sig?, class?, activity?, mappings}`
+          and returns 422 when a mapping leaves the closed vocabulary. `POST /onboarding/analyze`
+          takes `{source_id, samples, mode?}` and streams `classification`, `templates`,
+          `library`, `draft`, `done`, `error`. The SSE `draft` payload is
+          `{draft_id, drift_id, state, source_id}`.
+Why:      The section already named the routes. The bodies were the Plan 5 shape (TC32), not the
+          earlier one-shot JSON sketch. No new field on an event envelope, so the contract
+          version stays v1.4.
+IDs:      IF-API-CONTROL
+Files patched: 02_CONTRACTS.md (IF-API-CONTROL).
+ACTION REQUIRED:
+  - [ ] @C C5/C6 should call these bodies, not the old `{tenant_id, source_name, transport}` analyze sketch.
+
 ## 2026-09-28 23:55 — C2/C3 — CLARIFICATION + DECISION  (contracts v1.4, no bump)
 TYPE: CLARIFICATION
 What:     PR #3 (`c2-c3-registry-drift`) is on `main`. C2 and C3 stay in-progress: C2 AC2/AC4
@@ -29,7 +74,7 @@ IDs:      none
 Files patched: 06_STATUS_BOARD.md, track-C-control-console/{C1,C2,C3}, reports/{C2,C3}.md.
           The Track C roadmap under docs/superpowers/ is gitexcluded; it was updated locally only.
 ACTION REQUIRED:
-  - [ ] @C Set `VEYRA_LLM_MODE=cache` in `profiles/laptop.env` when C4 lands.
+  - [x] @C Set `VEYRA_LLM_MODE=cache` in `profiles/laptop.env` when C4 lands. (`profiles/laptop.env` is `cache`.)
   - [ ] @C C3 live timing smoke (`make up PROFILE=laptop SERVICES="a3 c1 c3"`) is still open.
 
 ## 2026-09-28 21:00 — A2 — CONTRACT-ADDITIVE  (contracts v1.3 → v1.4)
@@ -310,8 +355,9 @@ IDs:      IF-OCSF-SUBSET
 Files patched: 02_CONTRACTS.md (IF-OCSF-SUBSET), reports/A3.md, packages/veyra_engine/ocsf/README.md.
 ACTION REQUIRED:
   - [ ] @B In B6, note that events carry no `cloud`/`osint`; do not build a view that assumes them.
-  - [ ] @C In C4, the drafter's allowed-field catalogue is the same subset — keep it in step with
+  - [x] @C In C4, the drafter's allowed-field catalogue is the same subset — keep it in step with
         packages/veyra_engine/ocsf/subset_1.9.0.json rather than re-listing fields by hand.
+        `test_drafter_fields_match_the_vendored_subset` compares `catalogue.FIELDS` to the schema leaves.
 
 ## 2026-09-27 17:30 — A3 — REQUEST @C  (contracts v1.3)
 TYPE: REQUEST

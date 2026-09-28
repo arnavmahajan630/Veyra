@@ -590,11 +590,13 @@ GET/POST /sources                     GET/PATCH /sources/{id}      (POST trigger
 POST /sources/{id}/keys → {key_id, secret (once), endpoints{hec_url, batch_url, syslog{host,port,listener}}, curl_example}
 GET  /sources/{id}/keys → [{key_id, source_id, status, quota_eps, created_by, created_at, revoked_at}]
 POST /keys/{key_id}/revoke
-POST /onboarding/analyze {tenant_id, source_name, transport, samples:[str]} → {classification, peel preview,
-      templates:[{sig, drain_template, count, tokens:[Token]}], library_match|null, draft_id}
-GET  /drafts/{id} → {draft (IF-LLM-DRAFT output), provenance:[{ocsf_path, ok, reason}], yaml_preview, backtest}
-PATCH /drafts/{id} {mappings edits} → re-run provenance + backtest
-POST /drafts/{id}/submit → contract version in state testing → golden tests → canary
+POST /onboarding/analyze {source_id, samples:[str], mode?} → text/event-stream
+      events: classification {layers, contract_id}, templates [{template_sig, drain_template, count, tokens}],
+      library {matches, matched}, draft {template_sig, source, pattern, latency_ms}, done {draft_id, verification}|{draft_id:null, library}, error
+      (source_name is accepted and ignored; the contract id comes from source_id — TC32)
+GET  /drafts/{id} → {draft_id, state, templates, yaml, verification, backtest, library, detail}
+PATCH /drafts/{id} {template_sig?, class?, activity?, mappings:[{ocsf_path, token|const}]} → re-verify; 422 outside the closed vocabulary
+POST /drafts/{id}/submit → 201 contract version in testing; the submitter is the author (TC17)
 GET/POST /contracts, GET /contracts/{id}, GET /contracts/{id}/versions/{v}, GET /contracts/{id}/diff?from=&to=
 POST /contracts/{id}/versions/{v}/approve   (403 if approver == author)
 POST /contracts/{id}/versions/{v}/promote   (canary → active; publishes control)
@@ -602,12 +604,12 @@ POST /contracts/{id}/rollback {to_version}
 POST /contracts/{id}/versions/{v}/backtest {template_sigs?, samples?} → backtest result (also run automatically at canary)
 GET  /drift?state=open → [{drift_id, source_id, template_sig, drain_template, count, first_seen, last_seen, samples_masked, draft_id|null}]
 GET  /drift/{id} → one item (+ related_sigs, sample_event_uids, state, resolved_by)      POST /drift/{id}/dismiss
-POST /drift/{id}/draft → starts a draft (LLM or heuristic per settings)
+POST /drift/{id}/draft {mode?} → 202 {draft_id}   (does not submit; auto-draft actor is drift-worker)
 POST /replay {contract_id, template_sigs?, source_id?, from?, to?} → {job_id}      GET /replay/{job_id} → progress
 GET  /replay?contract_id= → jobs, newest first
 GET  /routes        GET /audit
 GET  /stream (SSE): events {type: overview|drift|draft|contract|replay|source, data}
-     <!-- synced from C2/C3 --> contract: {id, version, state, action}; replay: {job_id, contract_id, status, total, published, normalized, detail}; drift: {drift_id, source_id, template_sig, count, state, created}
+     <!-- synced from C2/C3/C4 --> contract: {id, version, state, action}; replay: {job_id, contract_id, status, total, published, normalized, detail}; drift: {drift_id, source_id, template_sig, count, state, created}; draft: {draft_id, drift_id, state, source_id}
 
 Internal (docker network only, not routed by caddy):
 POST /internal/drift {source_id, template_sig, drain_template, count, samples_masked, first_seen, last_seen,

@@ -1,7 +1,7 @@
 # C4 — LLM drafter: token-reference drafting, provenance, heuristic fallback, cache, onboarding analyze, bench
 
 ```
-track: C   owner: C   status: todo
+track: C   owner: C   status: in-progress
 contracts: v1.4
 depends_on: [C2, C3, A4]     unblocks: [CP3, C6, Beats 2 and 4]
 consumes: [IF-LLM-DRAFT, IF-ENGINE-LIB (extract_tokens, mask, peel, provenance_check, backtest), IF-OCSF-SUBSET]
@@ -112,19 +112,19 @@ Output: `reports/C4-bench-<machine>.md`. The profile's `LLM_MODEL` is set from t
 - A mapped field an event lacks makes that event tier 2, so the drafter should map only tokens present in every sample.
 
 ## Tasks
-- [ ] 1. Request builder + alignment + masking; unit tests on T3 samples.
-- [ ] 2. The Ollama client with schema-constrained output, retry and timeout; a mocked-server test.
-- [ ] 3. Generalization → YAML; round-trip through the C2 compiler.
-- [ ] 4. Verify pipeline (compile, provenance, types, backtest) + draft storage + `GET/PATCH /drafts/{id}` (PATCH re-runs verify) + `POST /drafts/{id}/submit`.
-- [ ] 5. The heuristic drafter + cache + modes + badges.
-- [ ] 6. Onboarding analyze with SSE progress.
-- [ ] 7. Golden bench set + bench runner + report; `llm-warm`; `llm-cache-seed`.
+- [x] 1. Request builder + alignment + masking; unit tests on T3 samples.
+- [x] 2. The Ollama client with schema-constrained output, retry and timeout; a mocked-server test.
+- [x] 3. Generalization → YAML; round-trip through the C2 compiler.
+- [x] 4. Verify pipeline (compile, provenance, types, backtest) + draft storage + `GET/PATCH /drafts/{id}` (PATCH re-runs verify) + `POST /drafts/{id}/submit`.
+- [x] 5. The heuristic drafter + cache + modes + badges.
+- [x] 6. Onboarding analyze with SSE progress.
+- [ ] 7. Golden bench set + bench runner + report; `llm-warm`; `llm-cache-seed`. Runner, extras and Make targets landed. The live report has not been run.
 
 ## Acceptance criteria
-- [ ] AC1: The T3 drift item → the draft maps `user.name`, `src_endpoint.ip`, `dst_endpoint.ip` and `status_id=2`, class Authentication/Logon; provenance is 100% ✓; backtest 8/8 → tier 1. Holds in all three modes (live, cache, heuristic).
+- [x] AC1: The T3 drift item → the draft maps `user.name`, `src_endpoint.ip`, `dst_endpoint.ip` and `status_id=2`, class Authentication/Logon; provenance is 100% ✓; backtest 8/8 → tier 1. Holds in all three modes (live, cache, heuristic).
 - [ ] AC2: Live draft latency on the laptop p95 ≤ `LLM_TIMEOUT_S`; `live_then_cache` never exceeds `LLM_TIMEOUT_S` + 200 ms.
-- [ ] AC3: A deliberately wrong edit in PATCH (map `src_endpoint.ip` to the destination token) → provenance still ✓ (bytes exist) but the backtest shows a changed field, and the type check flags nothing. This demonstrates why human review remains. Document it in the report as the known limit and the Q&A answer.
-- [ ] AC4: Onboarding analyze with T1+T2 samples → 2 templates, no library match, a draft ready in < 8 s (live) or < 1 s (cache).
+- [x] AC3: A deliberately wrong edit in PATCH (map `src_endpoint.ip` to the destination token) → provenance still ✓ (bytes exist) but the backtest shows a changed field, and the type check flags nothing. This demonstrates why human review remains. Document it in the report as the known limit and the Q&A answer.
+- [x] AC4: Onboarding analyze with T1+T2 samples → 2 templates, no library match, a draft ready in < 8 s (live) or < 1 s (cache).
 - [ ] AC5: The bench report exists for the laptop, with at least 2 models compared.
 
 ## Settings
@@ -138,4 +138,11 @@ Output: `reports/C4-bench-<machine>.md`. The profile's `LLM_MODEL` is set from t
 | VRAM contention with display | Keep the model at Q4; close other GPU apps; measure in the bench |
 
 ## Implementation notes
-_(filled after execution)_
+Code is on `c4-drafter` (not merged). Report in `reports/C4.md`. The phase stays in progress because AC2 and AC5 need a GPU.
+- **TC40:** `profiles/laptop.env` sets `VEYRA_LLM_MODE=cache`. The Settings default stays `live_then_cache`.
+- **TC32:** onboarding requires an existing source. Groups share a token skeleton, because `template_sig` keeps literal usernames, so three `session closed for <person>` lines would otherwise be three groups. The stored sig is still `template_sig(contract_id, first line)`.
+- **Tails:** a span after the last capture that differs across the group (`312s` vs `319s`) becomes `<*>`, and the shared words in that span stay (`after`).
+- **Verify:** a sample is checked against the template it matched, so a second template's fields are not reported as missing.
+- **Auto-draft** (`VEYRA_DRIFT_AUTODRAFT`) starts a draft as `drift-worker` and does not submit.
+- **Bench:** `tools/bench/llm_bench.py` builds cases from the library packs plus `bench/llm_golden/extra.json`. `make llm-warm`, `make bench-llm`, `make llm-cache-seed` call Ollama and were not run.
+- **Catalogue:** `catalogue.FIELDS` is the vendored subset's leaf paths minus the structural keys (`test_drafter_fields_match_the_vendored_subset`).

@@ -14,7 +14,7 @@ SHELL := /bin/bash
         test-int-slow plan-check wazuh-certs wazuh-init wazuh-logtest console-dev console-build \
         contracts-repo-init contracts-test \
         edge-render edge-check edge-test \
-        e2e-smoke llm-warm \
+        e2e-smoke llm-warm llm-cache-seed \
         bench-llm bench-throughput demo-reset demo-preflight demo-stage doctor env-print
 
 PROFILE      ?= laptop
@@ -187,11 +187,15 @@ console-build: ## build the static console bundle (C5)
 e2e-smoke: ## end-to-end smoke test (CP1, tools/checkpoints/cp1.py)
 	@echo "TODO (CP1): tools/checkpoints/cp1.py — syslog line -> Wazuh, segment sealed, CH rows"
 
-llm-warm: ## preload the LLM into VRAM (C4)
-	@echo "TODO (C4): ollama run \$$VEYRA_LLM_MODEL with a warmup prompt, keep_alive 30m"
+llm-warm: ## preload the LLM into memory and keep it resident (C4)
+	$(UV) run --env-file $(RUNTIME_ENV) python tools/bench/llm_bench.py warm
 
-bench-llm: ## draft accuracy + latency bench (C4)
-	@echo "TODO (C4): tools/bench/llm_bench.py -> reports/C4-bench-<machine>.md"
+bench-llm: ## draft accuracy + latency bench (C4); MODELS=a,b
+	$(UV) run python tools/bench/llm_bench.py build
+	$(UV) run --env-file $(RUNTIME_ENV) python tools/bench/llm_bench.py run --models $(MODELS)
+
+llm-cache-seed: ## record live drafts for the demo shapes T1-T3 into data/llm_cache (C4)
+	$(UV) run --env-file $(RUNTIME_ENV) python tools/bench/llm_bench.py seed
 
 bench-throughput: ## normalizer/router scaling bench (A6)
 	@echo "TODO (A6): tools/bench/throughput.py -> reports/A6-bench-<machine>.md"

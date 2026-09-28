@@ -2,8 +2,36 @@
 
 from __future__ import annotations
 
+import json
+from pathlib import Path
+
 from veyra_common.topics import CATEGORIES
 from veyra_contracts.catalogue import CLASSES, ENUMS, FIELDS
+
+_SUBSET = (
+    Path(__file__).resolve().parents[2]
+    / "veyra_engine"
+    / "src"
+    / "veyra_engine"
+    / "ocsf"
+    / "subset_1.9.0.json"
+)
+# Present on the event schema, not offered to the drafter as mappable fields.
+_NOT_MAPPED = frozenset(
+    {
+        "activity_id",
+        "category_uid",
+        "class_uid",
+        "type_uid",
+        "device.port",
+        "enrichments",
+        "metadata.version",
+        "observables",
+        "raw_data",
+        "ulpf",
+        "unmapped",
+    }
+)
 
 
 def test_classes_match_if_ocsf_subset() -> None:
@@ -47,6 +75,29 @@ def test_field_catalogue_matches_if_ocsf_subset() -> None:
         "process.name", "process.pid", "process.cmd_line",
     } == FIELDS  # fmt: skip
     assert "raw_data" not in FIELDS  # always present, never mapped
+
+
+def _schema_leaves(node: object, prefix: str = "") -> set[str]:
+    props = node.get("properties") if isinstance(node, dict) else None
+    if not isinstance(props, dict):
+        return set()
+    found: set[str] = set()
+    for name, child in props.items():
+        path = f"{prefix}.{name}" if prefix else name
+        if isinstance(child, dict) and isinstance(child.get("properties"), dict):
+            found |= _schema_leaves(child, path)
+        else:
+            found.add(path)
+    return found
+
+
+def test_drafter_fields_match_the_vendored_subset() -> None:
+    """A3's action: catalogue.FIELDS stays in step with subset_1.9.0.json."""
+    document = json.loads(_SUBSET.read_text(encoding="utf-8"))
+    leaves: set[str] = set()
+    for schema in document["classes"].values():
+        leaves |= _schema_leaves(schema)
+    assert leaves - _NOT_MAPPED == FIELDS
 
 
 def test_enums_match_if_ocsf_subset() -> None:

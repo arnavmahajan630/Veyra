@@ -1,0 +1,8 @@
+[
+  {"id": "authsrv/t1_ok", "contract": "packages/veyra_engine/tests/contracts/authsrv.yaml",
+   "corpus": "demo/corpus/authsrv_t1_ok.log", "count": 3},
+  {"id": "authsrv/t2_session", "contract": "packages/veyra_engine/tests/contracts/authsrv.yaml",
+   "corpus": "demo/corpus/authsrv_t2_session.log", "count": 3},
+  {"id": "authsrv/t3_failed", "contract": "packages/veyra_engine/tests/contracts/authsrv_v2.yaml",
+   "corpus": "demo/corpus/authsrv_t3_failed.log", "count": 8}
+]

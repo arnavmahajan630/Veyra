@@ -25,6 +25,11 @@ MIGRATIONS: list[tuple[int, str]] = [
     (9, "ALTER TABLE drift_items ADD COLUMN sample_event_uids_json VARCHAR NOT NULL DEFAULT '[]'"),
     (10, "ALTER TABLE drift_items ADD COLUMN resolved_by VARCHAR"),
     (11, "ALTER TABLE drift_items ADD COLUMN updated_at VARCHAR"),
+    # C4: drafts
+    (12, "ALTER TABLE drafts ADD COLUMN contract_id VARCHAR"),
+    (13, "ALTER TABLE drafts ADD COLUMN created_by VARCHAR"),
+    (14, "ALTER TABLE drafts ADD COLUMN updated_at VARCHAR"),
+    (15, "ALTER TABLE drafts ADD COLUMN detail VARCHAR NOT NULL DEFAULT ''"),
 ]
 
 

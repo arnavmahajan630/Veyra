@@ -11,6 +11,7 @@ from pydantic import BaseModel
 from sqlmodel import Session as DbSession
 
 from control_api.context import AppContext, get_ctx, get_db
+from control_api.drafts import start_drift_draft
 from control_api.drift import DriftIn, drift_event, upsert
 from control_api.inventory import rewrite_inventory
 from control_api.messages import published_keys, republish_all
@@ -93,4 +94,7 @@ def drift(
     db.commit()
     db.refresh(item)
     ctx.hub.publish("drift", drift_event(item, created=created))
+    if created and ctx.cfg.drift_autodraft and item.state == "open":
+        start_drift_draft(ctx, db, item, actor="drift-worker")
+        db.refresh(item)
     return {"drift_id": item.drift_id, "state": item.state, "created": created}
