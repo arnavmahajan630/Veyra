@@ -17,6 +17,21 @@ ACTION REQUIRED:
 
 ---
 
+## 2026-09-28 23:55 — C2/C3 — CLARIFICATION + DECISION  (contracts v1.4, no bump)
+TYPE: CLARIFICATION
+What:     PR #3 (`c2-c3-registry-drift`) is on `main`. C2 and C3 stay in-progress: C2 AC2/AC4
+          live halves still need A5 and B; C3 AC1's under-10s smoke has not run. TC40 (Plan 5):
+          the laptop uses `VEYRA_LLM_MODE=cache` until Ollama runs on a GPU. The live two-model
+          bench stays deferred. C4 is not started.
+Why:      The status board and the Track C roadmap still described C2/C3 as unmerged, and S0's
+          GPU-vs-cache request to @C was still open.
+IDs:      none
+Files patched: 06_STATUS_BOARD.md, track-C-control-console/{C1,C2,C3}, reports/{C2,C3}.md.
+          The Track C roadmap under docs/superpowers/ is gitexcluded; it was updated locally only.
+ACTION REQUIRED:
+  - [ ] @C Set `VEYRA_LLM_MODE=cache` in `profiles/laptop.env` when C4 lands.
+  - [ ] @C C3 live timing smoke (`make up PROFILE=laptop SERVICES="a3 c1 c3"`) is still open.
+
 ## 2026-09-28 21:00 — A2 — CONTRACT-ADDITIVE  (contracts v1.3 → v1.4)
 TYPE: CONTRACT-ADDITIVE
 What:     IF-ENVELOPE gains one optional field, `hec_meta`, set only by the gateway's HEC event

@@ -1,7 +1,7 @@
 # C2 — Contract registry, compiler, golden tests, lifecycle, four-eyes, canary, backtest, replay jobs
 
 ```
-track: C   owner: C   status: todo
+track: C   owner: C   status: in-progress
 contracts: v1.4
 depends_on: [C1, A3 (veyra_engine real; stub OK to start)]   unblocks: [CP2, CP3, C3, C4, C6, A5]
 consumes: [IF-CONTRACT-YAML, IF-OCSF-SUBSET, IF-ENGINE-LIB, IF-API-EVIDENCE (raw fetch, template events), IF-TOPICS (replay.raw)]
@@ -90,7 +90,7 @@ Turn Log Contracts into governed, versioned, tested, deterministic parse plans, 
 `VEYRA_BACKTEST_MAX` (200), `VEYRA_REPLAY_MAX` (10000), `VEYRA_CONTRACTS_REPO`.
 
 ## Implementation notes
-<!-- synced from C2 --> Code complete on branch `c2-c3-registry-drift`; report in `reports/C2.md`.
+<!-- synced from C2 --> Code complete; merged on `main` as PR #3 (2026-09-28). Report in `reports/C2.md`. Live halves still open, so the phase stays in progress.
 - **AC2 and AC4:** pass standalone. The 8/8 upgrade uses the real engine; the replay job reaches `done` with a fake lineage watcher. Their normalizer halves need A5 and B (CP3).
 - **AC3:** the API half passes.
 - **Decisions:**
