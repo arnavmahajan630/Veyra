@@ -41,6 +41,7 @@ def test_a_fresh_database_is_stamped_at_the_latest_migration(
 def test_an_old_database_gets_only_newer_migrations_once(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
+    monkeypatch.setattr(migrations, "MIGRATIONS", [])  # an old database: stamped at 0
     engine = make_engine(tmp_path / "old.db")
     init_db(engine)
     assert current_version(engine) == 0

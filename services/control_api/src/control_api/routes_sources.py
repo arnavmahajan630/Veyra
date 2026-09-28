@@ -14,11 +14,10 @@ from sqlmodel import Session as DbSession
 from sqlmodel import col, select
 
 from control_api.auth import Principal, current_principal, require
-from control_api.context import AppContext, get_ctx, get_db
+from control_api.context import AppContext, get_ctx, get_db, publish_then_commit
 from control_api.inventory import rewrite_inventory
 from control_api.keys import IssuedKey, key_card, secret_digest
 from control_api.messages import apikey_message, source_message
-from control_api.publisher import PublishError
 from control_api.tables import ApiKey, Source, Tenant
 from veyra_common.ids import new_api_key_id, new_api_key_secret
 from veyra_common.models import Zone, control_key
@@ -112,22 +111,25 @@ class KeyRevoked(BaseModel):
     status: str
 
 
+class KeyRow(BaseModel):
+    """A key as the Sources drawer lists it: never the secret, never its digest."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    key_id: str
+    source_id: str
+    status: str
+    quota_eps: int
+    created_by: str
+    created_at: str
+    revoked_at: str | None
+
+
 def _load_source(db: DbSession, principal: Principal, source_id: str) -> Source:
     source = db.get(Source, source_id)
     if source is None or not principal.can_see(source.tenant_id):
         raise HTTPException(status_code=404, detail=f"source {source_id} not found")
     return source
-
-
-def _publish_then_commit(
-    ctx: AppContext, db: DbSession, items: list[tuple[str, BaseModel]]
-) -> None:
-    try:
-        ctx.publisher.publish_many(items)
-    except PublishError as exc:
-        db.rollback()
-        raise HTTPException(status_code=503, detail=f"control topic unavailable: {exc}") from exc
-    db.commit()
 
 
 def _source_changed(ctx: AppContext, db: DbSession, source: Source) -> None:
@@ -164,7 +166,7 @@ def create_source(
         db, actor=principal.email, role=principal.role, action="source.create", target=source.id,
         tenant_id=source.tenant_id,
     )  # fmt: skip
-    _publish_then_commit(ctx, db, [(control_key("source", source.id), source_message(source))])
+    publish_then_commit(ctx, db, [(control_key("source", source.id), source_message(source))])
     _source_changed(ctx, db, source)
     return source
 
@@ -195,9 +197,20 @@ def patch_source(
         db, actor=principal.email, role=principal.role, action="source.update", target=source_id,
         detail=",".join(sorted(changes)), tenant_id=source.tenant_id,
     )  # fmt: skip
-    _publish_then_commit(ctx, db, [(control_key("source", source.id), source_message(source))])
+    publish_then_commit(ctx, db, [(control_key("source", source.id), source_message(source))])
     _source_changed(ctx, db, source)
     return source
+
+
+@router.get("/sources/{source_id}/keys", response_model=list[KeyRow])
+def list_keys(
+    source_id: str,
+    principal: Principal = Depends(current_principal),
+    db: DbSession = Depends(get_db),
+) -> list[ApiKey]:
+    source = _load_source(db, principal, source_id)
+    query = select(ApiKey).where(col(ApiKey.source_id) == source.id)
+    return list(db.exec(query.order_by(col(ApiKey.created_at), col(ApiKey.key_id))).all())
 
 
 @router.post("/sources/{source_id}/keys", response_model=KeyCard, status_code=201)
@@ -229,7 +242,7 @@ def issue_key(
     card = KeyCard.model_validate(
         key_card(public_host=ctx.cfg.public_host, key_id=key_id, secret=secret, source=source)
     )
-    _publish_then_commit(ctx, db, [(control_key("apikey", key_id), apikey_message(key))])
+    publish_then_commit(ctx, db, [(control_key("apikey", key_id), apikey_message(key))])
     if ctx.cfg.demo_mode:
         ctx.last_key.remember(IssuedKey(key_id=key_id, secret=secret, source_id=source_id))
     ctx.hub.publish("source", {"source_id": source_id, "key_id": key_id, "event": "key_issued"})
@@ -253,7 +266,7 @@ def revoke_key(
         db, actor=principal.email, role=principal.role, action="key.revoke", target=key_id,
         tenant_id=key.tenant_id,
     )  # fmt: skip
-    _publish_then_commit(ctx, db, [(control_key("apikey", key_id), apikey_message(key))])
+    publish_then_commit(ctx, db, [(control_key("apikey", key_id), apikey_message(key))])
     ctx.hub.publish(
         "source", {"source_id": key.source_id, "key_id": key_id, "event": "key_revoked"}
     )

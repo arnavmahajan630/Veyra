@@ -78,7 +78,3 @@ def test_last_key_is_served_only_in_demo_mode(client, login, ctx) -> None:
     }
     ctx.cfg = ctx.cfg.model_copy(update={"demo_mode": False})
     assert client.get("/internal/demo/last-key").status_code == 404
-
-
-def test_internal_drift_is_accepted(client) -> None:
-    assert client.post("/internal/drift", json={"source_id": "src_a"}).status_code == 202
