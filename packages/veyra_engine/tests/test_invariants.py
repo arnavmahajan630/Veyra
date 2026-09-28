@@ -20,13 +20,21 @@ import pytest
 from veyra_common.envelope import stamp
 from veyra_common.framing import split_lines
 from veyra_common.models import Envelope
+from veyra_common.settings import contracts_repo_path
 from veyra_engine import Engine, EngineContext, mini_compile, serialize
 
 REPO = Path(__file__).resolve().parents[3]
 CORPUS = REPO / "demo" / "corpus"
 CONTRACT = REPO / "packages" / "veyra_engine" / "tests" / "contracts" / "authsrv.yaml"
-SEED = REPO / "contracts-repo" / "t_ntro_core" / "linux_sshd.yaml"
+SEED = contracts_repo_path() / "t_ntro_core" / "linux_sshd.yaml"
 RECEIVED = "2026-09-26T14:10:00.000000000Z"
+
+# Only the two tests that read the seeded library contract need the sibling checkout; the rest use
+# the engine's own test contracts, so this is a per-test skip rather than a module-wide one.
+needs_registry = pytest.mark.skipif(
+    not SEED.is_file(),
+    reason=f"needs the contracts repository checked out at {SEED.parents[1]}",
+)
 
 
 def envelope(raw: bytes, index: int = 0, source: str = "src_authsrv_01") -> Envelope:
@@ -225,6 +233,7 @@ def test_contract_swap_is_atomic_under_repeated_loads() -> None:
     assert engine.normalize(envelope(raw)).tier == 4
 
 
+@needs_registry
 def test_tier_and_conformance_always_agree() -> None:
     engine = engine_with(SEED)
     pairs = {1: "match", 2: "partial", 3: "unknown_template", 4: "unparseable"}

@@ -33,12 +33,12 @@ from veyra_common.models import (
     VocabMessage,
     control_key,
 )
-from veyra_common.settings import Settings
+from veyra_common.settings import Settings, contracts_repo_path
 from veyra_common.topics import TOPIC_CONTROL
-from veyra_engine import mini_compile
+from veyra_contracts import compile as compile_contract
 
 REPO = Path(__file__).resolve().parents[1]
-SEED_CONTRACTS = REPO / "contracts-repo" / "t_ntro_core"
+SEED_CONTRACTS = contracts_repo_path() / "t_ntro_core"
 TEST_CONTRACTS = REPO / "packages" / "veyra_engine" / "tests" / "contracts"
 
 # The pre-seeded world from 04_DEMO_SCRIPT.md §2, so a local run matches the demo's starting state.
@@ -130,7 +130,7 @@ def main() -> int:
 
     compiled_by_id: dict[str, dict[str, Any]] = {}
     for path in contract_files(include_authsrv=not args.no_authsrv):
-        compiled = mini_compile(path.read_text())
+        compiled = compile_contract(path.read_text()).model_dump()
         compiled_by_id[compiled["contract"]] = compiled
 
     candidate_for: dict[str, dict[str, Any]] = {}
@@ -138,7 +138,7 @@ def main() -> int:
         candidate_path = TEST_CONTRACTS / f"{args.candidate}.yaml"
         if not candidate_path.exists():
             raise SystemExit(f"no such contract file: {candidate_path}")
-        candidate = mini_compile(candidate_path.read_text())
+        candidate = compile_contract(candidate_path.read_text()).model_dump()
         candidate_for[candidate["contract"]] = candidate
 
     for contract_id, compiled in sorted(compiled_by_id.items()):

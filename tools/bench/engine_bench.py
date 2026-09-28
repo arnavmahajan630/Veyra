@@ -23,12 +23,14 @@ from typing import Any
 from veyra_common.envelope import stamp
 from veyra_common.framing import split_lines
 from veyra_common.models import Envelope
-from veyra_engine import Engine, EngineContext, mini_compile
+from veyra_common.settings import contracts_repo_path
+from veyra_contracts import compile as compile_contract
+from veyra_engine import Engine, EngineContext
 from veyra_engine.validate import validate_event
 
 REPO = Path(__file__).resolve().parents[2]
 CORPUS = REPO / "demo" / "corpus"
-SEED = REPO / "contracts-repo" / "t_ntro_core"
+SEED = contracts_repo_path() / "t_ntro_core"
 TEST_CONTRACTS = REPO / "packages" / "veyra_engine" / "tests" / "contracts"
 RECEIVED = "2026-09-26T14:10:00.000000000Z"
 
@@ -127,7 +129,7 @@ def main() -> int:
     results: dict[str, Any] = {}
     for name, (corpus_file, contract_path, source_id, vendor) in WORKLOADS.items():
         engine = Engine(EngineContext())
-        engine.load([mini_compile(contract_path.read_text())])
+        engine.load([compile_contract(contract_path.read_text()).model_dump()])
         envelopes = envelopes_for(corpus_file, source_id, vendor)
         row = measure(engine, envelopes, args.seconds)
         row["validate_us"] = round(measure_validation(engine, envelopes), 1)

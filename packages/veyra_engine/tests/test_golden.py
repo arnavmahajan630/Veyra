@@ -24,13 +24,21 @@ import pytest
 
 from veyra_common.envelope import stamp
 from veyra_common.models import Envelope, NormEvent
+from veyra_common.settings import contracts_repo_path
 from veyra_engine import Engine, EngineContext, mini_compile, provenance_check
 
 REPO = Path(__file__).resolve().parents[3]
 CORPUS = REPO / "demo" / "corpus"
 EXPECTED = Path(__file__).resolve().parent / "expected"
 TEST_CONTRACTS = Path(__file__).resolve().parent / "contracts"
-SEED_CONTRACTS = REPO / "contracts-repo" / "t_ntro_core"
+SEED_CONTRACTS = contracts_repo_path() / "t_ntro_core"
+
+# A missing sibling checkout should say so, not raise FileNotFoundError deep inside a test. Matches
+# how C's own contract tests behave.
+pytestmark = pytest.mark.skipif(
+    not SEED_CONTRACTS.is_dir(),
+    reason=f"needs the contracts repository checked out at {SEED_CONTRACTS.parent}",
+)
 
 # A fixed arrival time, so year inference and clock skew are deterministic.
 RECEIVED = "2026-09-26T14:10:00.000000000Z"
