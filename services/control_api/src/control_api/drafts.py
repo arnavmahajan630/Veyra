@@ -249,6 +249,9 @@ def run_drift_draft(ctx: AppContext, draft_id: str, mode: str | None) -> None:
         item = db.get(DriftItem, draft.drift_id or "") if draft else None
         if draft is None or item is None or ctx.drafter is None:
             return
+        # A re-draft (the demo's 5 s cache fallback) repoints the item; the draft it replaced
+        # still finishes, but only the item's current draft may change the item's state.
+        current = item.draft_id == draft.draft_id
         raws = _raw_samples(ctx, item.template_sig)
         detail = ""
         active = _active(db, draft.contract_id or "")
@@ -269,7 +272,8 @@ def run_drift_draft(ctx: AppContext, draft_id: str, mode: str | None) -> None:
             data = _assemble(ctx, db, draft, prepared, outcome, drafted_by=outcome.source)
         except Exception as exc:
             draft.state, draft.detail = "failed", f"{type(exc).__name__}: {exc}"
-            item.state = "open"
+            if current:
+                item.state = "open"
         else:
             data |= {
                 "kind": "drift",
@@ -279,15 +283,19 @@ def run_drift_draft(ctx: AppContext, draft_id: str, mode: str | None) -> None:
             }
             draft.payload_json = json.dumps(data)
             draft.state, draft.detail = "ready", detail
-            item.state = "draft_ready"
-        draft.updated_at = item.updated_at = ctx.now()
+            if current:
+                item.state = "draft_ready"
+        draft.updated_at = ctx.now()
         db.add(draft)
-        db.add(item)
+        if current:
+            item.updated_at = draft.updated_at
+            db.add(item)
         db.commit()
         db.refresh(draft)
         db.refresh(item)
     ctx.hub.publish("draft", draft_event(draft))
-    ctx.hub.publish("drift", drift_event(item))
+    if current:
+        ctx.hub.publish("drift", drift_event(item))
 
 
 def apply_edit(ctx: AppContext, db: DbSession, draft: Draft, edit: DraftEdit) -> Draft:

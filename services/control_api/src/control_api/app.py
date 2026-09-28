@@ -15,6 +15,7 @@ from control_api import (
     routes_drafts,
     routes_drift,
     routes_internal,
+    routes_meta,
     routes_replay,
     routes_sources,
     routes_stream,
@@ -41,6 +42,7 @@ def create_app(ctx: AppContext) -> FastAPI:
         routes_drift,
         routes_drafts,
         routes_audit,
+        routes_meta,
         routes_stream,
         routes_internal,
     ):
