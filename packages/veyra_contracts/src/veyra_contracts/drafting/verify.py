@@ -93,14 +93,17 @@ def verify(
         tier = str(normalized.tier)
         result.tiers[tier] = result.tiers.get(tier, 0) + 1
         template = (normalized.ulpf.get("template") or {}).get("id")
-        if template not in templates:
+        matched = templates.get(template)
+        if matched is None:
             for path in paths:
                 failures[path].append(f"sample {index + 1} did not match the drafted template")
             continue
         event = normalized.ocsf
         offsets = normalized.ulpf.get("field_offsets") or {}
         checks = {c.ocsf_path: c for c in provenance_check(event, raw)}
-        for path, kind in paths.items():
+        # Only the template this sample matched. A second template's fields are absent here.
+        matched_paths = {entry.ocsf_path: entry.kind for entry in matched.map}
+        for path, kind in matched_paths.items():
             if kind in ("const", "text"):
                 continue
             check = checks.get(path)

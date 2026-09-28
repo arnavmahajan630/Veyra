@@ -31,7 +31,7 @@ from veyra_contracts.drafting.generalize import (
     generalize,
     new_contract,
 )
-from veyra_contracts.drafting.request import Prepared, build
+from veyra_contracts.drafting.request import Prepared, build, sample_group
 from veyra_contracts.drafting.schema import DraftResponse, problems
 from veyra_contracts.drafting.verify import verify
 
@@ -109,6 +109,18 @@ def draft_event(draft: Draft) -> dict[str, Any]:
         "state": draft.state,
         "source_id": draft.source_id,
     }
+
+
+def _template_from_entry(entry: dict[str, Any]) -> TemplateDraft:
+    raw = entry["template"]
+    return TemplateDraft(
+        id=raw["id"],
+        pattern=raw["pattern"],
+        class_=raw["class"],
+        activity=raw["activity"],
+        map=raw["map"],
+        unmapped=list(raw.get("unmapped", [])),
+    )
 
 
 def template_entry(prepared: Prepared, outcome: Outcome, template: TemplateDraft) -> dict[str, Any]:
@@ -299,6 +311,24 @@ def apply_edit(ctx: AppContext, db: DbSession, draft: Draft, edit: DraftEdit) ->
     if found:
         raise EditRejected("; ".join(found))
     raws = [base64.b64decode(s) for s in data.get("samples_b64", [])]
+    if data.get("kind") == "onboarding":
+        from veyra_common.hashing import template_sig as sig_of
+        from veyra_contracts.drafting.classify import peel as peel_sample
+
+        def skeleton(raw: bytes) -> tuple[tuple[str, str | None], ...]:
+            return sample_group(peel_sample(raw, data["layers"]).template_text)
+
+        wanted = next(
+            (
+                skeleton(raw)
+                for raw in raws
+                if sig_of(draft.contract_id or "", peel_sample(raw, data["layers"]).template_text)
+                == entry["template_sig"]
+            ),
+            None,
+        )
+        if wanted is not None:
+            raws = [raw for raw in raws if skeleton(raw) == wanted]
     prepared = build(
         raws,
         template_sig=entry["template_sig"],
@@ -310,6 +340,24 @@ def apply_edit(ctx: AppContext, db: DbSession, draft: Draft, edit: DraftEdit) ->
     templates[index] = rebuilt["templates"][0] | {"review": entry.get("review", [])}
     data |= {k: rebuilt[k] for k in ("yaml", "verification", "backtest")}
     data["templates"] = templates
+    if data.get("kind") == "onboarding":
+        drafted = [_template_from_entry(item) for item in templates]
+        yaml_text = new_contract(
+            contract_id=draft.contract_id or "contract",
+            tenant_id=draft.tenant_id,
+            source_id=draft.source_id or "",
+            layers=data["layers"],
+            templates=drafted,
+            timezone=ctx.cfg.drafter_timezone,
+            drafted_by="human",
+            draft_id=draft.draft_id,
+        )
+        all_raws = [base64.b64decode(s) for s in data.get("samples_b64", [])]
+        data["yaml"] = yaml_text
+        data["verification"] = verify(
+            yaml_text, all_raws, {item.id for item in drafted}, ctx=engine_context(ctx)
+        ).to_dict()
+        data["backtest"] = None
     draft.payload_json = json.dumps(data)
     draft.updated_at = ctx.now()
     db.add(draft)

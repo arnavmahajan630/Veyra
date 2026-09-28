@@ -23,6 +23,7 @@ from veyra_contracts.drafting.classify import Layers
 from veyra_contracts.drafting.request import Prepared
 from veyra_contracts.drafting.schema import DraftResponse
 from veyra_contracts.lint import PII_FIELDS
+from veyra_engine import extract_tokens
 
 TYPED = {"ip": ":ip", "ipv6": ":ip", "int": ":int", "port": ":int"}
 
@@ -51,6 +52,46 @@ class TemplateDraft:
 
 def _escape(text: str) -> str:
     return text.replace("\\", "\\\\").replace("<", "\\<").replace(">", "\\>")
+
+
+def _common_prefix(texts: list[str]) -> str:
+    prefix = texts[0]
+    for text in texts[1:]:
+        while not text.startswith(prefix):
+            prefix = prefix[:-1]
+            if not prefix:
+                return ""
+    return prefix
+
+
+def _divergent_tail(texts: list[str]) -> str:
+    """A tail that differs across samples (`312s` vs `319s`) becomes `<*>`."""
+    prefix = _common_prefix(texts)
+    suffix = _common_prefix([text[::-1] for text in texts])[::-1]
+    room = min(len(text) for text in texts) - len(prefix)
+    if len(suffix) > room:
+        suffix = suffix[len(suffix) - room :] if room else ""
+    return _escape(prefix) + "<*>" + _escape(suffix)
+
+
+def _tail(prepared: Prepared, cursor: int, consumed: int) -> str:
+    """Literal text after the last capture. A span the samples disagree on becomes a wildcard.
+
+    ``consumed`` is the index of the last token the pattern walked. Tokens after it
+    (stable words such as ``after``) stay inside this tail, so they are not dropped
+    when only the very end (``312s`` versus ``319s``) differs.
+    """
+    tail = prepared.text[cursor:]
+    tails = [tail]
+    for sample in prepared.samples[1:]:
+        tokens = extract_tokens(sample.template_text)
+        if [token.kind for token in tokens] != [token.kind for token in prepared.tokens]:
+            return _escape(tail)
+        start = tokens[consumed].end if consumed >= 0 else 0
+        tails.append(sample.template_text[start:])
+    if len(set(tails)) == 1:
+        return _escape(tail)
+    return _divergent_tail(tails)
 
 
 def _capture_name(path: str, key: str | None) -> str:
@@ -86,7 +127,8 @@ def generalize(
     mapping: dict[str, Any] = {}
     unmapped: list[str] = []
     cursor = 0
-    for token in prepared.tokens:
+    consumed = -1
+    for index, token in enumerate(prepared.tokens):
         path = by_token.get(token.id)
         if path is None and token.id not in prepared.variable:
             continue
@@ -107,7 +149,8 @@ def generalize(
         else:
             parts.append(_escape(literal) + "<*>")
         cursor = end
-    parts.append(_escape(text[cursor:]))
+        consumed = index
+    parts.append(_tail(prepared, cursor, consumed))
     for m in response.mappings:
         if m.const is not None:
             mapping[m.ocsf_path] = {"const": m.const}
@@ -166,7 +209,9 @@ def new_contract(
     return _dump(document)
 
 
-def add_template(active_yaml: str, template: TemplateDraft, *, drafted_by: str, draft_id: str) -> str:
+def add_template(
+    active_yaml: str, template: TemplateDraft, *, drafted_by: str, draft_id: str
+) -> str:
     """The next version of an existing contract with one more template (drift)."""
     document: dict[str, Any] = yaml.safe_load(active_yaml)
     document["version"] = int(document["version"]) + 1

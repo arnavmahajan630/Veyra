@@ -180,6 +180,12 @@ def seeded_repo(cfg: Settings) -> Path:
     target.mkdir(parents=True)
     for path in sorted(SEED_CONTRACTS.glob("*.yaml")):
         shutil.copy(path, target / path.name)
+    library = SEED_CONTRACTS.parent / "library"
+    if library.is_dir():
+        dest = cfg.contracts_repo / "library"
+        dest.mkdir(parents=True, exist_ok=True)
+        for path in sorted(library.glob("*.yaml")):
+            shutil.copy(path, dest / path.name)
     ensure_repo(cfg.contracts_repo)
     return cfg.contracts_repo
 

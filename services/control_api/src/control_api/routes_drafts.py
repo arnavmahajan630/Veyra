@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from sqlmodel import Session as DbSession
 
@@ -20,10 +21,11 @@ from control_api.drafts import (
     payload,
     start_drift_draft,
 )
+from control_api.onboarding import AnalyzeIn, analyze
 from control_api.registry import ACTORS, WRITERS
 from control_api.routes_contracts import SubmitIn, VersionDetail, submit_contract
 from control_api.routes_drift import load_item
-from control_api.tables import Draft
+from control_api.tables import Draft, Source
 
 router = APIRouter(tags=["drafts"])
 Mode = Literal["live", "cache", "live_then_cache", "heuristic"]
@@ -107,3 +109,20 @@ def submit_draft(
     db.commit()
     ctx.hub.publish("draft", draft_event(draft))
     return version
+
+
+@router.post("/onboarding/analyze")
+def onboarding_analyze(
+    body: AnalyzeIn,
+    principal: Principal = Depends(require(*WRITERS)),
+    ctx: AppContext = Depends(get_ctx),
+    db: DbSession = Depends(get_db),
+) -> StreamingResponse:
+    source = db.get(Source, body.source_id)
+    if source is None or not principal.can_see(source.tenant_id):
+        raise HTTPException(status_code=404, detail=f"source {body.source_id} not found")
+    return StreamingResponse(
+        analyze(ctx, principal, body),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache"},
+    )

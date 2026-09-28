@@ -59,6 +59,20 @@ class Prepared:
         return next(t for t in self.tokens if t.id == token_id)
 
 
+def sample_group(text: str) -> tuple[tuple[str, str | None], ...]:
+    """Lines that tokenize the same way are one template.
+
+    ``template_sig`` keeps literal usernames (IF-TEMPLATE-SIG), so three
+    ``session closed for <person>`` lines would otherwise be three groups.
+    Value-kind tokens are the variables; other tokens stay literal, so ``OK``
+    and ``FAILED`` remain different templates.
+    """
+    return tuple(
+        (token.kind, None if token.kind in VALUE_KINDS else token.value)
+        for token in extract_tokens(text)
+    )
+
+
 def variable_ids(tokens: list[Token], others: Sequence[list[Token]]) -> set[str]:
     variable = {t.id for t in tokens if t.kind in VALUE_KINDS}
     for other in others:
