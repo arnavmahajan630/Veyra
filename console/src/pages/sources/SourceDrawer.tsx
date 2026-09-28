@@ -7,6 +7,7 @@ import { Drawer } from "../../components/Drawer";
 import { formatEps } from "../../components/format";
 import { useToast } from "../../components/Toast";
 import { useI18n } from "../../i18n/i18n";
+import { SourceDriftList } from "./SourceDriftList";
 import type { SourceRow } from "./sourceRows";
 
 /** C1's writer roles; everyone else sees the keys but cannot change them. */
@@ -184,6 +185,8 @@ export function SourceDrawer({ row, onClose }: { row: SourceRow; onClose: () => 
       </section>
 
       <KeysSection sourceId={source.id} canManage={role !== undefined && KEY_WRITERS.has(role)} />
+
+      <SourceDriftList sourceId={source.id} />
 
       <nav aria-label={t("sources.drawer.links")} className="mt-6 flex flex-col gap-1">
         {source.contract_id ? (

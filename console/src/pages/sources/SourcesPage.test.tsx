@@ -2,7 +2,8 @@ import { screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
 import { describe, expect, it } from "vitest";
-import { SOURCES, healthAt } from "../../mocks/fixtures";
+import type { DriftItem } from "../../api/types";
+import { DRIFT, SOURCES, healthAt } from "../../mocks/fixtures";
 import { signInAs } from "../../mocks/handlers";
 import { renderWithProviders } from "../../test/render";
 import { server } from "../../test/server";
@@ -95,5 +96,22 @@ describe("SourcesPage", () => {
     const drawer = await screen.findByRole("dialog", { name: "Acme NGFW (DMZ)" });
     await within(drawer).findByText("No keys issued for this source.");
     expect(within(drawer).queryByRole("button", { name: "Issue a new key" })).toBeNull();
+  });
+
+  it("lists the source's open unknown message shapes with their counts", async () => {
+    const shape = { ...(DRIFT[0] as DriftItem), drift_id: "dr_fw_1", source_id: "src_fw_dmz_01", tenant_id: "t_ntro_core", state: "open" as const, count: 12, drain_template: "CEF:0|Acme|NGFW|<*>|<*>" };
+    server.use(
+      http.get("/api/control/drift", ({ request }) => {
+        const url = new URL(request.url);
+        const mine = url.searchParams.get("source_id") === "src_fw_dmz_01" && url.searchParams.get("state") === "open";
+        return HttpResponse.json(mine ? [shape] : []);
+      }),
+    );
+    renderPage();
+    await userEvent.click(await screen.findByText("Acme NGFW (DMZ)"));
+    const drawer = await screen.findByRole("dialog", { name: "Acme NGFW (DMZ)" });
+    const link = await within(drawer).findByRole("link", { name: "CEF:0|Acme|NGFW|<*>|<*>" });
+    expect(link).toHaveAttribute("href", "/drift/dr_fw_1");
+    expect(within(link.closest("li") as HTMLElement).getByText("12")).toBeInTheDocument();
   });
 });
