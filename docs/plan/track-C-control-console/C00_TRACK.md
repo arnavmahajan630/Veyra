@@ -1,7 +1,7 @@
 # Track C — Control plane & console (Person C)
 
 ```
-contracts: v1.3
+contracts: v1.4
 ```
 
 ## Mission

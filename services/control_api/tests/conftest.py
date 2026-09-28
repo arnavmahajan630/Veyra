@@ -1,12 +1,13 @@
 """Shared fixtures: settings rooted in tmp_path, a SQLite engine, a fake Kafka producer,
-a controllable clock, a seeded contracts-repo, and the whole app in-process."""
+a controllable clock, a seeded contracts-repo, fakes for evidence-api / raw Kafka / the
+lineage watcher (C2), and the whole app in-process."""
 
 from __future__ import annotations
 
 import json
 import os
 import shutil
-from collections.abc import Callable, Iterator
+from collections.abc import Callable, Iterator, Sequence
 from pathlib import Path
 from typing import Any
 
@@ -15,10 +16,12 @@ from control_api.app import create_app
 from control_api.context import AppContext, build_context, first_boot
 from control_api.contracts_repo import ensure_repo
 from control_api.db import init_db, make_engine
+from control_api.evidence import EventRef, EvidenceUnavailable
 from fastapi.testclient import TestClient
 from sqlalchemy.engine import Engine
 from sqlmodel import Session as DbSession
 
+from veyra_common.models import Envelope
 from veyra_common.settings import Settings
 
 START_NS = 1_790_000_000 * 1_000_000_000
@@ -59,6 +62,49 @@ class FakeProducer:
             if t == topic and key is not None:
                 out[key] = None if value is None else json.loads(value)
         return out
+
+
+class FakeIndex:
+    """evidence-api's template-events lookup, from a dict; ``down`` simulates an outage."""
+
+    def __init__(self) -> None:
+        self.events: dict[str, list[EventRef]] = {}
+        self.down = False
+
+    def template_events(self, sig: str, *, limit: int) -> list[EventRef]:
+        if self.down:
+            raise EvidenceUnavailable("evidence-api: connection refused")
+        return self.events.get(sig, [])[:limit]
+
+
+class FakeRawStore:
+    def __init__(self) -> None:
+        self.by_uid: dict[str, Envelope] = {}
+
+    def envelopes(self, refs: Sequence[EventRef]) -> list[Envelope]:
+        return [self.by_uid[r.event_uid] for r in refs if r.event_uid in self.by_uid]
+
+
+class FakeWatcher:
+    """Reports ``normalized`` events at once (``None`` = everything expected)."""
+
+    def __init__(self) -> None:
+        self.normalized: int | None = None
+        self.calls: list[str] = []
+
+    def watch(
+        self,
+        job_id: str,
+        *,
+        since_ms: int,
+        expected: int,
+        timeout_s: float,
+        on_progress: Callable[[int], None],
+    ) -> int:
+        self.calls.append(job_id)
+        count = expected if self.normalized is None else self.normalized
+        on_progress(count)
+        return count
 
 
 class FakeClock:
@@ -110,6 +156,21 @@ def clock() -> FakeClock:
 
 
 @pytest.fixture
+def index() -> FakeIndex:
+    return FakeIndex()
+
+
+@pytest.fixture
+def raw_store() -> FakeRawStore:
+    return FakeRawStore()
+
+
+@pytest.fixture
+def watcher() -> FakeWatcher:
+    return FakeWatcher()
+
+
+@pytest.fixture
 def seeded_repo(cfg: Settings) -> Path:
     if not SEED_CONTRACTS.is_dir():
         pytest.skip(f"needs the contracts repository checked out at {SEED_CONTRACTS.parent}")
@@ -123,9 +184,18 @@ def seeded_repo(cfg: Settings) -> Path:
 
 @pytest.fixture
 def ctx(
-    cfg: Settings, seeded_repo: Path, producer: FakeProducer, clock: FakeClock
+    cfg: Settings,
+    seeded_repo: Path,
+    producer: FakeProducer,
+    clock: FakeClock,
+    index: FakeIndex,
+    raw_store: FakeRawStore,
+    watcher: FakeWatcher,
 ) -> Iterator[AppContext]:
-    context = build_context(cfg, producer, clock=clock)
+    context = build_context(
+        cfg, producer, clock=clock, index=index, raw=raw_store, watcher=watcher,
+        spawn=lambda work: work(),  # replay jobs run inline in tests
+    )  # fmt: skip
     first_boot(context)
     yield context
     context.engine.dispose()
@@ -144,3 +214,23 @@ def login(client: TestClient) -> Callable[..., None]:
         assert response.status_code == 200, response.text
 
     return _login
+
+
+@pytest.fixture
+def as_user(client: TestClient, login: Callable[..., None]) -> Callable[[str], None]:
+    """Sign out, then sign in as ``email`` (the four-eyes tests switch users often)."""
+
+    def _as(email: str) -> None:
+        client.post("/auth/logout")
+        login(email)
+
+    return _as
+
+
+@pytest.fixture
+def authsrv_source(client: TestClient, as_user: Callable[[str], None]) -> None:
+    """src_authsrv_01 exists (Beat 2 creates it) and author@maha is signed in."""
+    from capi_helpers import SOURCE
+
+    as_user("author@maha")
+    assert client.post("/sources", json=SOURCE).status_code == 201

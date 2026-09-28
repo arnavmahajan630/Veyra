@@ -2,7 +2,7 @@
 
 ```
 track: C   owner: C   status: todo
-contracts: v1.3
+contracts: v1.4
 depends_on: [C2, A4 (template_sig, mask, extract_tokens)]   unblocks: [CP3, C4, Beat 4]
 consumes: [IF-DLQ, IF-TEMPLATE-SIG, IF-API-CONTROL (/internal/drift)]
 provides: [drift items, library packs, library_match()]
@@ -39,20 +39,29 @@ Notice new message shapes automatically (v1 §11.1) and turn them into reviewabl
 **`library_match(samples) -> [{contract_id, tier1_pct, tier2_pct}]`:** compile each library contract, run the samples through `veyra_engine`, and return the ranked matches. A match counts when `tier1_pct ≥ 0.8`. Used by C4's onboarding analyze: a library match skips LLM drafting and proposes "use library pack X (cloned into your tenant)".
 
 ## Tasks
-- [ ] 1. The drift worker: grouping, Drain3 per source with persistence, emission, debounce, force flush.
-- [ ] 2. Drift tables + endpoints + SSE + auto-close of covered sigs.
-- [ ] 3. Library packs with samples and golden tests (run by `make contracts-test`).
-- [ ] 4. `library_match()` + tests (sshd samples → `linux_sshd`, ~100%; authsrv samples → no match).
+- [x] 1. The drift worker: grouping, Drain3 per source with persistence, emission, debounce, force flush.
+- [x] 2. Drift tables + endpoints + SSE + auto-close of covered sigs.
+- [x] 3. Library packs with samples and golden tests (run by `make contracts-test`).
+- [x] 4. `library_match()` + tests (sshd samples → `linux_sshd`, ~100%; authsrv samples → no match).
 - [ ] 5. Integration: push T3 ×8 → a drift item within 10 s, with `drain_template` like `user=<*> FAILED login from <*> via <*> attempts:<*>`.
 
 ## Acceptance criteria
 - [ ] AC1: T3 ×8 → exactly one drift item for `src_authsrv_01` with count 8 and 5 distinct masked samples, created in < 10 s.
-- [ ] AC2: After `authsrv@2` is promoted, the item auto-resolves.
-- [ ] AC3: Restarting the drift worker loses no groups (Drain3 state + counts are recovered; counts are rebuilt from the DLQ with the consumer group reset to the retention window on first boot, or persisted; choose one and document it).
-- [ ] AC4: `library_match` identifies the sshd and CEF samples correctly and rejects authsrv.
+- [x] AC2: After `authsrv@2` is promoted, the item auto-resolves.
+- [x] AC3: Restarting the drift worker loses no groups (Drain3 state + counts are recovered; counts are rebuilt from the DLQ with the consumer group reset to the retention window on first boot, or persisted; choose one and document it).
+- [x] AC4: `library_match` identifies the sshd and CEF samples correctly and rejects authsrv.
 
 ## Settings
 `VEYRA_DRIFT_MIN_CLUSTER`, `VEYRA_DRIFT_AUTODRAFT` (1 in the demo), `VEYRA_DRIFT_DEBOUNCE_MS` (2000).
 
 ## Implementation notes
-_(filled after execution)_
+<!-- synced from C3 --> Code complete on branch `c2-c3-registry-drift`; report in `reports/C3.md`.
+- **AC1:** grouping and upsert pass standalone; task 5's live timing (< 10 s) is still to run.
+- **AC3 strategy:** persisted counts (`data/state/drift/groups.json`) beside the Drain3 state, with offsets committed after each checkpoint.
+- **Drain3:** 0.9.11, masking `key=`/`key:` values and IPv4s first.
+- **Resolution:** an item resolves when the **active** version covers it, not the canary.
+- **Payload:** `/internal/drift` also carries `related_sigs` and `sample_event_uids`.
+- **Library packs:** in `library/` with tenant `t_library`: linux_sshd (all 24 corpus shapes), acme_ngfw_cef, generic_cef, generic_leef, nginx_access, 76 goldens, all tier 1.
+- **Generic packs** map only the fields every event carries.
+- **Reset:** control-api's `/internal/reset` also calls the drift worker's `/reset`.
+- **Open:** whether the seeded `linux_sshd` should become the library version.

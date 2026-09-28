@@ -12,7 +12,7 @@ SHELL := /bin/bash
 .DEFAULT_GOAL := help
 .PHONY: help up down ps logs restart build topics wipe-data test test-int lint fmt typecheck ci \
         test-int-slow plan-check wazuh-certs wazuh-init wazuh-logtest console-dev console-build \
-        contracts-repo-init \
+        contracts-repo-init contracts-test \
         edge-render edge-check edge-test \
         e2e-smoke llm-warm \
         bench-llm bench-throughput demo-reset demo-preflight demo-stage doctor env-print
@@ -110,6 +110,9 @@ contracts-repo-init: ## give the contract registry ($(CONTRACTS_REPO)) its git h
 	    git -C $(CONTRACTS_REPO) -c user.email=veyra@localhost -c user.name="VEYRA seed" \
 	      commit -q -m "seed: library contracts"; }; } && \
 	  git -C $(CONTRACTS_REPO) tag seed && echo "$(CONTRACTS_REPO) tagged seed"; fi
+
+contracts-test: ## compile + lint + golden-test every contract in the registry ($(CONTRACTS_REPO))
+	$(UV) run python -m veyra_contracts.check $(CONTRACTS_REPO)
 
 # Host-side tools talk to Kafka's EXTERNAL listener; inside compose it is kafka:9092.
 HOST_ENV := VEYRA_KAFKA_BOOTSTRAP=$$(grep -E '^VEYRA_KAFKA_BOOTSTRAP_HOST=' $(RUNTIME_ENV) | cut -d= -f2)

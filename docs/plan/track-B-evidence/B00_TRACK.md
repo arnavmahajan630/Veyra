@@ -1,7 +1,7 @@
 # Track B — Evidence, lineage, demo engine (Person B)
 
 ```
-contracts: v1.3
+contracts: v1.4
 ```
 
 ## Mission

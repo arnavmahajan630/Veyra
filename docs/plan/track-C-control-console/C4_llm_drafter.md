@@ -2,7 +2,7 @@
 
 ```
 track: C   owner: C   status: todo
-contracts: v1.3
+contracts: v1.4
 depends_on: [C2, C3, A4]     unblocks: [CP3, C6, Beats 2 and 4]
 consumes: [IF-LLM-DRAFT, IF-ENGINE-LIB (extract_tokens, mask, peel, provenance_check, backtest), IF-OCSF-SUBSET]
 provides: [drafts, POST /onboarding/analyze, GET/PATCH /drafts/*, make bench-llm, make llm-warm]
@@ -103,6 +103,13 @@ For each model in `--models a,b,c`, report:
 Output: `reports/C4-bench-<machine>.md`. The profile's `LLM_MODEL` is set from the winner (`03_INFRA_PROFILES.md` §4).
 
 `make llm-warm`: load the model (`keep_alive` 30m) and run one tiny request.
+
+<!-- synced from C2/C3 --> What exists for C4 to build on:
+- drift items carry `sample_event_uids`, which fetch real bytes through control-api's event index and raw store;
+- `veyra_contracts.library.library_match` and the packs in the registry's `library/`;
+- `registry.submit(…, draft_id=)` (the submitter is the author) and `registry.backtest(…, samples=)`;
+- the `drafts` table and the drift states `drafting`/`draft_ready`.
+- A mapped field an event lacks makes that event tier 2, so the drafter should map only tokens present in every sample.
 
 ## Tasks
 - [ ] 1. Request builder + alignment + masking; unit tests on T3 samples.

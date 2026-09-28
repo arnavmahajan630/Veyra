@@ -2,7 +2,7 @@
 
 ```
 track: A   owner: A   status: todo
-contracts: v1.3
+contracts: v1.4
 depends_on: [S0, A1 (envelope parity vectors)]      unblocks: [CP3, Beat 2–3]
 consumes: [IF-CONTROL (apikey:*, source:*), IF-TOPICS, IF-NAMING]
 provides: [IF-ENVELOPE (gateway producer)]

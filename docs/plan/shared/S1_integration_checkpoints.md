@@ -2,7 +2,7 @@
 
 ```
 track: shared   owner: A+B+C   status: todo
-contracts: v1.3
+contracts: v1.4
 ```
 
 Each checkpoint is a script plus a human walkthrough. The first run of each checkpoint is done by all three together. Record every run in `reports/CP<n>-<date>.md` and in the status board's checkpoint log.

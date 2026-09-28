@@ -74,6 +74,29 @@ def contract_message(
     return ContractMessage.model_validate(payload)
 
 
+def contract_items(
+    db: DbSession, contract: Contract, published_at: str
+) -> list[tuple[str, BaseModel]]:
+    """The ``contract:<id>`` message for a contract, or nothing.
+
+    A contract with no active version publishes nothing, even while it has a canary:
+    IF-CONTROL's ``compiled`` (the active version) is required. Its first version reaches
+    the data plane when it is promoted (decision TC16).
+    """
+    if contract.active_version is None:
+        return []
+    active = db.get(ContractVersion, (contract.id, contract.active_version))
+    if active is None:
+        return []
+    candidate = (
+        db.get(ContractVersion, (contract.id, contract.canary_version))
+        if contract.canary_version is not None
+        else None
+    )
+    message = contract_message(active, candidate, published_at)
+    return [(control_key("contract", contract.id), message)]
+
+
 def control_messages(
     db: DbSession, docs: SeedDocs, published_at: str
 ) -> list[tuple[str, BaseModel]]:
@@ -85,27 +108,41 @@ def control_messages(
     for key in db.exec(active_keys).all():
         out.append((control_key("apikey", key.key_id), apikey_message(key)))
     for contract in db.exec(select(Contract).order_by(col(Contract.id))).all():
-        if contract.active_version is None:
-            continue
-        active = db.get(ContractVersion, (contract.id, contract.active_version))
-        if active is None:
-            continue
-        candidate = (
-            db.get(ContractVersion, (contract.id, contract.canary_version))
-            if contract.canary_version is not None
-            else None
-        )
-        message = contract_message(active, candidate, published_at)
-        out.append((control_key("contract", contract.id), message))
+        out.extend(contract_items(db, contract, published_at))
     out.extend((control_key("vocab", v.name), v) for v in docs.vocab)
     out.extend((control_key("enrich", e.name), e) for e in docs.enrich)
     out.append((control_key("routes"), docs.routes))
     return out
 
 
+def published_keys(db: DbSession, docs: SeedDocs) -> set[str]:
+    """Every key this database has put on ``control``, revoked keys included."""
+    keys = {control_key("source", s.id) for s in db.exec(select(Source)).all()}
+    keys |= {control_key("apikey", k.key_id) for k in db.exec(select(ApiKey)).all()}
+    keys |= {
+        control_key("contract", c.id)
+        for c in db.exec(select(Contract)).all()
+        if c.active_version is not None
+    }
+    keys |= {control_key("vocab", v.name) for v in docs.vocab}
+    keys |= {control_key("enrich", e.name) for e in docs.enrich}
+    return keys | {control_key("routes")}
+
+
 def republish_all(
-    db: DbSession, publisher: ControlPublisher, docs: SeedDocs, published_at: str
+    db: DbSession,
+    publisher: ControlPublisher,
+    docs: SeedDocs,
+    published_at: str,
+    *,
+    stale: set[str] | frozenset[str] = frozenset(),
 ) -> int:
-    """C1: run at startup and after reset, so ``control`` is always complete."""
+    """C1: run at startup and after reset, so ``control`` is always complete.
+
+    ``stale`` are keys an earlier state published; any this state no longer holds get a
+    tombstone, so a reset really forgets the contracts, sources and keys made since seed.
+    """
     items: list[tuple[str, BaseModel | None]] = list(control_messages(db, docs, published_at))
+    current = {key for key, _ in items}
+    items.extend((key, None) for key in sorted(stale - current))
     return publisher.publish_many(items)

@@ -100,6 +100,32 @@ class ContractVersion(SQLModel, table=True):
     git_commit: str | None = None
     created_at: str
     draft_id: str | None = None
+    # C2 (migrations 1-5)
+    lint_json: str | None = None
+    approved_at: str | None = None
+    promoted_by: str | None = None
+    promoted_at: str | None = None
+    retired_reason: str | None = None
+
+
+class ContractTransition(SQLModel, table=True):
+    """One step of a version's lifecycle, for the console's timeline (C6).
+
+    ``action`` is what happened: submitted, tested, canary, approved, promoted, retired,
+    rolled_back. ``from_state``/``to_state`` are equal for an approval (no state change).
+    """
+
+    __tablename__ = "contract_transitions"
+
+    id: int | None = Field(default=None, primary_key=True)
+    contract_id: str = Field(index=True)
+    version: int
+    action: str
+    from_state: str | None = None
+    to_state: str
+    actor: str
+    at: str
+    reason: str = ""
 
 
 class Draft(SQLModel, table=True):
@@ -129,6 +155,10 @@ class DriftItem(SQLModel, table=True):
     samples_masked_json: str = "[]"
     state: str = "open"
     draft_id: str | None = None
+    # C3 (migrations 9-11)
+    sample_event_uids_json: str = "[]"
+    resolved_by: str | None = None  # "<contract>@<version>" whose active version covers it
+    updated_at: str | None = None
 
 
 class ReplayJob(SQLModel, table=True):
@@ -143,6 +173,10 @@ class ReplayJob(SQLModel, table=True):
     normalized: int = 0
     params_json: str = "{}"
     created_at: str
+    # C2 (migrations 6-8)
+    created_by: str | None = None
+    finished_at: str | None = None
+    detail: str = ""
 
 
 class AuditRow(SQLModel, table=True):

@@ -2,7 +2,7 @@
 
 ```
 track: A   owner: A   status: done
-contracts: v1.3
+contracts: v1.4
 depends_on: [A3]                  unblocks: [CP2, C4 (tokens), B6 (highlights)]
 consumes: [IF-ENGINE-LIB, IF-ULPF, IF-OCSF-SUBSET]
 provides: [tier 3 per IF-ULPF, provenance_check(), extract_tokens() final, mask() final]

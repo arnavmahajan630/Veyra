@@ -2,7 +2,7 @@
 
 ```
 track: C   owner: C   status: todo
-contracts: v1.3
+contracts: v1.4
 depends_on: [C2, C3, C4, C5]     unblocks: [CP3, Beats 2 and 4]
 consumes: [IF-API-CONTROL, IF-API-EVIDENCE (backtest examples, template events), IF-LLM-DRAFT, IF-ULPF]
 provides: [/onboard, /contracts, /contracts/:id, /drift, /drift/:id (draft review), /delivery, /audit]
@@ -79,6 +79,13 @@ A single page with a progressive flow, not a multi-page wizard: each section unl
 - A filterable table: actor, role, action, target, time, detail.
 - Export CSV.
 - Platform/auditor roles see all; tenant users see their tenant only.
+
+<!-- synced from C2/C3 --> SSE payloads to consume (IF-API-CONTROL v1.4):
+- `contract` `{id, version, state, action}`;
+- `replay` `{job_id, contract_id, status, total, published, normalized, detail}`;
+- `drift` `{drift_id, source_id, template_sig, count, state, created}`.
+
+`GET /replay?contract_id=` lists jobs. Four-eyes refusals are 403 with a message containing `four-eyes`.
 
 ## Tasks
 - [ ] 1. The `DraftReview` component (compact + full), with edit, hover-thread and row states.

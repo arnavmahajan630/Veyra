@@ -2,7 +2,7 @@
 
 ```
 track: B   owner: B   status: todo
-contracts: v1.3
+contracts: v1.4
 depends_on: [B1, B3]     unblocks: [CP2, B5, B6, C5 (overview/sources data), C2 (raw fetch for replay/backtest)]
 consumes: [IF-CH-SCHEMA, IF-SEGMENT, IF-MERKLE, IF-SIGNED-ROOT, IF-KEYPROVIDER]
 provides: [IF-API-EVIDENCE]

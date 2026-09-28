@@ -2,14 +2,30 @@
 
 ``SQLModel.metadata.create_all`` builds the current schema, so a fresh database is
 stamped at the latest version. Each entry changes tables that already exist in an older
-database. Append only; never edit or reorder an entry.
+database; new tables need no entry, because ``create_all`` adds missing tables. One SQL
+statement per entry. Append only; never edit or reorder an entry.
 """
 
 from __future__ import annotations
 
 from sqlalchemy.engine import Engine
 
-MIGRATIONS: list[tuple[int, str]] = []
+MIGRATIONS: list[tuple[int, str]] = [
+    # C2: contract lifecycle bookkeeping
+    (1, "ALTER TABLE contract_versions ADD COLUMN lint_json VARCHAR"),
+    (2, "ALTER TABLE contract_versions ADD COLUMN approved_at VARCHAR"),
+    (3, "ALTER TABLE contract_versions ADD COLUMN promoted_by VARCHAR"),
+    (4, "ALTER TABLE contract_versions ADD COLUMN promoted_at VARCHAR"),
+    (5, "ALTER TABLE contract_versions ADD COLUMN retired_reason VARCHAR"),
+    # C2: replay jobs
+    (6, "ALTER TABLE replay_jobs ADD COLUMN created_by VARCHAR"),
+    (7, "ALTER TABLE replay_jobs ADD COLUMN finished_at VARCHAR"),
+    (8, "ALTER TABLE replay_jobs ADD COLUMN detail VARCHAR NOT NULL DEFAULT ''"),
+    # C3: drift inbox
+    (9, "ALTER TABLE drift_items ADD COLUMN sample_event_uids_json VARCHAR NOT NULL DEFAULT '[]'"),
+    (10, "ALTER TABLE drift_items ADD COLUMN resolved_by VARCHAR"),
+    (11, "ALTER TABLE drift_items ADD COLUMN updated_at VARCHAR"),
+]
 
 
 def latest_version() -> int:
