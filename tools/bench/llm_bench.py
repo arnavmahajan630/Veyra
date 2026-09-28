@@ -1,8 +1,8 @@
 """LLM drafting bench (C4): accuracy, provenance, validity and latency per model.
 
-    python tools/bench/llm_bench.py build
-    python tools/bench/llm_bench.py run --models qwen2.5:3b,llama3.2:3b --machine laptop
-    python tools/bench/llm_bench.py warm | seed
+python tools/bench/llm_bench.py build
+python tools/bench/llm_bench.py run --models qwen2.5:3b,llama3.2:3b --machine laptop
+python tools/bench/llm_bench.py warm | seed
 """
 
 from __future__ import annotations

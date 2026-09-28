@@ -87,9 +87,9 @@ def test_disagreements_with_the_heuristic_are_flagged_for_review(tmp_path: Path)
             {"ocsf_path": "dst_endpoint.ip", "token": "k6"},
         ]
     }
-    outcome = Drafter(
-        mode="live", cache=DraftCache(tmp_path), client=FakeModel(swapped)
-    ).draft(t3())
+    outcome = Drafter(mode="live", cache=DraftCache(tmp_path), client=FakeModel(swapped)).draft(
+        t3()
+    )
     assert sorted(outcome.review) == ["dst_endpoint.ip", "src_endpoint.ip"]
 
 
