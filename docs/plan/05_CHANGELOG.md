@@ -17,6 +17,16 @@ ACTION REQUIRED:
 
 ---
 
+## 2026-09-29 — C4 — CLARIFICATION  (contracts v1.4, no bump)
+TYPE: CLARIFICATION
+What:     PR #5 (`c4-drafter`) is on `main`. C4 stays in-progress: the live p95 bench and the
+          two-model report (AC2, AC5) wait for a GPU (TC40).
+Why:      The status board and reports/C4.md still described C4 as unmerged.
+IDs:      none
+Files patched: 06_STATUS_BOARD.md, reports/C4.md.
+ACTION REQUIRED:
+  - (none)
+
 ## 2026-09-29 — C5 — VERSION-PIN  (contracts v1.4)
 TYPE: VERSION-PIN
 What:     Console toolchain (C5), exact versions in `console/package-lock.json`: vite 7.3.6, react 19.3.0,
@@ -104,7 +114,7 @@ Why:      The section already named the routes. The bodies were the Plan 5 shape
 IDs:      IF-API-CONTROL
 Files patched: 02_CONTRACTS.md (IF-API-CONTROL).
 ACTION REQUIRED:
-  - [ ] @C C5/C6 should call these bodies, not the old `{tenant_id, source_name, transport}` analyze sketch.
+  - [ ] @C C5/C6 should call these bodies, not the old `{tenant_id, source_name, transport}` analyze sketch.  <!-- C5: calls none of these routes; C6 still open -->
 
 ## 2026-09-28 23:55 — C2/C3 — CLARIFICATION + DECISION  (contracts v1.4, no bump)
 TYPE: CLARIFICATION
