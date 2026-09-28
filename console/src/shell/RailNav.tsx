@@ -6,12 +6,18 @@ import type { NavItem } from "./nav";
 
 const STORAGE_KEY = "veyra.nav";
 
+/** Below this width (a 1280×720 or 1024×768 projector) the rail starts collapsed, so pages keep their width. */
+export const WIDE_SCREEN_PX = 1280;
+
 function rememberedExpanded(): boolean {
+  let stored: string | null = null;
   try {
-    return localStorage.getItem(STORAGE_KEY) !== "collapsed";
+    stored = localStorage.getItem(STORAGE_KEY);
   } catch {
-    return true;
+    // Storage unavailable: fall back to the screen width.
   }
+  if (stored) return stored !== "collapsed";
+  return typeof window === "undefined" || window.innerWidth >= WIDE_SCREEN_PX;
 }
 
 export function RailNav({ items }: { items: readonly NavItem[] }) {

@@ -1,5 +1,5 @@
 import { Link, useNavigate } from "react-router";
-import { useOverview } from "../../api/queries";
+import { useOverview, useSources } from "../../api/queries";
 import type { OverviewRoute, OverviewSource } from "../../api/types";
 import { DataTable, type Column } from "../../components/DataTable";
 import { ageMs, formatAge, formatEps, parseTime } from "../../components/format";
@@ -11,7 +11,7 @@ import { TIERS, percent, tierShares } from "../../components/tiers";
 import { useI18n } from "../../i18n/i18n";
 import { useTenantScope } from "../../shell/tenant";
 import { PipelineFlow } from "./PipelineFlow";
-import { SERIES_LENGTH, useTierSeries } from "./useTierSeries";
+import { BUCKET_COUNT, useTierBuckets } from "./useTierSeries";
 
 function RouteRow({ route }: { route: OverviewRoute }) {
   const { t } = useI18n();
@@ -34,7 +34,10 @@ export default function OverviewPage() {
   const { t } = useI18n();
   const { scope } = useTenantScope();
   const overview = useOverview(scope);
-  const series = useTierSeries(overview.data);
+  const series = useTierBuckets(overview.data, scope);
+  // Names come from control-api; until they load (or for a source it doesn't know) the id stands in.
+  const sourceList = useSources(scope);
+  const names = new Map(sourceList.data?.map((s) => [s.id, s.name]));
   const navigate = useNavigate();
 
   if (overview.isPending) return <p className="p-6 text-ink-2">{t("common.loading")}</p>;
@@ -56,8 +59,15 @@ export default function OverviewPage() {
     {
       id: "source",
       header: t("sources.col.source"),
-      cell: (s) => <code className="font-mono text-meta">{s.source_id}</code>,
-      sortValue: (s) => s.source_id,
+      cell: (s) => (
+        <>
+          <div>{names.get(s.source_id) ?? s.source_id}</div>
+          {names.has(s.source_id) ? (
+            <code className="font-mono text-meta text-ink-2">{s.source_id}</code>
+          ) : null}
+        </>
+      ),
+      sortValue: (s) => names.get(s.source_id) ?? s.source_id,
     },
     { id: "zone", header: t("sources.col.zone"), cell: (s) => s.zone, sortValue: (s) => s.zone },
     { id: "tiers", header: t("sources.col.tiers"), cell: (s) => <MixBar counts={s.tiers} /> },
@@ -96,7 +106,7 @@ export default function OverviewPage() {
         <h2 id="overview-tiers" className="mb-2 text-lead font-semibold">
           {t("overview.tierMix")}
         </h2>
-        <TierBar series={series} capacity={SERIES_LENGTH} />
+        <TierBar series={series} capacity={BUCKET_COUNT} />
         <ul className="mt-2 flex flex-wrap gap-x-6 gap-y-1">
           {TIERS.map((tier) => (
             <li key={tier} className="flex items-center gap-2">

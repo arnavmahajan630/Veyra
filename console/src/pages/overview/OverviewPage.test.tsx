@@ -33,9 +33,25 @@ describe("OverviewPage", () => {
     expect(within(flow).getAllByText("15 events/s")).toHaveLength(4);
     expect(within(flow).getByText("900/min")).toBeInTheDocument();
     expect(flow.querySelectorAll("[data-stage]")).toHaveLength(8);
+    expect(within(flow).getByText("40 segments")).toBeInTheDocument();
+    expect(flow.querySelector('[data-stage="wazuh"]')).toHaveTextContent("Lag 0.4 s");
+  });
+
+  it("names each source in the strip, with its id beneath", async () => {
+    renderPage();
+    const strip = await screen.findByRole("region", { name: "Sources" });
+    expect(await within(strip).findByText("Acme NGFW (DMZ)")).toBeInTheDocument();
+    expect(within(strip).getByText("src_fw_dmz_01")).toBeInTheDocument();
+  });
+
+  it("opens the tier bar full (90 ten-second columns) when the server sends its history", async () => {
+    const { container } = renderPage();
+    await screen.findByRole("figure", { name: "Pipeline" });
+    expect(container.querySelectorAll("g[data-sample]")).toHaveLength(90);
   });
 
   it("updates when a new snapshot lands in the cache (the SSE path)", async () => {
+    server.use(http.get("/api/lineage/overview", () => HttpResponse.json(overviewAt(0))));
     const { client, container } = renderPage();
     await screen.findByRole("figure", { name: "Pipeline" });
     act(() => {
@@ -51,7 +67,7 @@ describe("OverviewPage", () => {
     expect(screen.getByText(/Last signed root w_1790496000/)).toBeInTheDocument();
     expect(screen.getByText("Anchored in immudb")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Chain intact" })).toHaveAttribute("href", "/evidence");
-    expect(screen.getByText("Lag 0.4 s")).toBeInTheDocument();
+    expect(within(screen.getByRole("region", { name: "Delivery" })).getByText("Lag 0.4 s")).toBeInTheDocument();
   });
 
   it("opens the source drawer from the sources strip", async () => {

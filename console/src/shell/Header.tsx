@@ -34,11 +34,11 @@ export function Header({ me }: { me: Me }) {
   const partner = me.demo_mode ? DEMO_PARTNER[me.user.email] : undefined;
 
   return (
-    <header className="flex h-14 shrink-0 items-center gap-6 border-b border-rule px-6">
+    <header className="flex h-14 shrink-0 items-center gap-6 whitespace-nowrap border-b border-rule px-6">
       <span className="text-lead font-semibold">VEYRA</span>
       {canChoose ? (
         <label className="flex items-center gap-2 text-meta text-ink-2">
-          {t("header.tenant")}
+          <span className="sr-only xl:not-sr-only">{t("header.tenant")}</span>
           <select value={scope ?? ""} onChange={(event) => choose(event.target.value || null)} className={SELECT}>
             <option value="">{t("header.allTenants")}</option>
             {tenants.data?.map((tenant) => (
@@ -51,10 +51,10 @@ export function Header({ me }: { me: Me }) {
       ) : (
         <code className="font-mono text-meta text-ink-2">{me.tenant}</code>
       )}
-      <div className="ml-auto flex items-center gap-5">
+      <div className="ml-auto flex items-center gap-4 xl:gap-5">
         <StatusDot tone={connection.tone} label={t(connection.key)} />
         <label className="flex items-center gap-2 text-meta text-ink-2">
-          {t("header.language")}
+          <span className="sr-only xl:not-sr-only">{t("header.language")}</span>
           <select value={lang} onChange={(event) => setLang(event.target.value as Lang)} className={SELECT}>
             {Object.entries(LANGUAGES).map(([code, name]) => (
               <option key={code} value={code}>

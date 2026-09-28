@@ -1,8 +1,11 @@
 import { http, HttpResponse, sse } from "msw";
 import type { ApiKeyRow, KeyCard, Me } from "../api/types";
-import { DEMO_PASSWORD, KEYS, SOURCES, TENANTS, USERS, healthAt, overviewAt } from "./fixtures";
+import { DEMO_PASSWORD, KEYS, SOURCES, TENANTS, USERS, healthAt, overviewAt, tierHistoryAt } from "./fixtures";
 
 const LIVE_TICK_MS = 1_000;
+
+/** Lineage streams opened so far in this tab; only the newest one ticks. */
+let lineageStreams = 0;
 
 interface MockState {
   me: Me | null;
@@ -11,9 +14,33 @@ interface MockState {
   keys: Map<string, ApiKeyRow[]>;
 }
 
+// A real session is a cookie and survives a reload; the mock keeps the signed-in email in
+// sessionStorage for the same effect (mock mode only; the tests clear it).
+const SESSION_KEY = "veyra.mock.session";
+
+function rememberedUser(): Me | null {
+  try {
+    const email = typeof sessionStorage === "undefined" ? null : sessionStorage.getItem(SESSION_KEY);
+    return email ? (USERS[email] ?? null) : null;
+  } catch {
+    return null;
+  }
+}
+
+function setMe(me: Me | null): void {
+  state.me = me;
+  try {
+    if (typeof sessionStorage === "undefined") return;
+    if (me) sessionStorage.setItem(SESSION_KEY, me.user.email);
+    else sessionStorage.removeItem(SESSION_KEY);
+  } catch {
+    // Storage unavailable: the session lasts until the page reloads.
+  }
+}
+
 function freshState(): MockState {
   return {
-    me: null,
+    me: rememberedUser(),
     tick: 0,
     issued: 0,
     keys: new Map(Object.entries(KEYS).map(([source, rows]) => [source, [...rows]])),
@@ -23,18 +50,25 @@ function freshState(): MockState {
 const state = freshState();
 
 export function resetMockState(): void {
+  setMe(null);
   Object.assign(state, freshState());
 }
 
 export function signInAs(email: string): Me {
   const me = USERS[email];
   if (!me) throw new Error(`no mock user ${email}`);
-  state.me = me;
+  setMe(me);
   return me;
 }
 
 function visible(tenantId: string): boolean {
   return state.me !== null && (state.me.tenant === "*" || state.me.tenant === tenantId);
+}
+
+/** The tenant a lineage request sees: platform users choose with ?tenant=, everyone else is pinned. */
+function scopeOf(request: Request): string | null {
+  const asked = new URL(request.url).searchParams.get("tenant");
+  return state.me?.tenant === "*" ? asked : (state.me?.tenant ?? null);
 }
 
 const unauthorized = () => HttpResponse.json({ detail: "sign in required" }, { status: 401 });
@@ -47,12 +81,12 @@ const httpHandlers = [
     if (!me || body.password !== DEMO_PASSWORD) {
       return HttpResponse.json({ detail: "wrong email or password" }, { status: 401 });
     }
-    state.me = me;
+    setMe(me);
     return HttpResponse.json(me);
   }),
 
   http.post("/api/control/auth/logout", () => {
-    state.me = null;
+    setMe(null);
     return new HttpResponse(null, { status: 204 });
   }),
 
@@ -63,7 +97,7 @@ const httpHandlers = [
     const { email } = (await request.json()) as { email: string };
     const me = USERS[email];
     if (!me) return notFound(`demo user ${email}`);
-    state.me = me;
+    setMe(me);
     return HttpResponse.json(me);
   }),
 
@@ -126,11 +160,15 @@ const httpHandlers = [
     return notFound("key");
   }),
 
-  http.get("/api/lineage/overview", () =>
-    state.me ? HttpResponse.json(overviewAt(state.tick)) : unauthorized(),
-  ),
+  http.get("/api/lineage/overview", ({ request }) => {
+    if (!state.me) return unauthorized();
+    const scope = scopeOf(request);
+    return HttpResponse.json({ ...overviewAt(state.tick, Date.now(), scope), tier_history: tierHistoryAt(scope) });
+  }),
 
-  http.get("/api/lineage/sources", () => (state.me ? HttpResponse.json(healthAt()) : unauthorized())),
+  http.get("/api/lineage/sources", ({ request }) =>
+    state.me ? HttpResponse.json(healthAt(Date.now(), scopeOf(request))) : unauthorized(),
+  ),
 ];
 
 // MSW refuses to build SSE handlers where EventSource does not exist (jsdom). The unit
@@ -139,9 +177,18 @@ function streamHandlers() {
   if (typeof EventSource === "undefined") return [];
   return [
     sse<{ overview: string }>("/api/lineage/stream", ({ client, request }) => {
+      const scope = scopeOf(request);
+      // MSW tells a handler neither that the page closed its stream (the abort signal stays
+      // quiet) nor that a write failed (it only logs). A tab holds one lineage stream at a
+      // time, so a newer stream, or signing out, retires this one's timer.
+      const generation = ++lineageStreams;
       const timer = setInterval(() => {
+        if (generation !== lineageStreams || !state.me) {
+          clearInterval(timer);
+          return;
+        }
         state.tick += 1;
-        client.send({ event: "overview", data: JSON.stringify(overviewAt(state.tick)) });
+        client.send({ event: "overview", data: JSON.stringify(overviewAt(state.tick, Date.now(), scope)) });
       }, LIVE_TICK_MS);
       request.signal.addEventListener("abort", () => clearInterval(timer));
     }),

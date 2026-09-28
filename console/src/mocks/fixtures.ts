@@ -1,5 +1,5 @@
 // The pre-demo world of 04_DEMO_SCRIPT §2, as the APIs would return it.
-import type { ApiKeyRow, Me, Overview, Source, SourceHealth, Tenant, TierCounts } from "../api/types";
+import type { ApiKeyRow, Me, Overview, OverviewSource, Source, SourceHealth, Tenant, TierCounts } from "../api/types";
 
 export const DEMO_PASSWORD = "veyra-demo";
 const CREATED = "2026-09-27T09:00:00.000000000Z";
@@ -71,18 +71,30 @@ export function tiers(t1: number, t2: number, t3: number, t4: number): TierCount
   return { "1": t1, "2": t2, "3": t3, "4": t4 };
 }
 
-/** A deterministic overview for SSE tick `tick`: numbers move a little every tick. */
-export function overviewAt(tick: number, now: number = Date.now()): Overview {
+const tenantOf = (sourceId: string) => SOURCES.find((s) => s.id === sourceId)?.tenant_id;
+
+/** Unregistered traffic lands as tier 3 but belongs to no source, so only the all-tenants view counts it. */
+const UNREGISTERED_TIER3 = 120;
+
+/**
+ * A deterministic overview for SSE tick `tick`, seen from `tenant` (null = every tenant).
+ * Numbers move a little every tick; totals are the visible sources' counts.
+ */
+export function overviewAt(tick: number, now: number = Date.now(), tenant: string | null = null): Overview {
   const iso = new Date(now).toISOString();
+  const all: OverviewSource[] = [
+    { source_id: "src_fw_dmz_01", zone: "dmz", eps: 6 + (tick % 2), tiers: tiers(3600 + tick * 6, 20, 0, 2), last_seen: iso },
+    { source_id: "src_lnx_core_07", zone: "core", eps: 9 + (tick % 3), tiers: tiers(5400 + tick * 7, 20 + tick, 0, 4), last_seen: iso },
+  ];
+  const sources = tenant ? all.filter((s) => tenantOf(s.source_id) === tenant) : all;
+  const sum = (tier: keyof TierCounts) => sources.reduce((total, s) => total + s.tiers[tier], 0);
+  const busy = sources.length > 0;
   return {
-    eps_1m: 15 + (tick % 4),
-    totals_by_tier: tiers(9000 + tick * 13, 40 + tick, 120 + (tick % 3), 6),
-    sources: [
-      { source_id: "src_fw_dmz_01", zone: "dmz", eps: 6 + (tick % 2), tiers: tiers(3600 + tick * 6, 20, 0, 2), last_seen: iso },
-      { source_id: "src_lnx_core_07", zone: "core", eps: 9 + (tick % 3), tiers: tiers(5400 + tick * 7, 20 + tick, 0, 4), last_seen: iso },
-    ],
+    eps_1m: tenant ? sources.reduce((total, s) => total + s.eps, 0) : 15 + (tick % 4),
+    totals_by_tier: tiers(sum("1"), sum("2"), sum("3") + (tenant ? 0 : UNREGISTERED_TIER3 + (tick % 3)), sum("4")),
+    sources,
     routes: [
-      { route_id: "wazuh_main", delivered_per_min: 900 + tick, failed_per_min: 0, lag_s: 0.4, breaker: "closed" },
+      { route_id: "wazuh_main", delivered_per_min: busy ? 900 + tick : 0, failed_per_min: 0, lag_s: busy ? 0.4 : null, breaker: "closed" },
       { route_id: "partner_masked", delivered_per_min: 0, failed_per_min: 0, lag_s: null, breaker: "closed" },
     ],
     vault: {
@@ -95,9 +107,22 @@ export function overviewAt(tick: number, now: number = Date.now()): Overview {
   };
 }
 
-export function healthAt(now: number = Date.now()): SourceHealth[] {
+/**
+ * 15 minutes of per-second tier counts for the HTTP overview, so the tier bar opens full.
+ * Around minute 9 an unknown message shape bursts in as tier 3, as in the drift beat.
+ */
+export function tierHistoryAt(tenant: string | null = null): TierCounts[] {
+  const visible = tenant ? SOURCES.filter((s) => s.tenant_id === tenant).length : SOURCES.length;
+  if (visible === 0) return Array.from({ length: 900 }, () => tiers(0, 0, 0, 0));
+  return Array.from({ length: 900 }, (_, i) => {
+    const burst = i >= 540 && i < 600 ? 4 + (i % 3) : 0;
+    return tiers(12 + (i % 4), i % 6 === 0 ? 1 : 0, burst + (!tenant && i % 9 === 0 ? 1 : 0), i % 120 === 0 ? 1 : 0);
+  });
+}
+
+export function healthAt(now: number = Date.now(), tenant: string | null = null): SourceHealth[] {
   const seen = new Date(now - 2_000).toISOString();
-  return [
+  const rows: SourceHealth[] = [
     {
       source_id: "src_fw_dmz_01",
       tenant_id: "t_ntro_core",
@@ -123,4 +148,5 @@ export function healthAt(now: number = Date.now()): SourceHealth[] {
       clock_skew_p50_ms: 140,
     },
   ];
+  return tenant ? rows.filter((r) => r.tenant_id === tenant) : rows;
 }

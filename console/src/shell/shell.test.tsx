@@ -79,7 +79,8 @@ describe("the shell", () => {
     signInAs("admin@veyra");
     renderShell("/contracts/acme_ngfw_cef");
     await pageTitle("Contracts");
-    expect(screen.getByText("This page arrives in C6.")).toBeInTheDocument();
+    expect(screen.getByText("This page isn't built yet.")).toBeInTheDocument();
+    expect(document.querySelector('[data-phase="C6"]')).not.toBeNull();
   });
 
   it("redirects an unknown path to the Overview", async () => {

@@ -22,6 +22,8 @@ export function TierBar({ series, capacity }: TierBarProps) {
       aria-label={t("overview.tierMix")}
       viewBox={`0 0 ${width} ${HEIGHT}`}
       preserveAspectRatio="none"
+      // Stretched columns anti-alias into pale seams; crisp edges keep the bar solid.
+      shapeRendering="crispEdges"
       className="h-24 w-full bg-rule/30"
     >
       {series.map((counts, index) => {

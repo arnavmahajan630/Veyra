@@ -96,6 +96,12 @@ export interface Overview {
   routes: OverviewRoute[];
   vault: VaultStatus;
   as_of: string;
+  /**
+   * Events per tier per second over the last 15 minutes, oldest first, ending at `as_of`.
+   * Optional: the HTTP response should carry it so the tier bar opens full; SSE ticks may
+   * omit it, and the console then adds one sample per tick.
+   */
+  tier_history?: TierCounts[];
 }
 
 export interface SourceHealth {

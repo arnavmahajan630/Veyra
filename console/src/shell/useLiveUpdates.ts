@@ -2,6 +2,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { queryKeys } from "../api/queries";
 import type { Overview } from "../api/types";
 import { useToast } from "../components/Toast";
+import { recordOverview } from "../pages/overview/useTierSeries";
 import { useI18n } from "../i18n/i18n";
 import { useSSE, type EventSourceLike } from "../sse/useSSE";
 import { useTenantScope } from "./tenant";
@@ -33,7 +34,12 @@ export function useLiveUpdates(createSource?: (url: string) => EventSourceLike):
 
   useSSE(
     lineageUrl,
-    { overview: (data) => client.setQueryData<Overview>(queryKeys.overview(scope), data as Overview) },
+    {
+      overview: (data) => {
+        client.setQueryData<Overview>(queryKeys.overview(scope), data as Overview);
+        recordOverview(scope, data as Overview);
+      },
+    },
     createSource,
   );
 
