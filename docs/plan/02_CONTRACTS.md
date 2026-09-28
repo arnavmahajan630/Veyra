@@ -36,7 +36,7 @@ Exact digests of the pulled images are recorded in `reports/S0.md`.
 | LLM model (laptop) | 3–4B instruct, Q4, fits in 4 GB VRAM (e.g. `qwen2.5:3b`, or better per C4 bench) | `qwen2.5:3b` (Q4_K_M, ~1.9 GB). The host also carries `qwen2.5:7b-instruct`, which does **not** fit 4 GB VRAM; C4 benchmarks before any change |
 | OCSF schema | latest stable 1.x | 1.9.0 |
 | Node | ~~20 or 22 LTS~~ 25.x, build only (decision D17) | 25.2.1 / npm 11.7.0 <!-- synced from S0 --> |
-| React / Vite / Tailwind | current majors | pinned by C5 when `console/package.json` is created |
+| React / Vite / Tailwind | current majors | react 19.3.0, vite 7.3.6, tailwindcss 4.3.3, react-router 7.18.4, @tanstack/react-query 5.104.0, typescript 5.9.3; tests: vitest 4.1.11, jsdom 27.4.0, msw 2.15.0, @playwright/test 1.63.0. `console/package-lock.json` is the authority <!-- synced from C5 --> |
 | Caddy | 2.x | `caddy:2.11.4-alpine` |
 | Drain3 | latest | 0.9.11 (pulls jsonpickle 1.5.1, cachetools 4.2.1) <!-- synced from C3 --> |
 | google-re2 | latest | 1.1.20251105 |

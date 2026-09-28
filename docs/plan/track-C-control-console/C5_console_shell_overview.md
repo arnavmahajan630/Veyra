@@ -1,7 +1,7 @@
 # C5 — Console shell, design system, RawHighlighter, Overview, Sources
 
 ```
-track: C   owner: C   status: todo
+track: C   owner: C   status: in-progress
 contracts: v1.4
 depends_on: [S0, B1 (query fixtures), B4 (OpenAPI), C1 (OpenAPI)]   unblocks: [CP2, B6, B7 (panel), C6]
 consumes: [IF-API-CONTROL, IF-API-EVIDENCE, IF-API-DEMO, IF-ULPF]
@@ -127,27 +127,36 @@ Sources ─── Edge / Gateway ─── Kafka ─┬─ Normalizer ─── 
 <!-- synced from C2 --> `POST /auth/demo-switch {email}` (demo mode) and `GET /sources/{id}/keys` now exist in control-api (IF-API-CONTROL v1.4).
 
 ## Tasks
-- [ ] 1. Vite + TS + Tailwind scaffold; tokens; self-hosted fonts; contrast check script.
+- [x] 1. Vite + TS + Tailwind scaffold; tokens; self-hosted fonts; contrast check script.
   <!-- synced from S0 --> Toolchain is **Node 25.2.1 / npm 11.7.0** (IF-VERSIONS, decision D17),
   which is what the demo laptop and the CI `console` job both use. Put `"engines": {"node": ">=25"}`
   in `console/package.json`, commit `package-lock.json` (CI runs `npm ci`), and build to
   `console/dist/` — Caddy already serves that path read-only (see `Caddyfile`, created in S0).
   If a Vite or Tailwind major refuses Node 25, switch the build to a `node:22` container
   per D17's revisit note instead of changing the host toolchain.
-- [ ] 2. Typed API clients from OpenAPI (fixtures mode via MSW for offline UI work).
-- [ ] 3. The shell: login, nav, header, demo user switcher, toasts, SSE hook, hotkey registry, i18n.
-- [ ] 4. The shared components listed above, with a `/dev/components` route showing each in states (development only).
-- [ ] 5. The Overview page.
-- [ ] 6. The Sources page + drawer + silent-source alert.
-- [ ] 7. Playwright smoke: login → Overview live numbers change within 3 s → Sources shows the NTRO sources.
-- [ ] 8. The design note in the report (the default-avoidance review).
+- [x] 2. Typed API clients from OpenAPI (fixtures mode via MSW for offline UI work).
+  <!-- synced from C5 --> The clients and the MSW fixtures mode are done; the types are hand-written
+  (TC14) until control-api and B4 publish OpenAPI. `make console-types` is still to do.
+- [x] 3. The shell: login, nav, header, demo user switcher, toasts, SSE hook, hotkey registry, i18n.
+- [x] 4. The shared components listed above, with a `/dev/components` route showing each in states (development only).
+- [x] 5. The Overview page.
+- [x] 6. The Sources page + drawer + silent-source alert.
+- [x] 7. Playwright smoke: login → Overview live numbers change within 3 s → Sources shows the NTRO sources.
+- [x] 8. The design note in the report (the default-avoidance review).
 
 ## Acceptance criteria
 - [ ] AC1: Overview numbers and the tier bar update live within 2 s of traffic changes (human observes during CP2).
 - [ ] AC2: First load < 1 s on the laptop from the Caddy static build; no network requests leave localhost (checked in the browser devtools network tab, offline).
-- [ ] AC3: `RawHighlighter` + `ThreadOverlay` work on the dev route with ASCII, JSON-escaped and Devanagari samples.
-- [ ] AC4: The EN/HI toggle switches the shell and Overview labels.
-- [ ] AC5: The demo user switcher swaps `author@maha` ⇄ `approver@veyra` in one click.
+- [x] AC3: `RawHighlighter` + `ThreadOverlay` work on the dev route with ASCII, JSON-escaped and Devanagari samples.
+- [x] AC4: The EN/HI toggle switches the shell and Overview labels.
+- [x] AC5: The demo user switcher swaps `author@maha` ⇄ `approver@veyra` in one click.
 
 ## Implementation notes
-_(filled after execution)_
+<!-- synced from C5 --> Built on branch `c5-console-shell` (2026-09-29). Full detail in [reports/C5.md](../reports/C5.md).
+
+- **Stack as pinned:** Vite 7.3.6, React 19.3.0, react-router 7.18.4, TanStack Query 5.104.0, Tailwind 4.3.3, vitest 4.1.11, jsdom 27.4.0, TypeScript 5.9.3, MSW 2.15.0, Playwright 1.63.0, lucide-react 1.48.0. These are the newest majors whose `engines` accept Node 25 (TC12). npm 10.8 crashes on jsdom's optional `canvas` peer; use npm 11.
+- **Mock mode is the default workbench:** `make console-mock` runs every page against MSW fixtures, and the 114 unit tests use the same handlers in Node. The production build compiles the mock world out.
+- **Dev against the stack:** `make console-dev` proxies `/api` from Vite (:5173) to Caddy (:8080), so the browser sees one origin (TC13, D16).
+- **Fonts:** `@fontsource/mukta` and `@fontsource/jetbrains-mono`, bundled by Vite (no `public/fonts/`).
+- **AC1 and AC2** pass against the mock (numbers move within 3 s; no outside URLs in the bundle). Their live halves wait for B1/B4's `/lineage/overview`, `/lineage/sources` and `/lineage/stream` (CP2).
+- **The drawer's "recent DLQ template sigs with counts"** is a link to Drift filtered by source; C6 can fill it from `GET /drift`.

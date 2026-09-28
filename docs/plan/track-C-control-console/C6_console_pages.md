@@ -87,6 +87,15 @@ A single page with a progressive flow, not a multi-page wizard: each section unl
 
 `GET /replay?contract_id=` lists jobs. Four-eyes refusals are 403 with a message containing `four-eyes`.
 
+<!-- synced from C5 --> C5 is built (`console/`, report [C5.md](../reports/C5.md)). Build each page under
+`src/pages/<name>/` and swap its `PlaceholderPage` route in `shell/AppShell.tsx` (nav entries with
+`phase: "C6"` in `shell/nav.ts`). Reuse `DataTable`, `Drawer`, `ConfirmDialog`, `useToast`, `api`/`queryKeys`,
+and test with `renderWithProviders` (`src/test/render.tsx`) plus `signInAs`/`resetMockState`
+(`src/mocks/handlers.ts`), adding MSW handlers for every endpoint you call. Every string goes into both
+`en.json` and `hi.json` (a parity test enforces it). `useLiveUpdates` already toasts `contract`, `drift`
+and finished `replay` events; add `drift`/`replay` query invalidation there. The Sources drawer's "recent DLQ
+template sigs with counts" is still a link to `/drift?source=<id>`; fill it from `GET /drift`.
+
 ## Tasks
 - [ ] 1. The `DraftReview` component (compact + full), with edit, hover-thread and row states.
   <!-- synced from S0 --> Same toolchain as C5: Node 25.2.1 (IF-VERSIONS, D17). No separate setup.
