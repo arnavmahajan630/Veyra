@@ -2,7 +2,7 @@
 
 ```
 track: B   owner: B   status: todo
-contracts: v1.3
+contracts: v1.4
 depends_on: [S0]     unblocks: [CP1, B3]
 consumes: [IF-ENVELOPE, IF-TOPICS]
 provides: [IF-SEGMENT, IF-CHAIN (implementation), IF-VAULT-INDEX, IF-KEYPROVIDER (local)]

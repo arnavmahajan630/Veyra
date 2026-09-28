@@ -17,6 +17,69 @@ ACTION REQUIRED:
 
 ---
 
+## 2026-09-28 21:00 — A2 — CONTRACT-ADDITIVE  (contracts v1.3 → v1.4)
+TYPE: CONTRACT-ADDITIVE
+What:     IF-ENVELOPE gains one optional field, `hec_meta`, set only by the gateway's HEC event
+          endpoint: `{"time": float, "host": str, "source": str, "sourcetype": str, "index": str}`,
+          each optional, `null` for every other ingestion path. It holds what a pushing client
+          *claimed* about its event. It is deliberately **not** merged into the envelope proper:
+          `hec_meta.time` is neither `received_time` (when VEYRA read the bytes) nor the event time
+          (which the engine derives from the bytes; `ulpf.time.source` says which). The normalizer
+          surfaces the block under `unmapped.hec_meta` and maps nothing from it.
+Why:      A shipper's own timestamp and sourcetype are evidence about the sender and are useful when
+          an event is unparseable — but promoting a client-supplied time into the event time would
+          let a misconfigured or hostile sender rewrite history, so the two are kept apart.
+IDs:      IF-ENVELOPE (additive), IF-NORM-EVENT (`unmapped` content only; the schema is unchanged)
+Files patched: 02_CONTRACTS.md (IF-ENVELOPE example + rule, version header v1.4), every plan file's
+          `contracts:` header (25 files), packages/veyra_common/fixtures/envelope.json,
+          track-A-dataplane/A2_ingest_gateway.md, reports/A2.md, 06_STATUS_BOARD.md.
+ACTION REQUIRED:
+  - [ ] @B B1's `raw_events` builder can take `hec_meta` as columns (or one JSON column) if the
+        console wants to show "what the shipper claimed"; ignoring it is also fine — the field is
+        optional and every syslog envelope has it `null`. Nothing breaks either way, because
+        `veyra_common.models.Envelope` parses old and new envelopes identically.
+  - [ ] @C C1's key card already matches what the gateway serves (`keys.py` hard-codes port 8088 and
+        the `Splunk` scheme, and `/v1/batch` is the batch URL) — no change needed, but
+        `services/ingest_gateway/API.md` is now the copy to embed rather than a hand-written snippet.
+
+## 2026-09-28 21:00 — A2 — VERSION-PIN  (contracts v1.4)
+TYPE: VERSION-PIN
+What:     `python-multipart>=0.0.20` added to `services/ingest_gateway`. FastAPI needs it for
+          multipart form parsing, which is what `POST /v1/batch` takes (a file upload). It is the
+          only new runtime dependency A2 introduces.
+Why:      IF-VERSIONS says every pin is logged. Batch upload is an A2 acceptance criterion, and a
+          multipart endpoint without it fails at import time, not at request time.
+IDs:      IF-VERSIONS
+Files patched: services/ingest_gateway/pyproject.toml, uv.lock.
+ACTION REQUIRED:
+  - [ ] @B @C Nothing to do; `uv sync` picks it up.
+
+## 2026-09-28 21:00 — A2 — CLARIFICATION  (contracts v1.4)
+TYPE: CLARIFICATION
+What:     Two small shared-code changes A2 needed, both behaviour-preserving for existing services:
+          (1) the `control`-topic follower moved to `veyra_common.control.ControlReader` — the loop,
+          the high-watermark readiness rule and the tombstone handling now live in one place, with
+          `normalizer/control.py` keeping only its engine-specific state. A3's control tests pass
+          unmodified, which is the evidence it was a move and not a rewrite. The gateway is the third
+          consumer of `control`; the router (A6) will be the fourth and should use the same class.
+          (2) `compose/docker-compose.yml`'s `ingest-gateway` now runs as
+          `${VEYRA_UID}:${VEYRA_GID}`, like control-api and immudb. It has to: control-api writes
+          `data/keys/api_pepper` mode 0400 as the invoking user, and without the pepper the gateway
+          cannot authenticate anybody.
+Why:      Three copies of the readiness rule would be three chances to reintroduce the "ready with an
+          empty state" bug; and the pepper permission problem is invisible until the first request,
+          where it looks like a bad key rather than a deployment fault.
+IDs:      none (internal structure and compose)
+Files patched: packages/veyra_common/src/veyra_common/control.py (new),
+          services/normalizer/src/normalizer/control.py, compose/docker-compose.yml.
+ACTION REQUIRED:
+  - [ ] @B The compose line above is in your file — review it. Any service that reads
+        `data/keys/*` needs the same treatment.
+  - [ ] @C When C1 issues a key it must be reachable by the gateway within seconds: the gateway
+        follows `control` and needs no restart, which C1's revoke path already satisfies (it
+        republishes the key with `status="revoked"` rather than tombstoning it — please keep that,
+        A2's AC2 test depends on it).
+
 ## 2026-09-28 18:00 — A4 — CLARIFICATION + REQUEST @B  (contracts v1.3, no bump)
 TYPE: REQUEST
 What:     `Settings.ch_url` (default `""`) added to `veyra_common.settings`, because

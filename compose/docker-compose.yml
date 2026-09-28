@@ -187,6 +187,9 @@ services:
     container_name: veyra-ingest-gateway
     profiles: ["a2"]
     command: ["python", "-m", "ingest_gateway"]
+    # Reads data/keys/api_pepper, which control-api writes mode 0400 as the invoking user, so this
+    # service has to be that same user or it cannot authenticate anybody (A2).
+    user: "${VEYRA_UID:-1000}:${VEYRA_GID:-1000}"
     ports: ["8088:8088"]
 
   normalizer:

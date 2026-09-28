@@ -121,6 +121,16 @@ def main() -> int:
         help="also publish this contract file (in tests/contracts) as the canary candidate",
     )
     parser.add_argument("--api-key", action="store_true", help="also issue an API key for authsrv")
+    parser.add_argument(
+        "--quota",
+        type=int,
+        help="quota_eps for the issued key (default: the profile's gateway default)",
+    )
+    parser.add_argument(
+        "--revoke-key",
+        metavar="KEY_ID",
+        help="republish this key as revoked, the way control-api does on POST /keys/<id>/revoke",
+    )
     parser.add_argument("--list", action="store_true", help="print what would be published")
     parser.add_argument("--dry-run", action="store_true")
     args = parser.parse_args()
@@ -189,11 +199,27 @@ def main() -> int:
             source_id="src_authsrv_01",
             tenant_id="t_maha_power",
             status="active",
-            quota_eps=cfg.gateway_default_quota_eps,
+            quota_eps=args.quota or cfg.gateway_default_quota_eps,
             created_at=now(),
         )
         messages.append((control_key("apikey", key_id), key.model_dump(mode="json")))
         print(f"issued key {key_id} with secret {secret} (shown once, like the real flow)")
+
+    if args.revoke_key:
+        # Revocation is NOT a tombstone: control-api republishes the same key with status=revoked,
+        # so a gateway can log which key it refused. Only the fields the gateway reads matter.
+        revoked = ApiKeyMessage(
+            key_id=args.revoke_key,
+            secret_sha256="0" * 64,
+            pepper_id="p1",
+            source_id="src_authsrv_01",
+            tenant_id="t_maha_power",
+            status="revoked",
+            quota_eps=0,
+            created_at=now(),
+        )
+        messages.append((control_key("apikey", args.revoke_key), revoked.model_dump(mode="json")))
+        print(f"revoking key {args.revoke_key}")
 
     if args.list or args.dry_run:
         for key, value in messages:

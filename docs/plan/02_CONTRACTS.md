@@ -1,6 +1,6 @@
 # 02 — CONTRACTS (shared interfaces)
 
-**Contract version: v1.3**. Bump rules are in §0. Every section has an ID (`IF-*`). Phase files reference these IDs. When you change a section, grep for its ID across the plan folder and update every file that references it.
+**Contract version: v1.4**. Bump rules are in §0. Every section has an ID (`IF-*`). Phase files reference these IDs. When you change a section, grep for its ID across the plan folder and update every file that references it.
 
 ---
 
@@ -146,7 +146,8 @@ The normalizer and archiver use transactions (`transactional.id = <service>-<ins
   "framing": {"method": "datagram", "truncated": false, "parts": 1},
   "custody": "realtime",
   "auth": {"method": "ip_map", "key_id": null},
-  "salt": null
+  "salt": null,
+  "hec_meta": null
 }
 ```
 
@@ -159,6 +160,13 @@ Rules:
 - `auth.method` is one of: `ip_map`, `api_key`, `mtls`, `none`.
 - Unregistered sources: `tenant_id="unassigned"`, `source_id="unregistered"`, `vendor="unregistered"`. Topic `raw.unregistered`.
 - The Kafka key is `source_id`. When a source is flagged as a heavy hitter (`IF-CONTROL` source flag `salt_buckets>1`), the key is `source_id#<n>` and `salt=n`.
+- `hec_meta` (**added v1.4, optional, A2**) carries the Splunk-HEC fields a pushing client sent
+  alongside the event: `{"time": float, "host": str, "source": str, "sourcetype": str, "index": str}`,
+  each optional, `null` when the event did not arrive over `POST /services/collector/event`. These are
+  the **sender's claims**, never facts VEYRA established: `hec_meta.time` must not be read as
+  `received_time` (when VEYRA saw the bytes) nor as the event time (which the engine derives from the
+  bytes, with `ulpf.time.source` saying which). The normalizer surfaces the block under
+  `unmapped.hec_meta` and maps nothing from it.
 - Production target: Protobuf (`packages/veyra_common/proto/envelope.proto`, written in S0 for the slide). The demo wire format is JSON.
 
 ---

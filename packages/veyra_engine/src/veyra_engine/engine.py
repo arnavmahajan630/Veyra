@@ -231,9 +231,11 @@ class Engine:
                 parse_path=["crash"],
             )
             result.timings_us["total"] = elapsed
+            _carry_sender_metadata(result, envelope)
             return result
 
         result.timings_us.setdefault("total", monotonic_us() - started)
+        _carry_sender_metadata(result, envelope)
         return result
 
     def _normalize(
@@ -847,6 +849,23 @@ def _decode_slice(chunk: bytes, encoding: str) -> str:
         return chunk.decode(encoding)
     except (UnicodeDecodeError, LookupError):
         return chunk.decode("utf-8", errors="replace")
+
+
+def _carry_sender_metadata(result: NormResult, envelope: Envelope) -> None:
+    """Surface the gateway's HEC block in ``unmapped`` (IF-ENVELOPE ``hec_meta``, A2).
+
+    These are the *sender's* claims — its own idea of the time, host and sourcetype — so they are
+    preserved verbatim and never promoted into a mapped field. In particular the HEC ``time`` must
+    not become the event time: that is derived from the bytes, and ``ulpf.time.source`` says which.
+    Applied for every tier, because a tier 4 event is exactly when an operator wants to see what the
+    shipper claimed.
+    """
+    meta = getattr(envelope, "hec_meta", None)
+    if meta is None:
+        return
+    claims = meta.model_dump(exclude_none=True)
+    if claims:
+        result.ocsf.setdefault("unmapped", {})["hec_meta"] = claims
 
 
 def provenance_check(event: dict[str, Any], raw_bytes: bytes) -> list[Check]:

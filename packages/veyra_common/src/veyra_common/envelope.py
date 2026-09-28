@@ -27,6 +27,7 @@ from veyra_common.models.envelope import (
     Envelope,
     Framing,
     FramingMethod,
+    HecMeta,
     Transport,
     Zone,
 )
@@ -64,6 +65,7 @@ def stamp(
     event_uid: str | None = None,
     received_time: str | None = None,
     max_event_bytes: int | None = None,
+    hec_meta: HecMeta | None = None,
 ) -> Envelope:
     """Stamp ``raw`` into an IF-ENVELOPE.
 
@@ -98,6 +100,7 @@ def stamp(
         custody=custody,
         auth=Auth(method=auth_method, key_id=auth_key_id),
         salt=salt,
+        hec_meta=hec_meta,
     )
 
 

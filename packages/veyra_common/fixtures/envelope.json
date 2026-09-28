@@ -11,6 +11,7 @@
     "parts": 2,
     "truncated": false
   },
+  "hec_meta": null,
   "listener": "dmz-tcp",
   "peer_ip": "172.20.0.21",
   "peer_port": 40112,

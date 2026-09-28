@@ -2,7 +2,7 @@
 
 ```
 track: A   owner: A   status: todo
-contracts: v1.3
+contracts: v1.4
 depends_on: [A3 (minimal part), A5 (revisions)]   unblocks: [CP1 (minimal), CP3, S2 numbers slide]
 consumes: [IF-NORM-EVENT, IF-ROUTES, IF-CONTROL (routes), IF-KEYPROVIDER (hmac key), IF-WAZUH]
 provides: [IF-RECEIPT, wazuh/ rules and config, bench reports]
@@ -91,6 +91,10 @@ Output: `reports/A6-bench-<machine>.md` with a table and the machine spec. These
 - [ ] 6. (minimal) Integration test: event → sink line → Wazuh API `GET /alerts`-style query or indexer search finds it (automated, via the indexer REST API).
 - [ ] 7. Saved objects export; `WAZUH=remote` mode (route sink switches to syslog_tcp to `VEYRA_WAZUH_REMOTE_HOST`; the remote manager has a `<remote>` syslog config and the same rules; document it in `wazuh/REMOTE.md`).
 - [ ] 8. Throughput bench + report (laptop now; workstation if procured).
+  <!-- synced from A2 --> There are two ingestion paths to bench now, and they cost different things:
+  the edge (Vector, syslog) and the gateway (HTTP, per-request `flush` with an ack timeout). The
+  gateway's ceiling is dominated by how many events a request carries, since durability is paid per
+  request — bench it with realistic batch sizes rather than one event per POST, and say which was used.
 
 ## Acceptance criteria
 - [ ] AC1: 6 tier-1 sshd failures from the same IP within 60 s → alert 100111 in Wazuh (human looks + indexer query).

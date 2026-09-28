@@ -2,7 +2,7 @@
 
 ```
 track: B   owner: B   status: todo
-contracts: v1.3
+contracts: v1.4
 depends_on: [B4, C5 (shell, design system, RawHighlighter)]   unblocks: [CP3, Beat 5]
 consumes: [IF-API-EVIDENCE, IF-ULPF (field_offsets, derived_fields), C5 design tokens/components]
 provides: [console routes /lineage, /lineage/:uid, /evidence]

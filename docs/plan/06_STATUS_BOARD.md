@@ -6,11 +6,11 @@ Update your row after every phase (status, one line, report link). Status values
 |---|---|---|---|---|---|
 | S0 Bootstrap | all (run by A) | done | v1.1 | AC1–AC7 pass; stack idles at 2.89 GiB; 77 unit + 5 integration tests green. LLM runs on CPU (53–91 s/draft) — GPU unresolved, @C | [S0.md](reports/S0.md) |
 | A1 Edge collectors (Vector) | A | done | v1.2 | 5/5 ACs pass; UUIDv7 + byte-accurate raw_len; T3 joins to one envelope; 60 s Kafka outage lossless; inventory reload verified | [A1.md](reports/A1.md) |
-| A2 Ingest gateway (HTTP push) | A | todo | v1.3 | | |
+| A2 Ingest gateway (HTTP push) | A | done | v1.4 | 5/5 ACs; HEC raw/event/batch with per-source keys from `control`, revocation live in <2 s, quotas enforced, 503-never-200 durability; envelopes byte-identical to the edge's parity vectors | [A2.md](reports/A2.md) |
 | A3 Engine core + normalizer service | A | done | v1.3 | 5/5 ACs; 2732 EPS/core tier 1; byte-exact offsets incl. inside JSON; purity + cross-process determinism proven; transactional normalizer survives kill -9 | [A3.md](reports/A3.md) |
 | A4 Tier 3, offsets, robustness | A | done | v1.3 | 5/5 ACs; unregistered sources now tier 3 with observables + byte offsets (goldens moved 4 -> 3); 50k fuzz cases, 0 exceptions; provenance_check enforces both halves; crash-loop journal survives process death | [A4.md](reports/A4.md) |
-| A5 Shadow, replay, revisions | A | todo | v1.3 | | |
-| A6 Router + Wazuh + throughput bench | A | todo | v1.3 | | |
+| A5 Shadow, replay, revisions | A | todo | v1.4 | | |
+| A6 Router + Wazuh + throughput bench | A | todo | v1.4 | | |
 | B1 Lineage indexer + ClickHouse | B | todo | v1.0 | | |
 | B2 Archiver + vault segments | B | todo | v1.0 | | |
 | B3 Integrity: Merkle, signing, immudb | B | todo | v1.0 | | |
@@ -34,6 +34,7 @@ Update your row after every phase (status, one line, report link). Status values
 
 | Checkpoint | Date | Result | Notes |
 |---|---|---|---|
+| A2 | 2026-09-28 | PASS | Push ingest is live: an API key issued on `control` lets a shipper POST to :8088 and land a stamped envelope on `raw.custom`. CP3's onboarding beat now has a real endpoint; still needs C1's key issuance UI (C) and A5. |
 | A4 | 2026-09-28 | PASS | Tier 3 live end to end: a messy unregistered line reaches `norm.uncategorized` as tier 3 with both IPs, the user and offsets that slice the raw bytes after Kafka. CP2 now needs A5 + A6 (A), B2-B4 (B), C2-C3 (C). |
 | A3 | 2026-09-27 | PASS | Engine + normalizer live: syslog -> raw.linux -> norm.iam tier 1 with real Kafka coordinates. CP1 now needs only minimal A6 from track A, plus B1 + B2 (B) and C1 (C). |
 | A1 | 2026-09-27 | PASS | Edge is live on both zones. CP1 still needs A3 + minimal A6 (A), B1 + B2 (B), C1 (C). |

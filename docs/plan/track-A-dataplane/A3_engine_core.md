@@ -2,7 +2,7 @@
 
 ```
 track: A   owner: A   status: done
-contracts: v1.3
+contracts: v1.4
 depends_on: [S0]                  unblocks: [CP1, A4, A5, A6, C2 (golden tests), B1]
 consumes: [IF-ENVELOPE, IF-CONTROL (contract:*, vocab:*, enrich:*), IF-CONTRACT-COMPILED, IF-OCSF-SUBSET, IF-TOPICS]
 provides: [IF-ENGINE-LIB, IF-NORM-EVENT, IF-ULPF, IF-LINEAGE, IF-DLQ, IF-TEMPLATE-SIG]

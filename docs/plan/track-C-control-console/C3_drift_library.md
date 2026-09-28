@@ -2,7 +2,7 @@
 
 ```
 track: C   owner: C   status: todo
-contracts: v1.3
+contracts: v1.4
 depends_on: [C2, A4 (template_sig, mask, extract_tokens)]   unblocks: [CP3, C4, Beat 4]
 consumes: [IF-DLQ, IF-TEMPLATE-SIG, IF-API-CONTROL (/internal/drift)]
 provides: [drift items, library packs, library_match()]

@@ -1,26 +1,25 @@
-"""Follow the compacted ``control`` topic and keep the engine's contract set current.
+"""Keep the engine's contract set current from the compacted ``control`` topic.
 
-Every consumer of ``control`` works the same way (IF-CONTROL): read the topic from the
-beginning at startup to rebuild state, then keep following it. Two details matter here:
+The loop, the watermark-based readiness rule and the tombstone semantics live in
+:class:`veyra_common.control.ControlReader`, because the gateway (A2) and the router (A6) follow the
+same topic and the readiness rule is the part that is expensive to get wrong. What stays here is the
+normalizer's own half:
 
-* **readiness** is not signalled until that first full read completes, because a normalizer with
-  an empty contract set would turn every event into tier 4 and quietly poison the pipeline —
-  the failure mode S1 lists first under "events on raw.* but nothing on norm.*";
-* **swaps are atomic**: a new contract set is built, then handed to ``Engine.load`` in one call,
-  so no event is ever normalized against half a set.
+* **what to keep** — contracts, candidates, sources, vocab and enrich tables;
+* **swaps are atomic** — a new contract set is built, then handed to ``Engine.load`` in one call, so
+  no event is ever normalized against half a set;
+* **readiness matters more here than anywhere else** — a normalizer serving with an empty contract
+  set turns every event into tier 4 and quietly poisons the pipeline.
 """
 
 from __future__ import annotations
 
-import json
 import logging
 import threading
-import time
 from dataclasses import dataclass, field
 from typing import Any
 
-from confluent_kafka import KafkaError, KafkaException
-
+from veyra_common.control import ControlReader
 from veyra_common.kafka import make_consumer
 from veyra_common.models import (
     KEY_PREFIX_CONTRACT,
@@ -48,7 +47,7 @@ class ControlState:
 
 
 class ControlFollower:
-    """Background reader that applies `control` to an :class:`Engine`."""
+    """Applies `control` to an :class:`Engine`."""
 
     def __init__(
         self,
@@ -62,141 +61,45 @@ class ControlFollower:
         self.engine = engine
         self.cfg = cfg
         self.group = group
-        self.idle_ms = idle_ms
         self.on_change = on_change
         self.state = ControlState()
-        self.ready = threading.Event()
-        self._stop = threading.Event()
-        self._thread: threading.Thread | None = None
         self._lock = threading.Lock()
+        self._reader = ControlReader(
+            group=group,
+            cfg=cfg,
+            prefixes=(
+                KEY_PREFIX_CONTRACT,
+                KEY_PREFIX_SOURCE,
+                KEY_PREFIX_VOCAB,
+                KEY_PREFIX_ENRICH,
+            ),
+            on_message=self._handle,
+            on_change=self._apply,
+            idle_ms=idle_ms,
+            # `make_consumer` is resolved from this module at call time, so a test can patch
+            # `normalizer.control.make_consumer` and get its fake.
+            consumer_factory=lambda: make_consumer(
+                group, [TOPIC_CONTROL], cfg=cfg, auto_offset_reset="earliest"
+            ),
+        )
 
     # ---------------------------------------------------------------- lifecycle
+    @property
+    def ready(self) -> threading.Event:
+        return self._reader.ready
+
     def start(self) -> None:
-        self._thread = threading.Thread(target=self._run, name="control-follower", daemon=True)
-        self._thread.start()
+        self._reader.start()
 
     def stop(self) -> None:
-        self._stop.set()
-        if self._thread is not None:
-            self._thread.join(timeout=10)
+        self._reader.stop()
 
     def wait_ready(self, timeout: float) -> bool:
         """Block until the first full read of ``control`` is done."""
-        return self.ready.wait(timeout)
+        return self._reader.wait_ready(timeout)
 
-    # ---------------------------------------------------------------- the loop
-    def _run(self) -> None:
-        consumer = make_consumer(
-            self.group, [TOPIC_CONTROL], cfg=self.cfg, auto_offset_reset="earliest"
-        )
-        last_message = time.monotonic()
-        # How far we must read before the rebuild is complete, filled once the consumer has an
-        # assignment. Until then, "no messages" means "not subscribed yet", NOT "topic is empty":
-        # treating those as the same made a restarted normalizer declare itself ready with zero
-        # contracts and turn every event into tier 4 — the first failure mode S1 lists.
-        targets: dict[int, int] | None = None
-        try:
-            while not self._stop.is_set():
-                message = consumer.poll(0.5)
-
-                if targets is None:
-                    targets = self._end_offsets(consumer)
-                    if targets:
-                        log.info("control rebuild target", extra={"high_watermarks": targets})
-
-                if message is None:
-                    if not self.ready.is_set() and self._caught_up(consumer, targets, last_message):
-                        self._apply()
-                        self.ready.set()
-                        log.info(
-                            "control rebuilt",
-                            extra={
-                                "contracts": len(self.state.contracts),
-                                "sources": len(self.state.sources),
-                                "vocab": len(self.state.vocab),
-                            },
-                        )
-                    continue
-                if message.error():
-                    if message.error().code() == KafkaError._PARTITION_EOF:
-                        continue
-                    raise KafkaException(message.error())
-
-                last_message = time.monotonic()
-                self._handle(message.key(), message.value())
-                if self.ready.is_set():
-                    # Already serving: apply each change as it arrives.
-                    self._apply()
-                elif self._caught_up(consumer, targets, last_message):
-                    # The last message of the backlog: rebuild is done, open the gate.
-                    self._apply()
-                    self.ready.set()
-                    log.info(
-                        "control rebuilt",
-                        extra={
-                            "contracts": len(self.state.contracts),
-                            "sources": len(self.state.sources),
-                            "vocab": len(self.state.vocab),
-                        },
-                    )
-        except Exception:
-            log.exception("control follower stopped")
-        finally:
-            consumer.close()
-
-    def _end_offsets(self, consumer: Any) -> dict[int, int] | None:
-        """High watermark per assigned partition, or ``None`` while unassigned."""
-        assignment = consumer.assignment()
-        if not assignment:
-            return None
-        targets: dict[int, int] = {}
-        for partition in assignment:
-            try:
-                _, high = consumer.get_watermark_offsets(partition, timeout=5, cached=False)
-            except Exception:  # the broker may still be settling; retry on the next poll
-                return None
-            targets[partition.partition] = high
-        return targets
-
-    def _caught_up(
-        self, consumer: Any, targets: dict[int, int] | None, last_message: float
-    ) -> bool:
-        """Have we read the whole compacted backlog?
-
-        True when every assigned partition's position has reached the high watermark we saw at
-        startup. The idle timer is only a fallback for a genuinely empty topic, and it does not
-        fire until an assignment exists.
-        """
-        if targets is None:
-            return False
-        if not targets or all(high == 0 for high in targets.values()):
-            # The topic really is empty: nothing to wait for beyond the quiet period.
-            return (time.monotonic() - last_message) * 1000 >= self.idle_ms
-        try:
-            positions = consumer.position(list(consumer.assignment()))
-        except Exception:
-            return False
-        for partition in positions:
-            target = targets.get(partition.partition, 0)
-            if target <= 0:
-                continue
-            # offset < 0 means "no position yet".
-            if partition.offset is None or partition.offset < 0 or partition.offset < target:
-                return False
-        return True
-
-    def _handle(self, key: bytes | None, value: bytes | None) -> None:
-        if not key:
-            return
-        name = key.decode("utf-8", errors="replace")
-        payload: dict[str, Any] | None = None
-        if value is not None:
-            try:
-                payload = json.loads(value)
-            except json.JSONDecodeError:
-                log.error("control message is not JSON", extra={"key": name})
-                return
-
+    # ---------------------------------------------------------------- state
+    def _handle(self, name: str, payload: dict[str, Any] | None) -> None:
         with self._lock:
             if name.startswith(KEY_PREFIX_CONTRACT):
                 contract_id = name.removeprefix(KEY_PREFIX_CONTRACT)

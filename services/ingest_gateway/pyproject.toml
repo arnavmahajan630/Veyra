@@ -6,6 +6,8 @@ requires-python = ">=3.12,<3.13"
 dependencies = [
     "veyra-common",
     "veyra-common[api]",
+    # /v1/batch takes a multipart file upload, which is FastAPI's only hard extra dependency.
+    "python-multipart>=0.0.20",
 ]
 
 [build-system]

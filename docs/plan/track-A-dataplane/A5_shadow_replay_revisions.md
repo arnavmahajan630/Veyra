@@ -2,7 +2,7 @@
 
 ```
 track: A   owner: A   status: todo
-contracts: v1.3
+contracts: v1.4
 depends_on: [A4, C2 (candidate in control msg; mock until then)]   unblocks: [CP3, Beat 4]
 consumes: [IF-CONTROL (contract candidate), IF-ENVELOPE (+replay block), IF-SHADOW, IF-LINEAGE]
 provides: [veyra_engine.backtest(), shadow records, revision semantics in IF-ULPF]
@@ -57,6 +57,9 @@ C2 and C4 call this in-process for the instant "8/8 tier 3 → 1" panel.
   attacker IP located in the raw bytes. `backtest()` has the real shape (tier histograms, upgraded /
   regressed / unchanged, examples); it still needs `field_coverage` and the richer examples A5 lists.
 - [ ] 3. `replay.raw` consumption, revision fields, `lineage.replay_job_id`.
+  <!-- synced from A2 --> Envelopes can now arrive with `custody="post_hoc"` (batch upload) and with
+  `hec_meta` set (HTTP push). A replay must carry both through unchanged — re-stamping a batch-uploaded
+  event as `realtime` would erase the one field that tells an analyst it was back-filled.
   <!-- synced from A3 --> The normalizer already consumes `replay.raw` alongside `^raw\..*` and carries
   `replay`, `revision` and `supersedes` from the envelope's replay block into `ulpf`, with
   `lineage.replay_job_id` filled. A5's work is the semantics (revision from ClickHouse, idempotence

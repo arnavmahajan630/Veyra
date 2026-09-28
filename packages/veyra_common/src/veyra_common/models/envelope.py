@@ -51,6 +51,24 @@ class Auth(BaseModel):
     key_id: str | None = None
 
 
+class HecMeta(BaseModel):
+    """The Splunk-HEC metadata a shipper sends alongside the event (A2, additive in v1.4).
+
+    These are the sender's *claims* about the event, not facts the gateway established, so they are
+    kept beside the envelope rather than folded into it: ``time`` in particular must not become
+    ``received_time`` (which is when VEYRA saw the bytes) nor the event time (which the engine
+    derives from the bytes themselves). The normalizer surfaces this block in ``unmapped``.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    time: float | None = None
+    host: str | None = None
+    source: str | None = None
+    sourcetype: str | None = None
+    index: str | None = None
+
+
 class Envelope(BaseModel):
     """A stamped raw record on ``raw.<vendor>`` (IF-ENVELOPE)."""
 
@@ -76,6 +94,8 @@ class Envelope(BaseModel):
     custody: Custody = "realtime"
     auth: Auth
     salt: int | None = None
+    # Only set by the gateway's HEC event endpoint (IF-ENVELOPE, additive v1.4).
+    hec_meta: HecMeta | None = None
 
     # ------------------------------------------------------------------ helpers
     @property
