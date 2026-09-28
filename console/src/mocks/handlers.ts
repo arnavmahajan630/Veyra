@@ -1,6 +1,7 @@
 import { http, HttpResponse, sse } from "msw";
 import type { ApiKeyRow, KeyCard, Me } from "../api/types";
-import { DEMO_PASSWORD, KEYS, SOURCES, TENANTS, USERS, healthAt, overviewAt, tierHistoryAt } from "./fixtures";
+import { c6Handlers, freshC6, type C6World } from "./c6";
+import { DEMO_PASSWORD, KEYS, TENANTS, USERS, healthAt, overviewAt, tierHistoryAt } from "./fixtures";
 
 const LIVE_TICK_MS = 1_000;
 
@@ -12,6 +13,8 @@ interface MockState {
   tick: number;
   issued: number;
   keys: Map<string, ApiKeyRow[]>;
+  /** Sources, contracts, drift, drafts, replay jobs and audit (C6). */
+  c6: C6World;
 }
 
 // A real session is a cookie and survives a reload; the mock keeps the signed-in email in
@@ -44,6 +47,7 @@ function freshState(): MockState {
     tick: 0,
     issued: 0,
     keys: new Map(Object.entries(KEYS).map(([source, rows]) => [source, [...rows]])),
+    c6: freshC6(),
   };
 }
 
@@ -109,20 +113,20 @@ const httpHandlers = [
     if (!state.me) return unauthorized();
     const tenant = new URL(request.url).searchParams.get("tenant");
     return HttpResponse.json(
-      SOURCES.filter((s) => visible(s.tenant_id) && (!tenant || s.tenant_id === tenant)),
+      state.c6.sources.filter((s) => visible(s.tenant_id) && (!tenant || s.tenant_id === tenant)),
     );
   }),
 
   http.get("/api/control/sources/:sourceId/keys", ({ params }) => {
     if (!state.me) return unauthorized();
-    const source = SOURCES.find((s) => s.id === params.sourceId);
+    const source = state.c6.sources.find((s) => s.id === params.sourceId);
     if (!source || !visible(source.tenant_id)) return notFound("source");
     return HttpResponse.json(state.keys.get(source.id) ?? []);
   }),
 
   http.post("/api/control/sources/:sourceId/keys", ({ params }) => {
     if (!state.me) return unauthorized();
-    const source = SOURCES.find((s) => s.id === params.sourceId);
+    const source = state.c6.sources.find((s) => s.id === params.sourceId);
     if (!source || !visible(source.tenant_id)) return notFound("source");
     state.issued += 1;
     const keyId = `k_MOCK${String(state.issued).padStart(4, "0")}`;
@@ -198,4 +202,6 @@ function streamHandlers() {
   ];
 }
 
-export const handlers = [...httpHandlers, ...streamHandlers()];
+const c6 = c6Handlers({ world: () => state.c6, me: () => state.me, visible });
+
+export const handlers = [...httpHandlers, ...c6, ...streamHandlers()];

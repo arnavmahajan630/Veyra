@@ -72,7 +72,8 @@ describe("the shell", () => {
     renderShell("/sources");
     await screen.findByText("Acme NGFW (DMZ)");
     await userEvent.selectOptions(await screen.findByLabelText("Tenant"), "t_maha_power");
-    expect(await screen.findByText("No sources yet. Onboard your first source.")).toBeInTheDocument();
+    expect(await screen.findByText("Maha Power auth server")).toBeInTheDocument();
+    expect(screen.queryByText("Acme NGFW (DMZ)")).not.toBeInTheDocument();
   });
 
   it("shows a placeholder for pages other phases build, and sends unknown paths home", async () => {
