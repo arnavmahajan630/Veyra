@@ -2,11 +2,10 @@
 
 from __future__ import annotations
 
-from sqlmodel import Session as DbSession
-
 from capi_helpers import T3_SIG, activate, t3_events
 from control_api.security import hash_password
 from control_api.tables import User
+from sqlmodel import Session as DbSession
 
 T3_TEXTS = [
     "user=a.sharma FAILED login from 103.21.4.77 via 10.2.3.4 attempts:1",
@@ -63,7 +62,9 @@ def test_a_drift_draft_is_ready_with_the_ac1_mapping(
     assert (item["state"], item["draft_id"]) == ("draft_ready", draft["draft_id"])
 
 
-def test_without_raw_events_the_draft_uses_masked_text(client, authsrv_source, as_user, index) -> None:
+def test_without_raw_events_the_draft_uses_masked_text(
+    client, authsrv_source, as_user, index
+) -> None:
     index.down = True
     activate(client, as_user, 1)
     as_user("author@maha")

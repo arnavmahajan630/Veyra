@@ -40,7 +40,9 @@ def client_answering(*contents: str, seen: list[dict] | None = None) -> OllamaCl
         body = json.loads(request.content)
         if seen is not None:
             seen.append(body)
-        return httpx.Response(200, json={"message": {"role": "assistant", "content": replies.pop(0)}})
+        return httpx.Response(
+            200, json={"message": {"role": "assistant", "content": replies.pop(0)}}
+        )
 
     http = httpx.Client(base_url="http://ollama", transport=httpx.MockTransport(handler))
     return OllamaClient(

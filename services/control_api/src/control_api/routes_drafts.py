@@ -57,7 +57,9 @@ def draft_drift(
     item = load_item(db, principal, drift_id)
     if item.state not in ("open", "draft_ready"):
         raise HTTPException(status_code=409, detail=f"drift item is {item.state}")
-    draft = start_drift_draft(ctx, db, item, actor=principal.email, mode=(body or DraftStart()).mode)
+    draft = start_drift_draft(
+        ctx, db, item, actor=principal.email, mode=(body or DraftStart()).mode
+    )
     return DraftStarted(draft_id=draft.draft_id)
 
 

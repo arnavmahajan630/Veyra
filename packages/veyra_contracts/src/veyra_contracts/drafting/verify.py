@@ -6,7 +6,7 @@
    *located* (in ``ulpf.field_offsets``) and ``provenance_check`` must confirm the bytes;
    a constant or ``$__text`` is *derived* and says so. A sample the template doesn't match
    is reported against every row, rather than silently skipped.
-4. Type checks: IP paths hold IPs, ports are 0–65535, and ``time`` came from the event.
+4. Type checks: IP paths hold IPs, ports are 0-65535, and ``time`` came from the event.
 
 Backtesting against stored events needs the event index, so control-api does it.
 """
@@ -44,7 +44,11 @@ class Verification:
 
     @property
     def ok(self) -> bool:
-        return self.compile_error is None and all(row.ok for row in self.provenance) and not self.type_issues
+        return (
+            self.compile_error is None
+            and all(row.ok for row in self.provenance)
+            and not self.type_issues
+        )
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self) | {"ok": self.ok}
@@ -93,7 +97,7 @@ def verify(
         tier = str(normalized.tier)
         result.tiers[tier] = result.tiers.get(tier, 0) + 1
         template = (normalized.ulpf.get("template") or {}).get("id")
-        matched = templates.get(template)
+        matched = templates.get(template) if isinstance(template, str) else None
         if matched is None:
             for path in paths:
                 failures[path].append(f"sample {index + 1} did not match the drafted template")

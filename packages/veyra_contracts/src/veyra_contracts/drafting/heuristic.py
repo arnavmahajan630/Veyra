@@ -24,7 +24,9 @@ SRC_PORT_WORDS = frozenset({"port", "spt", "sport", "srcport"})
 DST_PORT_WORDS = frozenset({"dpt", "dport", "dstport"})
 FAIL_WORDS = frozenset({"failed", "failure", "fail", "denied", "deny", "invalid", "error"})
 OK_WORDS = frozenset({"ok", "success", "succeeded", "accepted", "allowed", "allow"})
-AUTH_WORDS = frozenset({"login", "logon", "logged", "auth", "authentication", "password", "session"})
+AUTH_WORDS = frozenset(
+    {"login", "logon", "logged", "auth", "authentication", "password", "session"}
+)
 LOGOFF_WORDS = frozenset({"logout", "logoff", "closed", "disconnect", "disconnected"})
 NET_WORDS = frozenset({"traffic", "connection", "deny", "allow", "drop", "accept", "blocked"})
 

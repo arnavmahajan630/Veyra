@@ -14,9 +14,9 @@ from veyra_contracts.drafting.verify import verify
 
 REPO = Path(__file__).resolve().parents[3]
 CORPUS = REPO / "demo" / "corpus"
-AUTHSRV_V1 = (REPO / "packages" / "veyra_engine" / "tests" / "contracts" / "authsrv.yaml").read_text(
-    encoding="utf-8"
-)
+AUTHSRV_V1 = (
+    REPO / "packages" / "veyra_engine" / "tests" / "contracts" / "authsrv.yaml"
+).read_text(encoding="utf-8")
 
 
 def lines(name: str, count: int = 8) -> list[bytes]:
