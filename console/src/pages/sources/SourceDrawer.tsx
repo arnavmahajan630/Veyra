@@ -12,7 +12,7 @@ import type { SourceRow } from "./sourceRows";
 /** C1's writer roles; everyone else sees the keys but cannot change them. */
 const KEY_WRITERS = new Set(["admin", "pack_author"]);
 
-function SecretOnce({ card }: { card: KeyCard }) {
+export function SecretOnce({ card }: { card: KeyCard }) {
   const { t } = useI18n();
   const [copied, setCopied] = useState(false);
 

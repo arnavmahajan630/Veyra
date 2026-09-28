@@ -450,7 +450,8 @@ export function analyzeFrames(sourceId: string): { event: string; data: unknown 
     {
       event: "classification",
       data: {
-        layers: [{ layer: "syslog", variant: "rfc3164" }, { layer: "json", text_field: "msg" }, { layer: "text" }],
+        // classify() returns contract-envelope layers (veyra_contracts.drafting.classify).
+        layers: [{ syslog: { variant: "auto" } }, { json: { text_field: "msg" } }],
         contract_id: contractIdFor(sourceId),
       },
     },
