@@ -1,7 +1,7 @@
 # C3 — Drift worker (Drain3), drift inbox, library packs, library matching
 
 ```
-track: C   owner: C   status: todo
+track: C   owner: C   status: in-progress
 contracts: v1.4
 depends_on: [C2, A4 (template_sig, mask, extract_tokens)]   unblocks: [CP3, C4, Beat 4]
 consumes: [IF-DLQ, IF-TEMPLATE-SIG, IF-API-CONTROL (/internal/drift)]
@@ -55,7 +55,7 @@ Notice new message shapes automatically (v1 §11.1) and turn them into reviewabl
 `VEYRA_DRIFT_MIN_CLUSTER`, `VEYRA_DRIFT_AUTODRAFT` (1 in the demo), `VEYRA_DRIFT_DEBOUNCE_MS` (2000).
 
 ## Implementation notes
-<!-- synced from C3 --> Code complete on branch `c2-c3-registry-drift`; report in `reports/C3.md`.
+<!-- synced from C3 --> Code complete; merged on `main` as PR #3 (2026-09-28). Report in `reports/C3.md`. Live timing smoke still open, so the phase stays in progress.
 - **AC1:** grouping and upsert pass standalone; task 5's live timing (< 10 s) is still to run.
 - **AC3 strategy:** persisted counts (`data/state/drift/groups.json`) beside the Drain3 state, with offsets committed after each checkpoint.
 - **Drain3:** 0.9.11, masking `key=`/`key:` values and IPv4s first.

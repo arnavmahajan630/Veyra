@@ -1,7 +1,7 @@
 # C1 — Control API foundation
 
 ```
-track: C   owner: C   status: todo
+track: C   owner: C   status: done
 contracts: v1.4
 depends_on: [S0]     unblocks: [CP1, A2, C2, B7]
 consumes: [IF-NAMING, IF-TOPICS, IF-ENV]
