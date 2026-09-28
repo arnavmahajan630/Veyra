@@ -1,7 +1,7 @@
 # A4 — Tier 3 generic extraction, classifier cascade, field offsets everywhere, robustness
 
 ```
-track: A   owner: A   status: todo
+track: A   owner: A   status: done
 contracts: v1.3
 depends_on: [A3]                  unblocks: [CP2, C4 (tokens), B6 (highlights)]
 consumes: [IF-ENGINE-LIB, IF-ULPF, IF-OCSF-SUBSET]
@@ -83,38 +83,38 @@ Deterministic. Replaces:
 - **Crash-loop guard** (normalizer): persist the in-flight `(topic, partition, offset)` to `data/state/normalizer_inflight` before processing a batch. On startup, if the same offset appears `VEYRA_POISON_MAX_RETRIES` times, emit tier 4 `engine_crash` for that record and skip it.
 
 ## Tasks
-- [ ] 1. Classifier cascade + auto-peel; tests with the OT historian lines, T3 lines and garbage.
+- [x] 1. Classifier cascade + auto-peel; tests with the OT historian lines, T3 lines and garbage.
   <!-- synced from A3 --> The detectors already exist in `packages/veyra_engine/src/veyra_engine/peel.py`
   (`detect_syslog` returning the variant, `detect_kv` with a density threshold, `detect_cef`,
   `detect_leef`, `detect_csv` returning the delimiter), so the cascade is mostly ordering them and
   calling `run_layers` with the detected specs. The tier-3 slot is `Engine._tier3_placeholder`, which
   already receives the peeled fields and sets the right DLQ reason.
-- [ ] 2. Final `extract_tokens`; property tests (spans always slice to the value).
-- [ ] 3. Tier 3 build, class hints, severity vocabulary.
-- [ ] 4. `provenance_check` + `mask`; export both from `veyra_engine`.
+- [x] 2. Final `extract_tokens`; property tests (spans always slice to the value).
+- [x] 3. Tier 3 build, class hints, severity vocabulary.
+- [x] 4. `provenance_check` + `mask`; export both from `veyra_engine`.
   <!-- synced from A3 --> Both exist and are exported. `provenance_check` already verifies that every
   declared offset slices its own value out of the raw bytes; what is missing is the other half — every
   mapped path must be either located or in `derived_fields`. `mask` is the simple A3 version (secret-key
   values and emails, IPs kept on purpose). Note `decode.Decoded.byte_span` returns **None** for a lossy
   decode, so tier 3 must record those fields as derived rather than claim a byte range.
-- [ ] 5. Robustness guards + the RE2 import test.
+- [x] 5. Robustness guards + the RE2 import test.
   <!-- synced from A3 --> The RE2-only rule already holds: no engine module imports `re`, because
   `template_sig` lives in `veyra_common.hashing` — allow for that in the import test. `normalize`
   already has the top-level guard that turns any exception into tier 4 `engine_crash`; the budget,
   size cap and crash-loop guard are still to do.
-- [ ] 6. **Fuzz:** a `hypothesis` strategy of random bytes, corpus mutations and deep JSON nesting. `normalize` never raises, always returns tier 1–4, within 2× budget.
-- [ ] 7. Update the golden tests; add tier 3 goldens for T3 and the OT historian.
+- [x] 6. **Fuzz:** a `hypothesis` strategy of random bytes, corpus mutations and deep JSON nesting. `normalize` never raises, always returns tier 1–4, within 2× budget.
+- [x] 7. Update the golden tests; add tier 3 goldens for T3 and the OT historian.
 
 ## Acceptance criteria
-- [ ] AC1: T3 (multi-line, syslog + JSON + kv + trace) → tier 3.
+- [x] AC1: T3 (multi-line, syslog + JSON + kv + trace) → tier 3.
   - Observables contain `103.21.4.77`, `10.2.3.4` and `a.sharma`.
   - `unmapped` has `attempts=1` and `trace=…`.
   - `class_hint` = 3002 medium.
   - 100% of offsets pass `provenance_check`.
-- [ ] AC2: The OT historian line with a Hindi field → tier 3; offsets are correct for the Devanagari text (byte slices verified).
-- [ ] AC3: The fuzz run (≥ 50k cases) has zero exceptions.
-- [ ] AC4: Pathological input (a 60 KB line of `a=` repeated) completes within 2× budget as tier 4 `budget_exceeded`, or as tier 3.
-- [ ] AC5: `mask()` on T3 → `user=<USER_1> FAILED login from 103.21.4.77 via 10.2.3.4 attempts:1`.
+- [x] AC2: The OT historian line with a Hindi field → tier 3; offsets are correct for the Devanagari text (byte slices verified).
+- [x] AC3: The fuzz run (≥ 50k cases) has zero exceptions.
+- [x] AC4: Pathological input (a 60 KB line of `a=` repeated) completes within 2× budget as tier 4 `budget_exceeded`, or as tier 3.
+- [x] AC5: `mask()` on T3 → `user=<USER_1> FAILED login from 103.21.4.77 via 10.2.3.4 attempts:1`.
 
 ## Settings
 `VEYRA_POISON_MAX_RETRIES` (3).

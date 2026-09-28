@@ -287,7 +287,11 @@ def test_garbage_never_crashes_and_always_lands_in_the_dlq() -> None:
     chunks = [chunk for chunk in raw_blob.split(b"\n") if chunk] + [raw_blob]
     for index, raw in enumerate(chunks):
         result = engine.normalize(make_envelope(raw, case, index))
-        assert result.tier == 4, f"chunk {index} should be unparseable, got tier {result.tier}"
+        # Since A4 some of these are tier 3 (the generic extractor finds something in them), which
+        # is an improvement, not a regression: what matters is that nothing crashes, nothing is
+        # dropped, and every one carries a reason.
+        assert result.tier in (3, 4), f"chunk {index} got tier {result.tier}"
+        assert result.ocsf["raw_data"] is not None
         assert result.dlq is not None
         assert result.dlq.reason_code in {
             "no_template_match",

@@ -230,7 +230,10 @@ def test_contract_swap_is_atomic_under_repeated_loads() -> None:
         engine.load([mini_compile(CONTRACT.read_text())])
         assert engine.contracts_loaded == 1
     engine.load([])
-    assert engine.normalize(envelope(raw)).tier == 4
+    # With no contract at all the event takes the tier-3 path (A4) — still delivered, still located.
+    after = engine.normalize(envelope(raw))
+    assert after.tier == 3
+    assert after.dlq is not None and after.dlq.reason_code == "no_contract"
 
 
 @needs_registry

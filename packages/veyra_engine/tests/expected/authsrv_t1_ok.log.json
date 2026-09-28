@@ -5,6 +5,10 @@
     "class_uid": 3002,
     "conformance": "match",
     "derived_fields": {
+      "observables.host_1": "from:device.hostname",
+      "observables.ip_1": "from:dst_endpoint.ip",
+      "observables.ip_2": "from:src_endpoint.ip",
+      "observables.user": "from:user.name",
       "severity_id": "const",
       "status_id": "const"
     },
@@ -52,6 +56,10 @@
     "class_uid": 3002,
     "conformance": "match",
     "derived_fields": {
+      "observables.host_1": "from:device.hostname",
+      "observables.ip_1": "from:dst_endpoint.ip",
+      "observables.ip_2": "from:src_endpoint.ip",
+      "observables.user": "from:user.name",
       "severity_id": "const",
       "status_id": "const"
     },
@@ -99,6 +107,10 @@
     "class_uid": 3002,
     "conformance": "match",
     "derived_fields": {
+      "observables.host_1": "from:device.hostname",
+      "observables.ip_1": "from:dst_endpoint.ip",
+      "observables.ip_2": "from:src_endpoint.ip",
+      "observables.user": "from:user.name",
       "severity_id": "const",
       "status_id": "const"
     },
@@ -146,6 +158,10 @@
     "class_uid": 3002,
     "conformance": "match",
     "derived_fields": {
+      "observables.host_1": "from:device.hostname",
+      "observables.ip_1": "from:dst_endpoint.ip",
+      "observables.ip_2": "from:src_endpoint.ip",
+      "observables.user": "from:user.name",
       "severity_id": "const",
       "status_id": "const"
     },
@@ -193,6 +209,10 @@
     "class_uid": 3002,
     "conformance": "match",
     "derived_fields": {
+      "observables.host_1": "from:device.hostname",
+      "observables.ip_1": "from:dst_endpoint.ip",
+      "observables.ip_2": "from:src_endpoint.ip",
+      "observables.user": "from:user.name",
       "severity_id": "const",
       "status_id": "const"
     },
@@ -240,6 +260,10 @@
     "class_uid": 3002,
     "conformance": "match",
     "derived_fields": {
+      "observables.host_1": "from:device.hostname",
+      "observables.ip_1": "from:dst_endpoint.ip",
+      "observables.ip_2": "from:src_endpoint.ip",
+      "observables.user": "from:user.name",
       "severity_id": "const",
       "status_id": "const"
     },
@@ -287,6 +311,10 @@
     "class_uid": 3002,
     "conformance": "match",
     "derived_fields": {
+      "observables.host_1": "from:device.hostname",
+      "observables.ip_1": "from:dst_endpoint.ip",
+      "observables.ip_2": "from:src_endpoint.ip",
+      "observables.user": "from:user.name",
       "severity_id": "const",
       "status_id": "const"
     },
@@ -334,6 +362,10 @@
     "class_uid": 3002,
     "conformance": "match",
     "derived_fields": {
+      "observables.host_1": "from:device.hostname",
+      "observables.ip_1": "from:dst_endpoint.ip",
+      "observables.ip_2": "from:src_endpoint.ip",
+      "observables.user": "from:user.name",
       "severity_id": "const",
       "status_id": "const"
     },
@@ -381,6 +413,10 @@
     "class_uid": 3002,
     "conformance": "match",
     "derived_fields": {
+      "observables.host_1": "from:device.hostname",
+      "observables.ip_1": "from:dst_endpoint.ip",
+      "observables.ip_2": "from:src_endpoint.ip",
+      "observables.user": "from:user.name",
       "severity_id": "const",
       "status_id": "const"
     },
@@ -428,6 +464,10 @@
     "class_uid": 3002,
     "conformance": "match",
     "derived_fields": {
+      "observables.host_1": "from:device.hostname",
+      "observables.ip_1": "from:dst_endpoint.ip",
+      "observables.ip_2": "from:src_endpoint.ip",
+      "observables.user": "from:user.name",
       "severity_id": "const",
       "status_id": "const"
     },
@@ -475,6 +515,10 @@
     "class_uid": 3002,
     "conformance": "match",
     "derived_fields": {
+      "observables.host_1": "from:device.hostname",
+      "observables.ip_1": "from:dst_endpoint.ip",
+      "observables.ip_2": "from:src_endpoint.ip",
+      "observables.user": "from:user.name",
       "severity_id": "const",
       "status_id": "const"
     },
@@ -522,6 +566,10 @@
     "class_uid": 3002,
     "conformance": "match",
     "derived_fields": {
+      "observables.host_1": "from:device.hostname",
+      "observables.ip_1": "from:dst_endpoint.ip",
+      "observables.ip_2": "from:src_endpoint.ip",
+      "observables.user": "from:user.name",
       "severity_id": "const",
       "status_id": "const"
     },
@@ -569,6 +617,10 @@
     "class_uid": 3002,
     "conformance": "match",
     "derived_fields": {
+      "observables.host_1": "from:device.hostname",
+      "observables.ip_1": "from:dst_endpoint.ip",
+      "observables.ip_2": "from:src_endpoint.ip",
+      "observables.user": "from:user.name",
       "severity_id": "const",
       "status_id": "const"
     },
@@ -616,6 +668,10 @@
     "class_uid": 3002,
     "conformance": "match",
     "derived_fields": {
+      "observables.host_1": "from:device.hostname",
+      "observables.ip_1": "from:dst_endpoint.ip",
+      "observables.ip_2": "from:src_endpoint.ip",
+      "observables.user": "from:user.name",
       "severity_id": "const",
       "status_id": "const"
     },
@@ -663,6 +719,10 @@
     "class_uid": 3002,
     "conformance": "match",
     "derived_fields": {
+      "observables.host_1": "from:device.hostname",
+      "observables.ip_1": "from:dst_endpoint.ip",
+      "observables.ip_2": "from:src_endpoint.ip",
+      "observables.user": "from:user.name",
       "severity_id": "const",
       "status_id": "const"
     },
@@ -710,6 +770,10 @@
     "class_uid": 3002,
     "conformance": "match",
     "derived_fields": {
+      "observables.host_1": "from:device.hostname",
+      "observables.ip_1": "from:dst_endpoint.ip",
+      "observables.ip_2": "from:src_endpoint.ip",
+      "observables.user": "from:user.name",
       "severity_id": "const",
       "status_id": "const"
     },
@@ -757,6 +821,10 @@
     "class_uid": 3002,
     "conformance": "match",
     "derived_fields": {
+      "observables.host_1": "from:device.hostname",
+      "observables.ip_1": "from:dst_endpoint.ip",
+      "observables.ip_2": "from:src_endpoint.ip",
+      "observables.user": "from:user.name",
       "severity_id": "const",
       "status_id": "const"
     },
@@ -804,6 +872,10 @@
     "class_uid": 3002,
     "conformance": "match",
     "derived_fields": {
+      "observables.host_1": "from:device.hostname",
+      "observables.ip_1": "from:dst_endpoint.ip",
+      "observables.ip_2": "from:src_endpoint.ip",
+      "observables.user": "from:user.name",
       "severity_id": "const",
       "status_id": "const"
     },
@@ -851,6 +923,10 @@
     "class_uid": 3002,
     "conformance": "match",
     "derived_fields": {
+      "observables.host_1": "from:device.hostname",
+      "observables.ip_1": "from:dst_endpoint.ip",
+      "observables.ip_2": "from:src_endpoint.ip",
+      "observables.user": "from:user.name",
       "severity_id": "const",
       "status_id": "const"
     },
@@ -898,6 +974,10 @@
     "class_uid": 3002,
     "conformance": "match",
     "derived_fields": {
+      "observables.host_1": "from:device.hostname",
+      "observables.ip_1": "from:dst_endpoint.ip",
+      "observables.ip_2": "from:src_endpoint.ip",
+      "observables.user": "from:user.name",
       "severity_id": "const",
       "status_id": "const"
     },
@@ -945,6 +1025,10 @@
     "class_uid": 3002,
     "conformance": "match",
     "derived_fields": {
+      "observables.host_1": "from:device.hostname",
+      "observables.ip_1": "from:dst_endpoint.ip",
+      "observables.ip_2": "from:src_endpoint.ip",
+      "observables.user": "from:user.name",
       "severity_id": "const",
       "status_id": "const"
     },
@@ -992,6 +1076,10 @@
     "class_uid": 3002,
     "conformance": "match",
     "derived_fields": {
+      "observables.host_1": "from:device.hostname",
+      "observables.ip_1": "from:dst_endpoint.ip",
+      "observables.ip_2": "from:src_endpoint.ip",
+      "observables.user": "from:user.name",
       "severity_id": "const",
       "status_id": "const"
     },

@@ -59,8 +59,9 @@ All names are prefixed `VEYRA_`. Memory limits are enforced via compose `mem_lim
 | Knob | laptop | mac | workstation | Notes |
 |---|---|---|---|---|
 | `MAX_EVENT_BYTES` | 65536 | 65536 | 262144 | |
-| `ENGINE_BUDGET_US` (per event) | 5000 | 5000 | 5000 | Exceeding it drops the event to tier 4 |
+| `ENGINE_BUDGET_US` (per event) | 5000 | 5000 | 5000 | Exceeding it drops the event to tier 4. A4: checked at stage boundaries, and the engine warms its validators and timezones at load so the first event is not charged for one-time work |
 | `PEEL_MAX_DEPTH` | 4 | 4 | 6 | |
+| `POISON_MAX_RETRIES` | 3 | 3 | 3 | A4: attempts are counted **across restarts** via `data/state/<service>_inflight`, so a record that kills the process is skipped on the 3rd start with a tier 4 `engine_crash` DLQ record, not retried forever |
 | `GATEWAY_DEFAULT_QUOTA_EPS` | 500 | 2000 | 20000 | |
 
 ### 2.4 Demo, LLM and drift

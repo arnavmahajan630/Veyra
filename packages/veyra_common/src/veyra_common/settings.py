@@ -75,6 +75,9 @@ class Settings(BaseSettings):
     # make test-int, demo/tools/*): kafka publishes an EXTERNAL listener on 29092.
     kafka_bootstrap_host: str = "localhost:29092"
     clickhouse_url: str = "http://clickhouse:8123"
+    # Host-side override for tools and tests outside the compose network. `veyra_lineage.client`
+    # (B) reads this first and falls back to `clickhouse_url`; empty means "not overridden".
+    ch_url: str = ""
     clickhouse_db: str = "veyra"
     clickhouse_user: str = "default"
     clickhouse_password: str = ""

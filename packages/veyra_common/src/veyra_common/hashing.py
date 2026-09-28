@@ -42,27 +42,47 @@ def sha256_bytes(data: bytes) -> bytes:
 def mask_token(token: str) -> str:
     """Mask one whitespace-delimited token per IF-TEMPLATE-SIG step 2.
 
-    Rules are tried in order and the first match wins.
+    Rules are tried in order and the first match wins. **The output is frozen** — the vectors in
+    docs/plan/reference/spec_vectors.py pin it — so the cheap character checks below are guards that
+    skip regexes which could not possibly match, never a change in behaviour. They exist because a
+    4 KB line has ~2000 tokens and running nine regexes on each was the single largest cost in the
+    whole pipeline (A4 AC4).
     """
-    if _RE_UUID.match(token):
+    if not token:
+        return token
+
+    has_digit = any(character.isdigit() for character in token)
+    first = token[0]
+
+    # 1. UUID: fixed length 36, and hyphenated.
+    if len(token) == 36 and "-" in token and _RE_UUID.match(token):
         return "<UUID>"
-    if _RE_IPV4.match(token):
+    # 2. IPv4, optionally with :port — must start with a digit and contain a dot.
+    if has_digit and first.isdigit() and "." in token and _RE_IPV4.match(token):
         return "<IP>"
-    if _RE_TS.match(token):
+    # 3. Timestamp-like: always starts with a digit.
+    if has_digit and first.isdigit() and _RE_TS.match(token):
         return "<TS>"
-    if _RE_IPV6.match(token) and ("::" in token or token.count(":") >= 3):
+    # 4. IPv6 needs colons before the pattern is worth trying.
+    if ":" in token and ("::" in token or token.count(":") >= 3) and _RE_IPV6.match(token):
         return "<IP>"
-    if _RE_EMAIL.match(token):
+    # 5. Email needs an @.
+    if "@" in token and _RE_EMAIL.match(token):
         return "<EMAIL>"
-    m = _RE_KV.match(token)
-    if m:
-        return m.group(1) + "=<V>"
-    m = _RE_CKV.match(token)
-    if m:
-        return m.group(1) + ":<V>"
-    if _RE_HEX.match(token):
+    # 6/7. key=value and key:value.
+    if "=" in token:
+        m = _RE_KV.match(token)
+        if m:
+            return m.group(1) + "=<V>"
+    if ":" in token:
+        m = _RE_CKV.match(token)
+        if m:
+            return m.group(1) + ":<V>"
+    # 8. Hex run of 8 or more.
+    if len(token) >= 8 and _RE_HEX.match(token):
         return "<HEX>"
-    if _RE_DIGIT.search(token):
+    # 9. Anything else containing a digit.
+    if has_digit:
         return "<NUM>"
     return token
 

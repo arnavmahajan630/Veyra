@@ -64,6 +64,19 @@ def _build_offsets(text: str, encoding: str) -> tuple[list[int], bool]:
     return offsets, True
 
 
+def decode_text_only(raw: bytes) -> str:
+    """Just the text, with no offset map.
+
+    Building ``char_to_byte`` costs one Python int per character, which on a 200 KB event is most of
+    the per-event budget. Callers that only need the text for ``raw_data`` — where no span is ever
+    reported — use this instead.
+    """
+    try:
+        return raw.decode("utf-8")
+    except UnicodeDecodeError:
+        return raw.decode("utf-8", errors="replace")
+
+
 def decode(raw: bytes) -> Decoded:
     """UTF-8 strict, then a best-guess codec, then lossy replacement.
 

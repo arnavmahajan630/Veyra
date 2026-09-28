@@ -49,7 +49,7 @@ WORKLOADS: dict[str, tuple[str, Path, str, str]] = {
         "src_authsrv_01",
         "custom",
     ),
-    "unregistered (tier 4)": (
+    "unregistered (tier 3)": (
         "ot_historian.log",
         TEST_CONTRACTS / "authsrv.yaml",
         "src_nobody",

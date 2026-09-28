@@ -352,7 +352,7 @@ def test_vocab_lookup_is_case_insensitive_and_marked_derived() -> None:
 
 
 def test_observables_come_from_typed_fields() -> None:
-    observables = build_observables(
+    observables, sources = build_observables(
         {
             "src_endpoint": {"ip": "1.2.3.4"},
             "dst_endpoint": {"ip": "5.6.7.8"},
@@ -365,6 +365,10 @@ def test_observables_come_from_typed_fields() -> None:
     assert (2, "5.6.7.8") in kinds
     assert (4, "bob") in kinds
     assert (1, "host1") in kinds
+    # Each one must say which mapped field it came from, so P4 has nothing unexplained.
+    assert sources["observables.user"] == "from:user.name"
+    assert sources["observables.ip_1"].startswith("from:")
+    assert set(sources) == {f"observables.{o['name']}" for o in observables}
 
 
 # ---------------------------------------------------------------- time
