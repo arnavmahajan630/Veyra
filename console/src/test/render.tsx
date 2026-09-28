@@ -2,6 +2,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, type RenderResult } from "@testing-library/react";
 import type { ReactElement, ReactNode } from "react";
 import { MemoryRouter } from "react-router";
+import { ToastProvider } from "../components/Toast";
 import { I18nProvider } from "../i18n/i18n";
 import { TenantScopeProvider } from "../shell/tenant";
 
@@ -23,9 +24,11 @@ export function Providers({
   return (
     <QueryClientProvider client={client}>
       <I18nProvider>
-        <MemoryRouter initialEntries={[route]}>
-          <TenantScopeProvider>{children}</TenantScopeProvider>
-        </MemoryRouter>
+        <ToastProvider>
+          <MemoryRouter initialEntries={[route]}>
+            <TenantScopeProvider>{children}</TenantScopeProvider>
+          </MemoryRouter>
+        </ToastProvider>
       </I18nProvider>
     </QueryClientProvider>
   );
