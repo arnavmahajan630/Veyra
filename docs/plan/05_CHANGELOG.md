@@ -40,19 +40,24 @@ What:     The console reads IF-API-EVIDENCE's overview and source-health endpoin
             sources: [{source_id, zone, eps, tiers, last_seen|null}],
             routes: [{route_id, delivered_per_min, failed_per_min, lag_s|null, breaker: closed|open|half_open|null}],
             vault: {segments, last_sealed_at|null, last_root: {window_id, window_end, immudb_verified}|null, chain_ok},
-            as_of}`
+            as_of, tier_history?: [{"1".."4": n}, …]}`. `tier_history` is optional: per-second tier
+            counts for the last 15 minutes, oldest first, ending at `as_of`. Send it with the HTTP
+            response so the tier bar opens full; SSE ticks may omit it.
           - `GET /lineage/sources?tenant=` → `[{source_id, tenant_id, zone, transport, contract_ref|null,
             expected_eps, actual_eps, last_seen|null, tiers, clock_skew_p50_ms|null}]`
           - `GET /lineage/stream` (SSE): `event: overview`, data = the whole overview object above, about
             once a second. Omitting `tenant` means all tenants (platform users).
+          - Tenant scope comes from the session, not the query: a user pinned to a tenant sees only
+            that tenant whatever `?tenant=` says; only platform users (`tenant: "*"`) may choose.
 Why:      IF-API-EVIDENCE lists these fields loosely; C5 had to pick exact names to build against mocks
           (plan TC14). Agreeing now avoids a rename at CP2. B may choose other names: tell C, and C
           changes the types and fixtures in one place.
 IDs:      IF-API-EVIDENCE
 Files patched: none (B owns IF-API-EVIDENCE).
 ACTION REQUIRED:
-  - [ ] @B (B1/B4) Confirm or amend these shapes in IF-API-EVIDENCE. `/lineage/overview` should
-        return the last 15 minutes of tier counts at load, or the Overview tier bar starts empty.
+  - [ ] @B (B1/B4) Confirm or amend these shapes in IF-API-EVIDENCE, including `tier_history` on
+        the HTTP overview (without it the Overview tier bar starts empty) and session-enforced
+        tenant scope.
   - [ ] @B (B6) The frozen component APIs are in reports/C5.md ("Notes for downstream phases");
         the lineage and evidence routes are placeholders in `console/src/shell/AppShell.tsx`.
 

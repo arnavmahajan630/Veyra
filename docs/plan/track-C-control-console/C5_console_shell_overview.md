@@ -155,7 +155,7 @@ Sources ─── Edge / Gateway ─── Kafka ─┬─ Normalizer ─── 
 <!-- synced from C5 --> Built on branch `c5-console-shell` (2026-09-29). Full detail in [reports/C5.md](../reports/C5.md).
 
 - **Stack as pinned:** Vite 7.3.6, React 19.3.0, react-router 7.18.4, TanStack Query 5.104.0, Tailwind 4.3.3, vitest 4.1.11, jsdom 27.4.0, TypeScript 5.9.3, MSW 2.15.0, Playwright 1.63.0, lucide-react 1.48.0. These are the newest majors whose `engines` accept Node 25 (TC12). npm 10.8 crashes on jsdom's optional `canvas` peer; use npm 11.
-- **Mock mode is the default workbench:** `make console-mock` runs every page against MSW fixtures, and the 114 unit tests use the same handlers in Node. The production build compiles the mock world out.
+- **Mock mode is the default workbench:** `make console-mock` runs every page against MSW fixtures, and the 126 unit tests use the same handlers in Node. The production build compiles the mock world out.
 - **Dev against the stack:** `make console-dev` proxies `/api` from Vite (:5173) to Caddy (:8080), so the browser sees one origin (TC13, D16).
 - **Fonts:** `@fontsource/mukta` and `@fontsource/jetbrains-mono`, bundled by Vite (no `public/fonts/`).
 - **AC1 and AC2** pass against the mock (numbers move within 3 s; no outside URLs in the bundle). Their live halves wait for B1/B4's `/lineage/overview`, `/lineage/sources` and `/lineage/stream` (CP2).
