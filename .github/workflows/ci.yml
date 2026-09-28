@@ -34,16 +34,18 @@ jobs:
 
   console:
     runs-on: ubuntu-latest
-    # The console is scaffolded in C5; until then this job only pins the Node version
-    # so local and CI agree (IF-VERSIONS: Node 25, build only — decision D17).
+    # IF-VERSIONS: Node 25, build only (D17). The Playwright smoke runs locally
+    # (`make console-e2e`); CI runs the unit tests against the same MSW handlers.
+    defaults:
+      run:
+        working-directory: console
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v6
         with:
           node-version: "25"
-      - run: |
-          if [ -f console/package.json ]; then
-            cd console && npm ci && npm run build
-          else
-            echo "console/ not scaffolded yet (C5)"
-          fi
+          cache: npm
+          cache-dependency-path: console/package-lock.json
+      - run: npm ci
+      - run: npm test
+      - run: npm run build
