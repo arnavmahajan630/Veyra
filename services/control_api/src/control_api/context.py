@@ -27,6 +27,7 @@ from control_api.seed_docs import SeedDocs, load_seed_docs
 from control_api.tables import Tenant
 from veyra_common.envelope import rfc3339_ns
 from veyra_common.settings import Settings
+from veyra_contracts.drafting.drafter import Drafter
 
 Clock = Callable[[], int]  # nanoseconds since the epoch
 Spawn = Callable[[Callable[[], None]], None]
@@ -57,6 +58,9 @@ class AppContext:
     spawn: Spawn = spawn_thread
     # C3: tells the drift worker to forget its groups on /internal/reset
     drift_reset: Callable[[], None] | None = None
+    # C4: the drafter and the slots that bound concurrent model calls
+    drafter: Drafter | None = None
+    draft_slots: threading.Semaphore = field(default_factory=lambda: threading.Semaphore(1))
 
     def now(self) -> str:
         return rfc3339_ns(self.clock())
@@ -73,6 +77,7 @@ def build_context(
     watcher: ReplayWatcher | None = None,
     spawn: Spawn = spawn_thread,
     drift_reset: Callable[[], None] | None = None,
+    drafter: Drafter | None = None,
 ) -> AppContext:
     engine = make_engine(cfg.control_db)
     init_db(engine)
@@ -93,6 +98,8 @@ def build_context(
         watcher=watcher,
         spawn=spawn,
         drift_reset=drift_reset,
+        drafter=drafter,
+        draft_slots=threading.Semaphore(cfg.llm_max_concurrency),
     )
 
 

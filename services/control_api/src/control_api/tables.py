@@ -138,6 +138,11 @@ class Draft(SQLModel, table=True):
     state: str = "drafting"
     payload_json: str = "{}"
     created_at: str
+    # C4 (migrations 12-15)
+    contract_id: str | None = None
+    created_by: str | None = None
+    updated_at: str | None = None
+    detail: str = ""
 
 
 class DriftItem(SQLModel, table=True):

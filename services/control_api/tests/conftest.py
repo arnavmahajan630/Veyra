@@ -23,6 +23,8 @@ from sqlmodel import Session as DbSession
 
 from veyra_common.models import Envelope
 from veyra_common.settings import Settings
+from veyra_contracts.drafting.cache import DraftCache
+from veyra_contracts.drafting.drafter import Drafter
 
 START_NS = 1_790_000_000 * 1_000_000_000
 # The contract registry is a separate repository checked out beside Veyra.
@@ -195,6 +197,7 @@ def ctx(
     context = build_context(
         cfg, producer, clock=clock, index=index, raw=raw_store, watcher=watcher,
         spawn=lambda work: work(),  # replay jobs run inline in tests
+        drafter=Drafter(mode="heuristic", cache=DraftCache(cfg.llm_cache_dir)),
     )  # fmt: skip
     first_boot(context)
     yield context

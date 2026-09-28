@@ -199,6 +199,13 @@ class Settings(BaseSettings):
     control_api_url: str = "http://control-api:8000"
     library_match_min: float = 0.8
 
+    # ------------------------------------------------------------------ drafter (C4)
+    llm_max_concurrency: int = 1
+    llm_keep_alive: str = "30m"
+    drift_autodraft: bool = False
+    drafter_timezone: str = "Asia/Kolkata"
+    onboarding_max_samples: int = 20
+
     # ------------------------------------------------------------------ derived paths
     @computed_field  # type: ignore[prop-decorator]
     @property
