@@ -5,6 +5,8 @@
     "class_uid": 3002,
     "conformance": "match",
     "derived_fields": {
+      "observables.host_1": "from:device.hostname",
+      "observables.user": "from:user.name",
       "severity_id": "const",
       "status_id": "const"
     },
@@ -49,6 +51,8 @@
     "class_uid": 3002,
     "conformance": "match",
     "derived_fields": {
+      "observables.host_1": "from:device.hostname",
+      "observables.user": "from:user.name",
       "severity_id": "const",
       "status_id": "const"
     },
@@ -93,6 +97,8 @@
     "class_uid": 3002,
     "conformance": "match",
     "derived_fields": {
+      "observables.host_1": "from:device.hostname",
+      "observables.user": "from:user.name",
       "severity_id": "const",
       "status_id": "const"
     },
@@ -137,6 +143,8 @@
     "class_uid": 3002,
     "conformance": "match",
     "derived_fields": {
+      "observables.host_1": "from:device.hostname",
+      "observables.user": "from:user.name",
       "severity_id": "const",
       "status_id": "const"
     },
@@ -181,6 +189,8 @@
     "class_uid": 3002,
     "conformance": "match",
     "derived_fields": {
+      "observables.host_1": "from:device.hostname",
+      "observables.user": "from:user.name",
       "severity_id": "const",
       "status_id": "const"
     },
@@ -225,6 +235,8 @@
     "class_uid": 3002,
     "conformance": "match",
     "derived_fields": {
+      "observables.host_1": "from:device.hostname",
+      "observables.user": "from:user.name",
       "severity_id": "const",
       "status_id": "const"
     },
@@ -269,6 +281,8 @@
     "class_uid": 3002,
     "conformance": "match",
     "derived_fields": {
+      "observables.host_1": "from:device.hostname",
+      "observables.user": "from:user.name",
       "severity_id": "const",
       "status_id": "const"
     },
@@ -313,6 +327,8 @@
     "class_uid": 3002,
     "conformance": "match",
     "derived_fields": {
+      "observables.host_1": "from:device.hostname",
+      "observables.user": "from:user.name",
       "severity_id": "const",
       "status_id": "const"
     },
@@ -357,6 +373,8 @@
     "class_uid": 3002,
     "conformance": "match",
     "derived_fields": {
+      "observables.host_1": "from:device.hostname",
+      "observables.user": "from:user.name",
       "severity_id": "const",
       "status_id": "const"
     },
@@ -401,6 +419,8 @@
     "class_uid": 3002,
     "conformance": "match",
     "derived_fields": {
+      "observables.host_1": "from:device.hostname",
+      "observables.user": "from:user.name",
       "severity_id": "const",
       "status_id": "const"
     },
@@ -445,6 +465,8 @@
     "class_uid": 3002,
     "conformance": "match",
     "derived_fields": {
+      "observables.host_1": "from:device.hostname",
+      "observables.user": "from:user.name",
       "severity_id": "const",
       "status_id": "const"
     },
@@ -489,6 +511,8 @@
     "class_uid": 3002,
     "conformance": "match",
     "derived_fields": {
+      "observables.host_1": "from:device.hostname",
+      "observables.user": "from:user.name",
       "severity_id": "const",
       "status_id": "const"
     },
@@ -533,6 +557,8 @@
     "class_uid": 3002,
     "conformance": "match",
     "derived_fields": {
+      "observables.host_1": "from:device.hostname",
+      "observables.user": "from:user.name",
       "severity_id": "const",
       "status_id": "const"
     },
@@ -577,6 +603,8 @@
     "class_uid": 3002,
     "conformance": "match",
     "derived_fields": {
+      "observables.host_1": "from:device.hostname",
+      "observables.user": "from:user.name",
       "severity_id": "const",
       "status_id": "const"
     },
@@ -621,6 +649,8 @@
     "class_uid": 3002,
     "conformance": "match",
     "derived_fields": {
+      "observables.host_1": "from:device.hostname",
+      "observables.user": "from:user.name",
       "severity_id": "const",
       "status_id": "const"
     },
@@ -665,6 +695,8 @@
     "class_uid": 3002,
     "conformance": "match",
     "derived_fields": {
+      "observables.host_1": "from:device.hostname",
+      "observables.user": "from:user.name",
       "severity_id": "const",
       "status_id": "const"
     },
@@ -709,6 +741,8 @@
     "class_uid": 3002,
     "conformance": "match",
     "derived_fields": {
+      "observables.host_1": "from:device.hostname",
+      "observables.user": "from:user.name",
       "severity_id": "const",
       "status_id": "const"
     },
@@ -753,6 +787,8 @@
     "class_uid": 3002,
     "conformance": "match",
     "derived_fields": {
+      "observables.host_1": "from:device.hostname",
+      "observables.user": "from:user.name",
       "severity_id": "const",
       "status_id": "const"
     },
@@ -797,6 +833,8 @@
     "class_uid": 3002,
     "conformance": "match",
     "derived_fields": {
+      "observables.host_1": "from:device.hostname",
+      "observables.user": "from:user.name",
       "severity_id": "const",
       "status_id": "const"
     },
@@ -841,6 +879,8 @@
     "class_uid": 3002,
     "conformance": "match",
     "derived_fields": {
+      "observables.host_1": "from:device.hostname",
+      "observables.user": "from:user.name",
       "severity_id": "const",
       "status_id": "const"
     },
@@ -885,6 +925,8 @@
     "class_uid": 3002,
     "conformance": "match",
     "derived_fields": {
+      "observables.host_1": "from:device.hostname",
+      "observables.user": "from:user.name",
       "severity_id": "const",
       "status_id": "const"
     },
@@ -929,6 +971,8 @@
     "class_uid": 3002,
     "conformance": "match",
     "derived_fields": {
+      "observables.host_1": "from:device.hostname",
+      "observables.user": "from:user.name",
       "severity_id": "const",
       "status_id": "const"
     },

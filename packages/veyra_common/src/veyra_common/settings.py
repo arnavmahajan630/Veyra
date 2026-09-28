@@ -14,6 +14,7 @@ Usage::
 
 from __future__ import annotations
 
+import os
 from functools import lru_cache
 from pathlib import Path
 from typing import Literal
@@ -74,6 +75,9 @@ class Settings(BaseSettings):
     # make test-int, demo/tools/*): kafka publishes an EXTERNAL listener on 29092.
     kafka_bootstrap_host: str = "localhost:29092"
     clickhouse_url: str = "http://clickhouse:8123"
+    # Host-side override for tools and tests outside the compose network. `veyra_lineage.client`
+    # (B) reads this first and falls back to `clickhouse_url`; empty means "not overridden".
+    ch_url: str = ""
     clickhouse_db: str = "veyra"
     clickhouse_user: str = "default"
     clickhouse_password: str = ""
@@ -234,6 +238,18 @@ class ServiceSettings(Settings):
 
     service_name: str = Field(default="veyra-service", description="set by the service")
     metrics_port: int = 8200
+
+
+def contracts_repo_path(cfg: Settings | None = None) -> Path:
+    """Where the Log Contract registry is checked out.
+
+    The registry is its own repository beside this one (C's 2026-09-28 DECISION), so this is a
+    setting rather than a path inside the repo: ``VEYRA_CONTRACTS_REPO`` wins, else
+    ``Settings.contracts_repo`` (``../contracts-repo``). Resolved, so callers can compare paths and
+    print something a human can act on.
+    """
+    configured = os.environ.get("VEYRA_CONTRACTS_REPO") or (cfg or get_settings()).contracts_repo
+    return Path(configured).expanduser().resolve()
 
 
 @lru_cache(maxsize=1)

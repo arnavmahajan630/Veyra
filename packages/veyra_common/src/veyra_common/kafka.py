@@ -20,6 +20,7 @@ from typing import Any
 
 from confluent_kafka import Consumer, KafkaError, KafkaException, Message, Producer, TopicPartition
 
+from veyra_common.inflight import BatchId, InflightJournal
 from veyra_common.settings import Settings, settings
 
 log = logging.getLogger(__name__)
@@ -36,6 +37,10 @@ class OutputRecord:
 
 
 ProcessFn = Callable[[list[Message]], Iterable[OutputRecord]]
+
+
+class PoisonBatch(Exception):
+    """Raised for the benefit of ``on_poison`` when a batch is skipped without being processed."""
 
 
 def _base_conf(cfg: Settings) -> dict[str, Any]:
@@ -146,6 +151,10 @@ class TxnProcessor:
     from ``fn`` aborts the transaction and retries the batch; after
     ``poison_max_retries`` attempts the batch is skipped and ``on_poison`` is called,
     so one unparseable record can never stall the pipeline (A4 crash-loop guard).
+
+    The attempt count is also journalled to ``data/state/<name>_inflight`` before each batch, so a
+    record that kills the *process* rather than raising is quarantined on the next restart instead
+    of crash-looping forever. See :mod:`veyra_common.inflight`.
     """
 
     def __init__(
@@ -159,11 +168,13 @@ class TxnProcessor:
         instance: str = "0",
         cfg: Settings | None = None,
         on_poison: Callable[[list[Message], Exception], Iterable[OutputRecord]] | None = None,
+        journal: InflightJournal | None = None,
     ) -> None:
         self.cfg = cfg or settings
         self.name = name
         self.fn = fn
         self.on_poison = on_poison
+        self.journal = journal or InflightJournal.for_service(name, cfg=self.cfg)
         self.consumer = make_consumer(group, topics, pattern=pattern, cfg=self.cfg)
         self.producer = make_producer(f"{name}-{instance}", cfg=self.cfg)
         self.producer.init_transactions()
@@ -204,6 +215,20 @@ class TxnProcessor:
             batch.append(msg)
         return batch
 
+    @staticmethod
+    def batch_id(batch: list[Message]) -> BatchId:
+        """Stable identity of a batch: the offset range held per partition."""
+        bounds: dict[tuple[str, int], tuple[int, int]] = {}
+        for msg in batch:
+            key = (msg.topic(), msg.partition())
+            offset = msg.offset()
+            low, high = bounds.get(key, (offset, offset))
+            bounds[key] = (min(low, offset), max(high, offset))
+        return tuple(
+            (topic, partition, low, high)
+            for (topic, partition), (low, high) in sorted(bounds.items())
+        )
+
     def _positions(self, batch: list[Message]) -> list[TopicPartition]:
         highest: dict[tuple[str, int], int] = {}
         for msg in batch:
@@ -229,6 +254,7 @@ class TxnProcessor:
         self.batches += 1
         self.records += len(batch)
         self._attempts = 0
+        self.journal.clear()
 
     def run(self) -> None:
         """Run until :meth:`stop` is called."""
@@ -237,10 +263,17 @@ class TxnProcessor:
             batch = self.poll_batch()
             if not batch:
                 continue
+            identity = self.batch_id(batch)
+            if self.journal.poisonous(identity):
+                # This exact batch already took us down `poison_max_retries` times. Do not hand it
+                # to `fn` again — processing it is the thing that kills us.
+                self._quarantine(batch, PoisonBatch(f"crash-looped on {identity}"))
+                continue
+            attempts = self.journal.begin(identity)
             try:
                 self.process_batch(batch)
             except Exception as exc:
-                self._attempts += 1
+                self._attempts = max(self._attempts + 1, attempts)
                 log.error(
                     "batch failed",
                     extra={"attempt": self._attempts, "size": len(batch), "error": str(exc)},
@@ -266,3 +299,4 @@ class TxnProcessor:
             raise
         finally:
             self._attempts = 0
+            self.journal.clear()

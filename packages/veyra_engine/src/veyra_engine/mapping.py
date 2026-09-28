@@ -230,7 +230,9 @@ def apply_map(
         else:
             result.coercion_errors.append(f"{path}: unknown map kind {kind!r}")
 
-    result.observables = build_observables(result.ocsf)
+    result.observables, observable_sources = build_observables(result.ocsf)
+    # An observable copied from a mapped field is derived from it, not separately located.
+    result.derived_fields.update(observable_sources)
     result.unmapped = collect_unmapped(
         captures=captures,
         consumed_captures=consumed_captures,
@@ -240,9 +242,15 @@ def apply_map(
     return result
 
 
-def build_observables(ocsf: dict[str, Any]) -> list[dict[str, Any]]:
-    """Observables from the typed fields we mapped (IF-OCSF-SUBSET)."""
+def build_observables(ocsf: dict[str, Any]) -> tuple[list[dict[str, Any]], dict[str, str]]:
+    """Observables from the typed fields we mapped (IF-OCSF-SUBSET).
+
+    Returns the observables **and** where each came from, because an observable at tier 1 is a copy
+    of an already-mapped field: it is not separately present in the raw bytes, so P4 requires it be
+    declared as derived from its source rather than left unexplained.
+    """
     observables: list[dict[str, Any]] = []
+    sources: dict[str, str] = {}
     ip_index = 0
     host_index = 0
 
@@ -258,28 +266,31 @@ def build_observables(ocsf: dict[str, Any]) -> list[dict[str, Any]]:
         value = get(path)
         if value:
             ip_index += 1
-            observables.append(
-                {"name": f"ip_{ip_index}", "type_id": OBSERVABLE_TYPE_IP, "value": str(value)}
-            )
+            name = f"ip_{ip_index}"
+            observables.append({"name": name, "type_id": OBSERVABLE_TYPE_IP, "value": str(value)})
+            sources[f"observables.{name}"] = f"from:{path}"
     for path in sorted(USER_PATHS):
         value = get(path)
         if value:
             observables.append(
                 {"name": "user", "type_id": OBSERVABLE_TYPE_USER, "value": str(value)}
             )
+            sources["observables.user"] = f"from:{path}"
             break
     for path in sorted(HOSTNAME_PATHS):
         value = get(path)
         if value:
             host_index += 1
+            name = f"host_{host_index}"
             observables.append(
                 {
-                    "name": f"host_{host_index}",
+                    "name": name,
                     "type_id": OBSERVABLE_TYPE_HOSTNAME,
                     "value": str(value),
                 }
             )
-    return observables
+            sources[f"observables.{name}"] = f"from:{path}"
+    return observables, sources
 
 
 def collect_unmapped(

@@ -82,6 +82,12 @@ Output: `reports/A6-bench-<machine>.md` with a table and the machine spec. These
   it, or the router (uid 10001) cannot append.
 - [ ] 4. Full routes: filters, masking, the partner route, syslog_tcp with breaker, http_json.
 - [ ] 5. Full rules 100110–100130 + logtest samples; brute force verified.
+  <!-- synced from A4 --> Tier-3 events now carry `ulpf.class_hint` and a `severity_id` derived from a
+  word vocabulary (`derived_fields["severity_id"] = "vocab:severity_words"`). Both are **hints**: the
+  word match reads "failed to disable alerting" as a failure. No rule that pages a human should fire on
+  tier-3 severity or on `class_hint` alone — match on `ulpf.tier` plus the located fields, and keep
+  tier-3 rules informational. Observable names to key on for an uncategorized event: `ip_1`, `ip_2`,
+  `user`, `host_1`.
 - [ ] 6. (minimal) Integration test: event → sink line → Wazuh API `GET /alerts`-style query or indexer search finds it (automated, via the indexer REST API).
 - [ ] 7. Saved objects export; `WAZUH=remote` mode (route sink switches to syslog_tcp to `VEYRA_WAZUH_REMOTE_HOST`; the remote manager has a `<remote>` syslog config and the same rules; document it in `wazuh/REMOTE.md`).
 - [ ] 8. Throughput bench + report (laptop now; workstation if procured).

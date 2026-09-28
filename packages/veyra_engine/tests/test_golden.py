@@ -16,7 +16,6 @@ makes snapshotting honest in the first place.
 from __future__ import annotations
 
 import json
-import os
 import sys
 from pathlib import Path
 from typing import Any
@@ -25,16 +24,21 @@ import pytest
 
 from veyra_common.envelope import stamp
 from veyra_common.models import Envelope, NormEvent
+from veyra_common.settings import contracts_repo_path
 from veyra_engine import Engine, EngineContext, mini_compile, provenance_check
 
 REPO = Path(__file__).resolve().parents[3]
 CORPUS = REPO / "demo" / "corpus"
 EXPECTED = Path(__file__).resolve().parent / "expected"
 TEST_CONTRACTS = Path(__file__).resolve().parent / "contracts"
-# The contract registry is its own repository, checked out beside this one
-# (VEYRA_CONTRACTS_REPO overrides; see 05_CHANGELOG 2026-09-28).
-REGISTRY = Path(os.environ.get("VEYRA_CONTRACTS_REPO", REPO.parent / "contracts-repo"))
-SEED_CONTRACTS = REGISTRY / "t_ntro_core"
+SEED_CONTRACTS = contracts_repo_path() / "t_ntro_core"
+
+# A missing sibling checkout should say so, not raise FileNotFoundError deep inside a test. Matches
+# how C's own contract tests behave.
+pytestmark = pytest.mark.skipif(
+    not SEED_CONTRACTS.is_dir(),
+    reason=f"needs the contracts repository checked out at {SEED_CONTRACTS.parent}",
+)
 
 # A fixed arrival time, so year inference and clock skew are deterministic.
 RECEIVED = "2026-09-26T14:10:00.000000000Z"
@@ -283,7 +287,11 @@ def test_garbage_never_crashes_and_always_lands_in_the_dlq() -> None:
     chunks = [chunk for chunk in raw_blob.split(b"\n") if chunk] + [raw_blob]
     for index, raw in enumerate(chunks):
         result = engine.normalize(make_envelope(raw, case, index))
-        assert result.tier == 4, f"chunk {index} should be unparseable, got tier {result.tier}"
+        # Since A4 some of these are tier 3 (the generic extractor finds something in them), which
+        # is an improvement, not a regression: what matters is that nothing crashes, nothing is
+        # dropped, and every one carries a reason.
+        assert result.tier in (3, 4), f"chunk {index} got tier {result.tier}"
+        assert result.ocsf["raw_data"] is not None
         assert result.dlq is not None
         assert result.dlq.reason_code in {
             "no_template_match",

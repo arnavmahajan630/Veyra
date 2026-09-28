@@ -5,6 +5,9 @@
     "class_uid": 3002,
     "conformance": "match",
     "derived_fields": {
+      "observables.host_1": "from:device.hostname",
+      "observables.ip_1": "from:src_endpoint.ip",
+      "observables.user": "from:user.name",
       "severity_id": "const",
       "status_detail": "const",
       "status_id": "const"
@@ -48,6 +51,9 @@
     "class_uid": 3002,
     "conformance": "match",
     "derived_fields": {
+      "observables.host_1": "from:device.hostname",
+      "observables.ip_1": "from:src_endpoint.ip",
+      "observables.user": "from:user.name",
       "severity_id": "const",
       "status_detail": "const",
       "status_id": "const"
@@ -91,6 +97,9 @@
     "class_uid": 3002,
     "conformance": "match",
     "derived_fields": {
+      "observables.host_1": "from:device.hostname",
+      "observables.ip_1": "from:src_endpoint.ip",
+      "observables.user": "from:user.name",
       "severity_id": "const",
       "status_detail": "const",
       "status_id": "const"
@@ -134,6 +143,9 @@
     "class_uid": 3002,
     "conformance": "match",
     "derived_fields": {
+      "observables.host_1": "from:device.hostname",
+      "observables.ip_1": "from:src_endpoint.ip",
+      "observables.user": "from:user.name",
       "severity_id": "const",
       "status_detail": "const",
       "status_id": "const"
@@ -177,6 +189,9 @@
     "class_uid": 3002,
     "conformance": "match",
     "derived_fields": {
+      "observables.host_1": "from:device.hostname",
+      "observables.ip_1": "from:src_endpoint.ip",
+      "observables.user": "from:user.name",
       "severity_id": "const",
       "status_detail": "const",
       "status_id": "const"
@@ -220,6 +235,9 @@
     "class_uid": 3002,
     "conformance": "match",
     "derived_fields": {
+      "observables.host_1": "from:device.hostname",
+      "observables.ip_1": "from:src_endpoint.ip",
+      "observables.user": "from:user.name",
       "severity_id": "const",
       "status_detail": "const",
       "status_id": "const"
@@ -261,19 +279,30 @@
     "activity_id": 99,
     "category": "uncategorized",
     "class_uid": 0,
-    "conformance": "unparseable",
-    "derived_fields": {},
+    "conformance": "unknown_template",
+    "derived_fields": {
+      "severity_id": "default:unknown",
+      "time": "received"
+    },
     "dlq_reason": "no_template_match",
-    "mapped": {},
-    "observables": [],
+    "mapped": {
+      "message": "Invalid user oracle from 45.12.3.9 port 52200",
+      "observables.ip_1": "45.12.3.9",
+      "observables.user": "oracle"
+    },
+    "observables": [
+      "oracle",
+      "45.12.3.9"
+    ],
     "parse_path": [
       "syslog:rfc3164",
-      "no_template_match"
+      "no_template_match",
+      "auto:rfc3164"
     ],
     "severity_id": 0,
     "status_id": null,
     "template_id": null,
-    "tier": 4,
+    "tier": 3,
     "time_source": "received",
     "type_uid": 99,
     "unmapped_keys": [
@@ -293,6 +322,9 @@
     "class_uid": 3002,
     "conformance": "match",
     "derived_fields": {
+      "observables.host_1": "from:device.hostname",
+      "observables.ip_1": "from:src_endpoint.ip",
+      "observables.user": "from:user.name",
       "severity_id": "const",
       "status_id": "const"
     },
@@ -335,6 +367,9 @@
     "class_uid": 3002,
     "conformance": "match",
     "derived_fields": {
+      "observables.host_1": "from:device.hostname",
+      "observables.ip_1": "from:src_endpoint.ip",
+      "observables.user": "from:user.name",
       "severity_id": "const",
       "status_id": "const"
     },
@@ -375,19 +410,71 @@
     "activity_id": 99,
     "category": "uncategorized",
     "class_uid": 0,
-    "conformance": "unparseable",
-    "derived_fields": {},
+    "conformance": "unknown_template",
+    "derived_fields": {
+      "severity_id": "default:unknown",
+      "time": "received"
+    },
     "dlq_reason": "no_template_match",
-    "mapped": {},
-    "observables": [],
+    "mapped": {
+      "message": "pam_unix(sshd:session): session opened for user r.patil by (uid=0)",
+      "observables.user": "r.patil",
+      "observables.user_2": "0)"
+    },
+    "observables": [
+      "r.patil",
+      "0)"
+    ],
     "parse_path": [
       "syslog:rfc3164",
-      "no_template_match"
+      "no_template_match",
+      "auto:rfc3164"
     ],
     "severity_id": 0,
     "status_id": null,
     "template_id": null,
-    "tier": 4,
+    "tier": 3,
+    "time_source": "received",
+    "type_uid": 99,
+    "unmapped_keys": [
+      "sshd",
+      "syslog.app",
+      "syslog.facility",
+      "syslog.host",
+      "syslog.pid",
+      "syslog.pri",
+      "syslog.severity",
+      "syslog.timestamp",
+      "uid"
+    ],
+    "year_inferred": false
+  },
+  {
+    "activity_id": 99,
+    "category": "uncategorized",
+    "class_uid": 0,
+    "conformance": "unknown_template",
+    "derived_fields": {
+      "severity_id": "default:unknown",
+      "time": "received"
+    },
+    "dlq_reason": "no_template_match",
+    "mapped": {
+      "message": "Received disconnect from 10.4.1.20 port 51002:11: disconnected by user",
+      "observables.ip_1": "10.4.1.20"
+    },
+    "observables": [
+      "10.4.1.20"
+    ],
+    "parse_path": [
+      "syslog:rfc3164",
+      "no_template_match",
+      "auto:rfc3164"
+    ],
+    "severity_id": 0,
+    "status_id": null,
+    "template_id": null,
+    "tier": 3,
     "time_source": "received",
     "type_uid": 99,
     "unmapped_keys": [
@@ -405,22 +492,32 @@
     "activity_id": 99,
     "category": "uncategorized",
     "class_uid": 0,
-    "conformance": "unparseable",
-    "derived_fields": {},
+    "conformance": "unknown_template",
+    "derived_fields": {
+      "severity_id": "default:unknown",
+      "time": "received"
+    },
     "dlq_reason": "no_template_match",
-    "mapped": {},
-    "observables": [],
+    "mapped": {
+      "message": "pam_unix(sshd:session): session closed for user r.patil",
+      "observables.user": "r.patil"
+    },
+    "observables": [
+      "r.patil"
+    ],
     "parse_path": [
       "syslog:rfc3164",
-      "no_template_match"
+      "no_template_match",
+      "auto:rfc3164"
     ],
     "severity_id": 0,
     "status_id": null,
     "template_id": null,
-    "tier": 4,
+    "tier": 3,
     "time_source": "received",
     "type_uid": 99,
     "unmapped_keys": [
+      "sshd",
       "syslog.app",
       "syslog.facility",
       "syslog.host",
@@ -435,52 +532,35 @@
     "activity_id": 99,
     "category": "uncategorized",
     "class_uid": 0,
-    "conformance": "unparseable",
-    "derived_fields": {},
+    "conformance": "unknown_template",
+    "derived_fields": {
+      "severity_id": "default:unknown",
+      "time": "received"
+    },
     "dlq_reason": "no_template_match",
-    "mapped": {},
-    "observables": [],
+    "mapped": {
+      "message": "Accepted publickey for s.iyer from 10.4.1.31 port 51110 ssh2: RSA SHA256:7Yb2",
+      "observables.ip_1": "10.4.1.31",
+      "observables.user": "s.iyer"
+    },
+    "observables": [
+      "s.iyer",
+      "10.4.1.31"
+    ],
     "parse_path": [
       "syslog:rfc3164",
-      "no_template_match"
+      "no_template_match",
+      "auto:rfc3164"
     ],
     "severity_id": 0,
     "status_id": null,
     "template_id": null,
-    "tier": 4,
+    "tier": 3,
     "time_source": "received",
     "type_uid": 99,
     "unmapped_keys": [
-      "syslog.app",
-      "syslog.facility",
-      "syslog.host",
-      "syslog.pid",
-      "syslog.pri",
-      "syslog.severity",
-      "syslog.timestamp"
-    ],
-    "year_inferred": false
-  },
-  {
-    "activity_id": 99,
-    "category": "uncategorized",
-    "class_uid": 0,
-    "conformance": "unparseable",
-    "derived_fields": {},
-    "dlq_reason": "no_template_match",
-    "mapped": {},
-    "observables": [],
-    "parse_path": [
-      "syslog:rfc3164",
-      "no_template_match"
-    ],
-    "severity_id": 0,
-    "status_id": null,
-    "template_id": null,
-    "tier": 4,
-    "time_source": "received",
-    "type_uid": 99,
-    "unmapped_keys": [
+      "SHA256",
+      "ssh2",
       "syslog.app",
       "syslog.facility",
       "syslog.host",
@@ -497,6 +577,9 @@
     "class_uid": 3002,
     "conformance": "match",
     "derived_fields": {
+      "observables.host_1": "from:device.hostname",
+      "observables.ip_1": "from:src_endpoint.ip",
+      "observables.user": "from:user.name",
       "severity_id": "const",
       "status_detail": "const",
       "status_id": "const"
@@ -538,22 +621,34 @@
     "activity_id": 99,
     "category": "uncategorized",
     "class_uid": 0,
-    "conformance": "unparseable",
-    "derived_fields": {},
+    "conformance": "unknown_template",
+    "derived_fields": {
+      "severity_id": "vocab:severity_words",
+      "time": "received"
+    },
     "dlq_reason": "no_template_match",
-    "mapped": {},
-    "observables": [],
+    "mapped": {
+      "message": "error: maximum authentication attempts exceeded for root from 45.12.3.9 port 52300 ssh2 [preauth]",
+      "observables.ip_1": "45.12.3.9",
+      "observables.user": "root"
+    },
+    "observables": [
+      "root",
+      "45.12.3.9"
+    ],
     "parse_path": [
       "syslog:rfc3164",
-      "no_template_match"
+      "no_template_match",
+      "auto:rfc3164"
     ],
-    "severity_id": 0,
+    "severity_id": 3,
     "status_id": null,
     "template_id": null,
-    "tier": 4,
+    "tier": 3,
     "time_source": "received",
     "type_uid": 99,
     "unmapped_keys": [
+      "error",
       "syslog.app",
       "syslog.facility",
       "syslog.host",
@@ -568,19 +663,30 @@
     "activity_id": 99,
     "category": "uncategorized",
     "class_uid": 0,
-    "conformance": "unparseable",
-    "derived_fields": {},
+    "conformance": "unknown_template",
+    "derived_fields": {
+      "severity_id": "default:unknown",
+      "time": "received"
+    },
     "dlq_reason": "no_template_match",
-    "mapped": {},
-    "observables": [],
+    "mapped": {
+      "message": "Disconnecting invalid user admin 45.12.3.9 port 52300: Too many authentication failures",
+      "observables.ip_1": "45.12.3.9",
+      "observables.user": "admin"
+    },
+    "observables": [
+      "admin",
+      "45.12.3.9"
+    ],
     "parse_path": [
       "syslog:rfc3164",
-      "no_template_match"
+      "no_template_match",
+      "auto:rfc3164"
     ],
     "severity_id": 0,
     "status_id": null,
     "template_id": null,
-    "tier": 4,
+    "tier": 3,
     "time_source": "received",
     "type_uid": 99,
     "unmapped_keys": [
@@ -600,6 +706,9 @@
     "class_uid": 3002,
     "conformance": "match",
     "derived_fields": {
+      "observables.host_1": "from:device.hostname",
+      "observables.ip_1": "from:src_endpoint.ip",
+      "observables.user": "from:user.name",
       "severity_id": "const",
       "status_id": "const"
     },
@@ -640,19 +749,32 @@
     "activity_id": 99,
     "category": "uncategorized",
     "class_uid": 0,
-    "conformance": "unparseable",
-    "derived_fields": {},
+    "conformance": "unknown_template",
+    "derived_fields": {
+      "severity_id": "default:unknown",
+      "time": "received"
+    },
     "dlq_reason": "no_template_match",
-    "mapped": {},
-    "observables": [],
+    "mapped": {
+      "message": "Connection closed by authenticating user d.mehta 10.4.2.11 port 40130 [preauth]",
+      "observables.ip_1": "10.4.2.11",
+      "observables.user": "authenticating",
+      "observables.user_2": "d.mehta"
+    },
+    "observables": [
+      "authenticating",
+      "d.mehta",
+      "10.4.2.11"
+    ],
     "parse_path": [
       "syslog:rfc3164",
-      "no_template_match"
+      "no_template_match",
+      "auto:rfc3164"
     ],
     "severity_id": 0,
     "status_id": null,
     "template_id": null,
-    "tier": 4,
+    "tier": 3,
     "time_source": "received",
     "type_uid": 99,
     "unmapped_keys": [
@@ -670,22 +792,42 @@
     "activity_id": 99,
     "category": "uncategorized",
     "class_uid": 0,
-    "conformance": "unparseable",
-    "derived_fields": {},
+    "conformance": "unknown_template",
+    "derived_fields": {
+      "severity_id": "default:unknown",
+      "time": "received"
+    },
     "dlq_reason": "no_template_match",
-    "mapped": {},
-    "observables": [],
+    "mapped": {
+      "message": "r.patil : TTY=pts/0 ; PWD=/home/r.patil ; USER=root ; COMMAND=/usr/bin/systemctl restart veyra",
+      "observables.host_1": "r.patil",
+      "observables.user": "root"
+    },
+    "observables": [
+      "r.patil",
+      "root"
+    ],
     "parse_path": [
       "syslog:rfc3164",
-      "no_template_match"
+      "no_template_match",
+      "auto:rfc3164",
+      "auto:csv(';')"
     ],
     "severity_id": 0,
     "status_id": null,
     "template_id": null,
-    "tier": 4,
+    "tier": 3,
     "time_source": "received",
     "type_uid": 99,
     "unmapped_keys": [
+      "COMMAND",
+      "PWD",
+      "TTY",
+      "USER",
+      "csv.col0",
+      "csv.col1",
+      "csv.col2",
+      "csv.col3",
       "syslog.app",
       "syslog.facility",
       "syslog.host",
@@ -700,19 +842,30 @@
     "activity_id": 99,
     "category": "uncategorized",
     "class_uid": 0,
-    "conformance": "unparseable",
-    "derived_fields": {},
+    "conformance": "unknown_template",
+    "derived_fields": {
+      "severity_id": "vocab:severity_words",
+      "time": "received"
+    },
     "dlq_reason": "no_template_match",
-    "mapped": {},
-    "observables": [],
+    "mapped": {
+      "message": "Failed none for invalid user admin from 103.21.4.77 port 60011 ssh2",
+      "observables.ip_1": "103.21.4.77",
+      "observables.user": "admin"
+    },
+    "observables": [
+      "admin",
+      "103.21.4.77"
+    ],
     "parse_path": [
       "syslog:rfc3164",
-      "no_template_match"
+      "no_template_match",
+      "auto:rfc3164"
     ],
-    "severity_id": 0,
+    "severity_id": 3,
     "status_id": null,
     "template_id": null,
-    "tier": 4,
+    "tier": 3,
     "time_source": "received",
     "type_uid": 99,
     "unmapped_keys": [
@@ -732,6 +885,9 @@
     "class_uid": 3002,
     "conformance": "match",
     "derived_fields": {
+      "observables.host_1": "from:device.hostname",
+      "observables.ip_1": "from:src_endpoint.ip",
+      "observables.user": "from:user.name",
       "severity_id": "const",
       "status_id": "const"
     },
@@ -772,19 +928,80 @@
     "activity_id": 99,
     "category": "uncategorized",
     "class_uid": 0,
-    "conformance": "unparseable",
-    "derived_fields": {},
+    "conformance": "unknown_template",
+    "derived_fields": {
+      "severity_id": "vocab:severity_words",
+      "time": "received"
+    },
     "dlq_reason": "no_template_match",
-    "mapped": {},
-    "observables": [],
+    "mapped": {
+      "message": "pam_unix(sshd:auth): authentication failure; logname= uid=0 euid=0 tty=ssh ruser= rhost=45.12.3.9  user=admin",
+      "observables.ip_1": "45.12.3.9",
+      "observables.user": "admin"
+    },
+    "observables": [
+      "45.12.3.9",
+      "admin"
+    ],
     "parse_path": [
       "syslog:rfc3164",
-      "no_template_match"
+      "no_template_match",
+      "auto:rfc3164",
+      "auto:kv"
+    ],
+    "severity_id": 3,
+    "status_id": null,
+    "template_id": null,
+    "tier": 3,
+    "time_source": "received",
+    "type_uid": 99,
+    "unmapped_keys": [
+      "euid",
+      "kv.euid",
+      "kv.logname",
+      "kv.ruser",
+      "kv.tty",
+      "kv.user",
+      "logname",
+      "sshd",
+      "syslog.app",
+      "syslog.facility",
+      "syslog.host",
+      "syslog.pid",
+      "syslog.pri",
+      "syslog.severity",
+      "syslog.timestamp",
+      "tty",
+      "user"
+    ],
+    "year_inferred": false
+  },
+  {
+    "activity_id": 99,
+    "category": "uncategorized",
+    "class_uid": 0,
+    "conformance": "unknown_template",
+    "derived_fields": {
+      "severity_id": "default:unknown",
+      "time": "received"
+    },
+    "dlq_reason": "no_template_match",
+    "mapped": {
+      "message": "Server listening on 0.0.0.0 port 22.",
+      "observables.ip_1": "0.0.0.0"
+    },
+    "observables": [
+      "0.0.0.0"
+    ],
+    "parse_path": [
+      "syslog:rfc3164",
+      "no_template_match",
+      "auto:rfc3164"
     ],
     "severity_id": 0,
     "status_id": null,
     "template_id": null,
-    "tier": 4,
+    "tier": 3,
     "time_source": "received",
     "type_uid": 99,
     "unmapped_keys": [
@@ -802,49 +1019,25 @@
     "activity_id": 99,
     "category": "uncategorized",
     "class_uid": 0,
-    "conformance": "unparseable",
-    "derived_fields": {},
+    "conformance": "unknown_template",
+    "derived_fields": {
+      "severity_id": "default:unknown",
+      "time": "received"
+    },
     "dlq_reason": "no_template_match",
-    "mapped": {},
+    "mapped": {
+      "message": "Received signal 15; terminating."
+    },
     "observables": [],
     "parse_path": [
       "syslog:rfc3164",
-      "no_template_match"
+      "no_template_match",
+      "auto:rfc3164"
     ],
     "severity_id": 0,
     "status_id": null,
     "template_id": null,
-    "tier": 4,
-    "time_source": "received",
-    "type_uid": 99,
-    "unmapped_keys": [
-      "syslog.app",
-      "syslog.facility",
-      "syslog.host",
-      "syslog.pid",
-      "syslog.pri",
-      "syslog.severity",
-      "syslog.timestamp"
-    ],
-    "year_inferred": false
-  },
-  {
-    "activity_id": 99,
-    "category": "uncategorized",
-    "class_uid": 0,
-    "conformance": "unparseable",
-    "derived_fields": {},
-    "dlq_reason": "no_template_match",
-    "mapped": {},
-    "observables": [],
-    "parse_path": [
-      "syslog:rfc3164",
-      "no_template_match"
-    ],
-    "severity_id": 0,
-    "status_id": null,
-    "template_id": null,
-    "tier": 4,
+    "tier": 3,
     "time_source": "received",
     "type_uid": 99,
     "unmapped_keys": [

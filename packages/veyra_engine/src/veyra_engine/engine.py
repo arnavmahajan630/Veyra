@@ -14,9 +14,14 @@ Tier decision (IF-ULPF), which is the part everything else hangs off:
 | no contract, or no template matched (generic extraction)          | 3    | unknown_template   |
 | decode failure, empty, guard tripped, exception                   | 4    | unparseable        |
 
-A3 builds tiers 1, 2 and 4 and leaves a **deliberate hole at tier 3**: the generic extractor is
-A4's job, so an event that would be tier 3 is emitted as tier 4 today, with the code path already
-in place (``_tier3_placeholder``). That is the phase file's instruction, not an oversight.
+All four tiers are live as of A4: ``_tier3`` runs the classifier cascade and generic extraction
+(:mod:`veyra_engine.tier3`), so an event nobody wrote a contract for still arrives with its IPs,
+users and key/values extracted and byte-located.
+
+Three guards keep the hot path honest under hostile input (A4): a per-event **budget** that aborts
+to tier 4 ``budget_exceeded``, a **size cap** that parses only the first ``max_event_bytes`` while
+keeping the full raw, and a top-level **exception guard** that turns anything unexpected into tier 4
+``engine_crash``. ``normalize`` never raises.
 """
 
 from __future__ import annotations
@@ -26,9 +31,11 @@ from dataclasses import dataclass
 from typing import Any
 
 from veyra_common.hashing import template_sig
+from veyra_common.ids import monotonic_us
 from veyra_common.models import DlqRecord, Envelope
+from veyra_engine import tier3
 from veyra_engine import validate as validate_module
-from veyra_engine.decode import Decoded, decode
+from veyra_engine.decode import Decoded, decode, decode_text_only
 from veyra_engine.mapping import MappingResult, apply_map
 from veyra_engine.mask import mask
 from veyra_engine.peel import PeeledField, Region, run_layers
@@ -36,6 +43,7 @@ from veyra_engine.template import CompiledTemplate, TemplateError, compile_templ
 from veyra_engine.timeparse import parse_time, to_epoch_ms
 from veyra_engine.types import (
     BacktestResult,
+    Budget,
     Check,
     EngineContext,
     Field,
@@ -44,7 +52,7 @@ from veyra_engine.types import (
     Token,
 )
 
-ENGINE_VERSION = "0.3.0"
+ENGINE_VERSION = "0.4.0"
 
 
 @dataclass(slots=True)
@@ -91,6 +99,11 @@ class Engine:
         self._candidates: dict[str, _Prepared] = {}
         self._by_source: dict[str, _Prepared] = {}
         self.load_errors: list[str] = []
+        # Set per event when the size cap trims what gets parsed; raw_data still carries it all.
+        self._full_text: str | None = None
+        # The most recent decode, reused by the budget guard instead of decoding twice.
+        self._last_decoded: Decoded | None = None
+        self._warm()
 
     # ---------------------------------------------------------------- contract set
     def load(self, compiled: list[dict[str, Any]]) -> None:
@@ -107,6 +120,39 @@ class Engine:
         self._active = active
         self._by_source = by_source
         self.load_errors = errors
+        self._warm(active.values())
+
+    def _warm(self, prepared: Any = ()) -> None:
+        """Pay the one-time costs now, so the first event is not charged for them.
+
+        Without this the budget guard fired on a perfectly good tier-1 event: a cold process spends
+        ~14 ms compiling the OCSF validator for a class (fastjsonschema generates Python and
+        `exec`s it) and a few more loading a timezone. The budget catches a pathological *input*, so
+        anything that happens once per process must happen before the first event, not during it.
+        """
+        from veyra_engine.validate import fast_validator_for
+
+        classes = {0}
+        zones: set[str] = set()
+        for contract in prepared:
+            time_spec = contract.raw.get("time") or {}
+            if time_spec.get("timezone"):
+                zones.add(str(time_spec["timezone"]))
+            for template in contract.templates:
+                classes.add(template.class_uid)
+        # Tier 3 always emits Base Event, and every class a loaded contract can produce.
+        for class_uid in classes:
+            try:
+                fast_validator_for(class_uid)
+            except Exception:  # an uncompilable schema is reported per event, not here
+                continue
+        for zone in zones or {"UTC"}:
+            # zoneinfo caches per process, but the first lookup reads and parses a file.
+            parse_time(
+                "2026-01-01 00:00:00",
+                received_time="2026-01-01T00:00:00.000000000Z",
+                tz=zone,
+            )
 
     def set_candidate(self, compiled: dict[str, Any] | None, contract_id: str) -> None:
         """Attach or clear a canary version (A5 runs it in shadow)."""
@@ -162,26 +208,69 @@ class Engine:
 
     # ---------------------------------------------------------------- normalize
     def normalize(self, envelope: Envelope, *, use_candidate: bool = False) -> NormResult:
-        """Normalize one envelope. Never raises: any failure becomes tier 4 (P2)."""
+        """Normalize one envelope. Never raises, and never runs away with the CPU (P2, A4).
+
+        Three guards, in the only order that works: the exception guard wraps everything, the budget
+        is checked after the work (a pure function cannot be interrupted mid-flight without threads,
+        and threads would break determinism), and the size cap is applied inside ``_normalize``
+        before any parsing so a 200 KB line never reaches a regex.
+        """
+        budget = Budget.start(self.ctx.budget_us)
+        started = budget.started_us
         try:
-            return self._normalize(envelope, use_candidate=use_candidate)
-        except Exception as exc:  # the top-level guard A4 hardens further
-            return self._tier4(
+            result = self._normalize(envelope, use_candidate=use_candidate, budget=budget)
+        except Exception as exc:
+            # Any unexpected failure is data, not an outage: tier 4 with the class name, so a
+            # recurring crash is diagnosable from the DLQ alone.
+            elapsed = monotonic_us() - started
+            result = self._tier4(
                 envelope,
                 decoded=None,
                 reason_code="engine_crash",
                 detail=f"{type(exc).__name__}: {exc}",
                 parse_path=["crash"],
             )
+            result.timings_us["total"] = elapsed
+            return result
 
-    def _normalize(self, envelope: Envelope, *, use_candidate: bool) -> NormResult:
+        result.timings_us.setdefault("total", monotonic_us() - started)
+        return result
+
+    def _normalize(
+        self, envelope: Envelope, *, use_candidate: bool, budget: Budget | None = None
+    ) -> NormResult:
         raw = envelope.raw_bytes
         if not raw:
             return self._tier4(envelope, None, "decode_error", "empty payload", ["empty"])
 
-        decoded = decode(raw)
+        # Size cap: parse only the first max_event_bytes, but keep the whole event in raw_data so
+        # nothing is lost and a verifier still sees what arrived (P1).
+        truncated_for_parsing = len(raw) > self.ctx.max_event_bytes
+        parse_bytes = raw[: self.ctx.max_event_bytes] if truncated_for_parsing else raw
+
+        decoded = decode(parse_bytes)
+        self._last_decoded = decoded
+        if truncated_for_parsing:
+            # raw_data carries every byte; offsets stay valid because the prefix bytes are the
+            # same, and the full text needs no offset map (building that map is the expensive part).
+            decoded = Decoded(
+                text=decoded.text,
+                encoding=decoded.encoding,
+                confidence=decoded.confidence,
+                invalid_bytes=decoded.invalid_bytes,
+                raw=raw,
+                char_to_byte=decoded.char_to_byte,
+                lossy=decoded.lossy,
+            )
+            self._full_text = decode_text_only(raw)
+        else:
+            self._full_text = None
         if decoded.invalid_bytes and decoded.confidence == 0.0 and not decoded.text.strip():
             return self._tier4(envelope, decoded, "decode_error", "no decodable text", ["decode"])
+
+        if budget is not None and budget.expired():
+            # Decoding a very large event can use the whole budget on its own.
+            return self._over_budget(envelope, decoded, budget, ["decode"], None)
 
         prepared = self._resolve_contract(envelope.source_id, use_candidate=use_candidate)
 
@@ -197,12 +286,18 @@ class Engine:
         peeled: dict[str, PeeledField] = outcome.field_map()
         text_region: Region = outcome.text_field or Region(decoded.text, (0, len(decoded.text)))
 
+        if budget is not None and budget.expired():
+            return self._over_budget(envelope, decoded, budget, parse_path or ["peel"], None)
+
         scope = prepared.id if prepared else (envelope.vendor or "unregistered")
         sig = template_sig(scope, text_region.text)
 
+        if budget is not None and budget.expired():
+            return self._over_budget(envelope, decoded, budget, [*parse_path, "sig"], sig)
+
         # ---- no contract at all: that is the tier-3 path A4 completes
         if prepared is None:
-            return self._tier3_placeholder(
+            return self._tier3(
                 envelope,
                 decoded,
                 sig=sig,
@@ -212,12 +307,13 @@ class Engine:
                 text=text_region.text,
                 peeled=peeled,
                 use_candidate=use_candidate,
+                budget=budget,
             )
 
         # ---- template match
         matched = match_templates(prepared.templates, text_region.text, offset=text_region.start)
         if matched is None:
-            return self._tier3_placeholder(
+            return self._tier3(
                 envelope,
                 decoded,
                 sig=sig,
@@ -231,6 +327,7 @@ class Engine:
                 peeled=peeled,
                 contract=prepared,
                 use_candidate=use_candidate,
+                budget=budget,
             )
         parse_path.append(f"template:{matched.template.id}")
 
@@ -403,7 +500,7 @@ class Engine:
             "severity_id": 1,
             "time": time_result.epoch_ms,
             "message": text,
-            "raw_data": decoded.text,
+            "raw_data": self._full_text or decoded.text,
             "observables": mapped.observables,
             "unmapped": mapped.unmapped,
             "metadata": {
@@ -411,6 +508,13 @@ class Engine:
                 "product": {"name": "VEYRA", "vendor_name": "NTRO"},
             },
         }
+        # Anything the builder defaulted rather than read from the source has to say so, or
+        # provenance_check reports it as an unexplained claim (P4).
+        if "severity_id" not in mapped.ocsf:
+            mapped.derived_fields.setdefault("severity_id", "default:informational")
+        if "message" not in mapped.ocsf and "message" not in mapped.field_offsets:
+            mapped.derived_fields.setdefault("message", "default:text_field")
+
         # Mapped values win over the defaults above (a contract may set severity or message).
         for key, value in mapped.ocsf.items():
             if isinstance(value, dict) and isinstance(event.get(key), dict):
@@ -506,6 +610,27 @@ class Engine:
             produced_at=envelope.received_time,
         )
 
+    def _over_budget(
+        self,
+        envelope: Envelope,
+        decoded: Decoded | None,
+        budget: Budget,
+        parse_path: list[str],
+        sig: str | None,
+    ) -> NormResult:
+        """Stop here: the event has used its time. Still delivered, still carries its bytes (P2)."""
+        elapsed = budget.elapsed_us()
+        result = self._tier4(
+            envelope,
+            decoded,
+            "budget_exceeded",
+            f"{elapsed} us over the {budget.limit_us} us budget",
+            [*parse_path, "budget_exceeded"],
+            sig=sig,
+        )
+        result.timings_us["total"] = elapsed
+        return result
+
     def _tier4(
         self,
         envelope: Envelope,
@@ -513,10 +638,16 @@ class Engine:
         reason_code: str,
         detail: str,
         parse_path: list[str],
+        sig: str | None = None,
     ) -> NormResult:
-        """Nothing extractable — but still a complete, valid, deliverable event (P2)."""
+        """Nothing extractable — but still a complete, valid, deliverable event (P2).
+
+        ``sig`` is passed in when the caller already computed it (the budget guard does): hashing a
+        65 KB body a second time is exactly the cost we are there to report.
+        """
         text = decoded.text if decoded else ""
-        sig = template_sig(envelope.vendor or "unregistered", text)
+        if sig is None:
+            sig = template_sig(envelope.vendor or "unregistered", text)
         time_result = parse_time(None, received_time=envelope.received_time)
         ulpf = self._build_ulpf(
             envelope=envelope,
@@ -532,6 +663,12 @@ class Engine:
             use_candidate=False,
             pii=[],
         )
+        # Tier 4 sets every value itself; none of them is a claim about the source.
+        ulpf["derived_fields"] = {
+            **ulpf.get("derived_fields", {}),
+            "severity_id": "default:unknown",
+            "message": "default:raw_prefix",
+        }
         event = {
             "class_uid": 0,
             "category_uid": 0,
@@ -568,7 +705,7 @@ class Engine:
             parse_path=parse_path,
         )
 
-    def _tier3_placeholder(
+    def _tier3(
         self,
         envelope: Envelope,
         decoded: Decoded,
@@ -581,20 +718,41 @@ class Engine:
         peeled: dict[str, PeeledField],
         contract: _Prepared | None = None,
         use_candidate: bool = False,
+        budget: Budget | None = None,
     ) -> NormResult:
-        """The tier-3 slot. A4 fills it; A3 emits tier 4 here, as the phase file says.
+        """Generic extraction for anything no template matched (A4).
 
-        The peeled fields are still carried in ``unmapped`` so nothing is lost in the meantime,
-        and the DLQ reason is the real one (``no_contract`` / ``no_template_match``) rather than
-        a pretend crash — which is what the drift worker (C3) will cluster on.
+        The event is still delivered (P2) and still traceable (P4): observables carry byte offsets,
+        everything the cascade exposed lands in ``unmapped``, and the honest labels go on —
+        ``conformance = "unknown_template"``, ``class_uid`` left at 0, the guess confined to
+        ``ulpf.class_hint``. The DLQ copy keeps the real reason so the drift worker (C3) can cluster
+        on it.
         """
-        time_result = parse_time(None, received_time=envelope.received_time)
+        extracted = tier3.build(
+            decoded,
+            envelope.received_time,
+            max_depth=self.ctx.peel_max_depth,
+            budget=budget,
+        )
+        if budget is not None and budget.expired():
+            return self._over_budget(
+                envelope, decoded, budget, [*parse_path, *extracted.parse_path], sig
+            )
+
+        # Fields the contract-driven path had already peeled are merged in, so a source that has a
+        # contract but no matching template does not lose what the contract's layers exposed.
+        for path, peeled_field in peeled.items():
+            extracted.unmapped.setdefault(path, peeled_field.value)
+
+        time_result = extracted.time or parse_time(None, received_time=envelope.received_time)
+        full_parse_path = parse_path + extracted.parse_path
+
         ulpf = self._build_ulpf(
             envelope=envelope,
             decoded=decoded,
-            tier=4,
-            conformance="unparseable",
-            parse_path=parse_path,
+            tier=3,
+            conformance="unknown_template",
+            parse_path=full_parse_path,
             sig=sig,
             template_id=None,
             contract=contract,
@@ -602,44 +760,50 @@ class Engine:
             time_result=time_result,
             use_candidate=use_candidate,
             pii=[],
+            class_hint=extracted.class_hint,
         )
+        ulpf["field_offsets"] = dict(extracted.field_offsets)
+        ulpf["derived_fields"] = dict(extracted.derived_fields)
+
         event = {
+            # Tier 3 stays Base Event: the class hint is a hint, not a mapping.
             "class_uid": 0,
             "category_uid": 0,
             "type_uid": 99,
             "activity_id": 99,
-            "severity_id": 0,
+            "severity_id": extracted.severity_id,
             "time": time_result.epoch_ms,
-            "message": text[:1024],
-            "raw_data": decoded.text,
-            "observables": [],
-            "unmapped": {path: f.value for path, f in peeled.items()},
+            "message": extracted.text,
+            "raw_data": self._full_text or decoded.text,
+            "observables": extracted.observables,
+            "unmapped": extracted.unmapped,
             "metadata": {
                 "version": self.ctx.ocsf_version,
                 "product": {"name": "VEYRA", "vendor_name": "NTRO"},
             },
             "ulpf": ulpf,
         }
+
         return NormResult(
             ocsf=event,
             ulpf=ulpf,
-            tier=4,
-            conformance="unparseable",
+            tier=3,
+            conformance="unknown_template",
             category="uncategorized",
             dlq=self._dlq(
                 envelope,
-                tier=4,
+                tier=3,
                 reason_code=reason_code,
                 detail=detail,
                 sig=sig,
-                parse_path=parse_path,
-                text=text,
+                parse_path=full_parse_path,
+                text=extracted.text,
                 contract_ref=(
                     f"{contract.id}@{contract.version}" if contract is not None else None
                 ),
             ),
             timings_us={},
-            parse_path=parse_path,
+            parse_path=full_parse_path,
         )
 
 
@@ -650,6 +814,20 @@ def _category_uid(class_uid: int) -> int:
 
 
 def _dig(value: Any, path: str) -> Any:
+    """Resolve a dotted OCSF path, including tier 3's ``observables.<name>`` form.
+
+    ``observables`` is a **list** of ``{name, type_id, value}``, so a plain dict walk cannot reach
+    an entry. Tier 3 records its offsets against the observable's name (which is also what the
+    console highlights), so that one shape gets an explicit rule rather than silently resolving to
+    ``None`` and making every offset look wrong.
+    """
+    if path.startswith("observables."):
+        wanted = path.split(".", 1)[1]
+        for observable in value.get("observables", []) if isinstance(value, dict) else []:
+            if isinstance(observable, dict) and observable.get("name") == wanted:
+                return observable.get("value")
+        return None
+
     cursor = value
     for part in path.split("."):
         if not isinstance(cursor, dict):
@@ -663,13 +841,28 @@ def serialize(event: dict[str, Any]) -> bytes:
     return json.dumps(event, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode()
 
 
-def provenance_check(event: dict[str, Any], raw_bytes: bytes) -> list[Check]:
-    """Does every declared offset really slice the value it claims out of the raw bytes?
+def _decode_slice(chunk: bytes, encoding: str) -> str:
+    """Read a raw slice back with the codec the event says it was decoded in."""
+    try:
+        return chunk.decode(encoding)
+    except (UnicodeDecodeError, LookupError):
+        return chunk.decode("utf-8", errors="replace")
 
-    A4 extends this with the "every mapped path is either located or derived" half; the byte
-    check is here because A3's mapper is what produces the offsets.
+
+def provenance_check(event: dict[str, Any], raw_bytes: bytes) -> list[Check]:
+    """Verify both halves of P4 for one event.
+
+    1. Every offset in ``ulpf.field_offsets`` must slice out of the raw bytes exactly the value it
+       claims — that is what a verifier, the console highlighter (B6) and a judge all rely on.
+    2. Every value the event actually carries must be **accounted for**: either located (an offset)
+       or declared computed (``ulpf.derived_fields``). A value in neither is an unexplained claim,
+       which is the failure this check exists to make impossible to ship.
     """
     ulpf = event.get("ulpf", {})
+    # Offsets were built against the codec the engine detected, so a verifier must read the bytes
+    # back with that same codec. A Big5 line re-read as UTF-8 slices to replacement characters and
+    # would look like a provenance failure when the offsets are in fact exact.
+    encoding = str((ulpf.get("encoding") or {}).get("detected") or "utf-8")
     checks: list[Check] = []
     for path, span in (ulpf.get("field_offsets") or {}).items():
         try:
@@ -683,7 +876,7 @@ def provenance_check(event: dict[str, Any], raw_bytes: bytes) -> list[Check]:
             )
             continue
         expected = _dig(event, path)
-        actual = raw_bytes[start:end].decode("utf-8", errors="replace")
+        actual = _decode_slice(raw_bytes[start:end], encoding)
         ok = expected is not None and str(expected) == actual
         checks.append(
             Check(
@@ -693,7 +886,66 @@ def provenance_check(event: dict[str, Any], raw_bytes: bytes) -> list[Check]:
                 span=(start, end),
             )
         )
+
+    # Half two: nothing unexplained.
+    located = set(ulpf.get("field_offsets") or {})
+    derived = set(ulpf.get("derived_fields") or {})
+    for path in _claimed_paths(event):
+        if path in located or path in derived:
+            continue
+        checks.append(
+            Check(
+                ocsf_path=path,
+                ok=False,
+                reason="neither located (field_offsets) nor declared computed (derived_fields)",
+            )
+        )
     return checks
+
+
+# Fields the engine sets on every event as scaffolding rather than as claims about the source. They
+# are the same for every event, so they need no provenance: OCSF classification, our own metadata,
+# the raw copy, and the containers for things that carry their own provenance.
+_SCAFFOLDING: frozenset[str] = frozenset(
+    {
+        "class_uid",
+        "category_uid",
+        "type_uid",
+        "activity_id",
+        "time",
+        "raw_data",
+        "metadata",
+        "observables",
+        "unmapped",
+        "enrichments",
+        "ulpf",
+    }
+)
+
+
+def _claimed_paths(event: dict[str, Any], prefix: str = "") -> list[str]:
+    """Every leaf the event asserts about the source, as dotted paths.
+
+    ``observables`` are handled by name (``observables.ip_1``) because tier 3 locates them that way;
+    everything under ``unmapped`` is excluded, since it is verbatim parsed data rather than a mapped
+    claim, and it is bulky.
+    """
+    paths: list[str] = []
+    for key, value in event.items():
+        if not prefix and key in _SCAFFOLDING:
+            if key == "observables" and isinstance(value, list):
+                for observable in value:
+                    if isinstance(observable, dict) and observable.get("name"):
+                        paths.append(f"observables.{observable['name']}")
+            continue
+        path = f"{prefix}{key}"
+        if isinstance(value, dict):
+            paths.extend(_claimed_paths(value, prefix=f"{path}."))
+        elif isinstance(value, list):
+            continue
+        elif value is not None:
+            paths.append(path)
+    return paths
 
 
 def backtest(

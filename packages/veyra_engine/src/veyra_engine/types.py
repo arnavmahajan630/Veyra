@@ -111,6 +111,33 @@ class BacktestResult:
 
 
 @dataclass(slots=True)
+class Budget:
+    """A per-event time budget the pipeline stages consult (A4).
+
+    Checking once at the end only *reports* an overrun; a pathological line has already cost the
+    time by then. Stages call :meth:`expired` at their boundaries so the work stops early, which is
+    what keeps a hostile event inside 2x the budget instead of 4x.
+    """
+
+    limit_us: int
+    started_us: int
+
+    def elapsed_us(self) -> int:
+        from veyra_common.ids import monotonic_us
+
+        return monotonic_us() - self.started_us
+
+    def expired(self) -> bool:
+        return self.elapsed_us() > self.limit_us
+
+    @classmethod
+    def start(cls, limit_us: int) -> Budget:
+        from veyra_common.ids import monotonic_us
+
+        return cls(limit_us=limit_us, started_us=monotonic_us())
+
+
+@dataclass(slots=True)
 class EngineContext:
     """Everything the engine may read. No I/O, no clock, no network (P3).
 

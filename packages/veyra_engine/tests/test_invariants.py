@@ -10,7 +10,6 @@ from __future__ import annotations
 
 import datetime as datetime_module
 import json
-import os
 import subprocess
 import sys
 import time as time_module
@@ -21,16 +20,21 @@ import pytest
 from veyra_common.envelope import stamp
 from veyra_common.framing import split_lines
 from veyra_common.models import Envelope
+from veyra_common.settings import contracts_repo_path
 from veyra_engine import Engine, EngineContext, mini_compile, serialize
 
 REPO = Path(__file__).resolve().parents[3]
 CORPUS = REPO / "demo" / "corpus"
 CONTRACT = REPO / "packages" / "veyra_engine" / "tests" / "contracts" / "authsrv.yaml"
-# The contract registry is its own repository, checked out beside this one
-# (VEYRA_CONTRACTS_REPO overrides; see 05_CHANGELOG 2026-09-28).
-REGISTRY = Path(os.environ.get("VEYRA_CONTRACTS_REPO", REPO.parent / "contracts-repo"))
-SEED = REGISTRY / "t_ntro_core" / "linux_sshd.yaml"
+SEED = contracts_repo_path() / "t_ntro_core" / "linux_sshd.yaml"
 RECEIVED = "2026-09-26T14:10:00.000000000Z"
+
+# Only the two tests that read the seeded library contract need the sibling checkout; the rest use
+# the engine's own test contracts, so this is a per-test skip rather than a module-wide one.
+needs_registry = pytest.mark.skipif(
+    not SEED.is_file(),
+    reason=f"needs the contracts repository checked out at {SEED.parents[1]}",
+)
 
 
 def envelope(raw: bytes, index: int = 0, source: str = "src_authsrv_01") -> Envelope:
@@ -226,9 +230,13 @@ def test_contract_swap_is_atomic_under_repeated_loads() -> None:
         engine.load([mini_compile(CONTRACT.read_text())])
         assert engine.contracts_loaded == 1
     engine.load([])
-    assert engine.normalize(envelope(raw)).tier == 4
+    # With no contract at all the event takes the tier-3 path (A4) — still delivered, still located.
+    after = engine.normalize(envelope(raw))
+    assert after.tier == 3
+    assert after.dlq is not None and after.dlq.reason_code == "no_contract"
 
 
+@needs_registry
 def test_tier_and_conformance_always_agree() -> None:
     engine = engine_with(SEED)
     pairs = {1: "match", 2: "partial", 3: "unknown_template", 4: "unparseable"}

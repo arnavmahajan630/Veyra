@@ -12,7 +12,10 @@ What it does per record: validate the envelope, normalize it, and emit
 * an IF-DLQ copy when the tier is 2 or worse (P2: a copy, never a drop).
 
 A record that is not a valid envelope still produces a DLQ record, because "nothing crashes on
-bad input" is a quality-bar requirement, not an aspiration.
+bad input" is a quality-bar requirement, not an aspiration. A record that kills the *process* is
+caught one level up: ``TxnProcessor`` journals the in-flight batch, and after
+``VEYRA_POISON_MAX_RETRIES`` restarts on the same offsets the batch is skipped with a tier 4
+``engine_crash`` DLQ record per message (:func:`poison_records`).
 """
 
 from __future__ import annotations
@@ -134,6 +137,55 @@ def build_outputs(engine: Engine, message: Message, cfg: NormalizerSettings) -> 
     return outputs
 
 
+def poison_records(batch: list[Message], exc: Exception) -> list[OutputRecord]:
+    """DLQ copies for a batch that is being skipped because processing it keeps killing us.
+
+    Skipping is the only way out of a crash loop, but P2 says nothing is ever dropped silently — so
+    every message in the batch leaves a tier 4 ``engine_crash`` record naming its Kafka coordinates,
+    which is enough to replay it by hand once the cause is fixed.
+    """
+    outputs: list[OutputRecord] = []
+    for message in batch:
+        ENGINE_ERRORS.labels("poison").inc()
+        coordinates = f"{message.topic()}[{message.partition()}]@{message.offset()}"
+        log.error("poison record skipped", extra={"record": coordinates, "error": str(exc)})
+        record = DlqRecord(
+            event_uid=_event_uid_of(message),
+            tenant_id="unassigned",
+            source_id="unregistered",
+            tier=4,
+            reason_code="engine_crash",
+            reason_detail=f"skipped after repeated failures on {coordinates}: "
+            f"{type(exc).__name__}: {exc}"[:2000],
+            template_sig="t_000000000000",
+            text_masked="",
+            parse_path=["poison_skipped"],
+            produced_at="1970-01-01T00:00:00.000000000Z",
+        )
+        outputs.append(
+            OutputRecord(
+                topic=TOPIC_DLQ, key=record.source_id, value=record.model_dump_json().encode()
+            )
+        )
+    return outputs
+
+
+def _event_uid_of(message: Message) -> str:
+    """The record's own event_uid when it is readable, else the nil uuid.
+
+    Parsing is exactly what may have killed us, so this is deliberately the cheapest possible look
+    and it never raises.
+    """
+    import json
+
+    try:
+        payload = json.loads(message.value())
+        uid = payload.get("event_uid")
+    except Exception:
+        return "00000000-0000-7000-8000-000000000000"
+    return str(uid) if isinstance(uid, str) and uid else "00000000-0000-7000-8000-000000000000"
+
+
 def _replay_block(raw_value: bytes) -> dict[str, Any] | None:
     """The optional ``replay`` block on ``replay.raw`` messages (IF-ENVELOPE + replay)."""
     import json
@@ -229,6 +281,7 @@ def main() -> None:
         fn=lambda batch: _process(engine, batch, cfg),
         instance=cfg.instance,
         cfg=cfg,
+        on_poison=poison_records,
     )
     app.on_stop(processor.stop)
     for sig in (signal.SIGTERM, signal.SIGINT):

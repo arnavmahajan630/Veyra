@@ -87,6 +87,71 @@ ACTION REQUIRED:
   - [ ] @C Move the registry's `seed` tag to the commit with the golden samples and library packs,
         and force-push it. Otherwise a demo reset deletes them.
 
+## 2026-09-28 18:00 — A4 — CLARIFICATION + REQUEST @B  (contracts v1.3, no bump)
+TYPE: REQUEST
+What:     `Settings.ch_url` (default `""`) added to `veyra_common.settings`, because
+          `veyra_lineage.client.ch_url` (B) already reads it — its own docstring says
+          "`VEYRA_CH_URL` wins over `VEYRA_CLICKHOUSE_URL`" — and the field did not exist, so all 5
+          B1 integration tests errored with `'IndexerSettings' object has no attribute 'ch_url'`.
+          A owns `veyra_common`, so A added the field. Empty means "not overridden".
+          Two more knobs are still missing, and they are in **B's** file:
+          `services/lineage_indexer/src/lineage_indexer/settings.py` has no `index_batch_rows`
+          or `index_batch_ms`, while `tests/int/test_lineage_index.py::_cfg` passes both (pydantic
+          silently ignores them, so the indexer then reads attributes that are not there). A did not
+          guess the intended batching semantics.
+Why:      Found while running the A4 gate (`make test-int`). Cross-track seam: the A-owned half is
+          fixed, the B-owned half needs B.
+IDs:      none (settings knobs; IF-CH-SCHEMA unaffected)
+Files patched: packages/veyra_common/src/veyra_common/settings.py, 05_CHANGELOG.md.
+ACTION REQUIRED:
+  - [ ] @B Add `index_batch_rows` and `index_batch_ms` to `IndexerSettings` (or change the indexer
+        and the test to use the existing `norm_batch_max`/`norm_batch_ms`), then re-run
+        `uv run pytest tests/int/test_lineage_index.py -m int`. 3 of the 5 still fail on this;
+        the other 2 pass now.
+  - [ ] @B Also add the knobs to `03_INFRA_PROFILES.md` §2 and `profiles/*.env`, and close out B1
+        (phase file status, report, status board row, `lineage-indexer` in compose).
+
+## 2026-09-28 17:30 — A4 — CLARIFICATION  (contracts v1.3, no bump)
+TYPE: CLARIFICATION
+What:     Tier 3 is real. An unregistered or unknown-template event now arrives as tier 3 with
+          observables, `unmapped`, a class hint and **byte offsets**, instead of falling out as
+          tier 4. IF-ULPF already specified all of this, so nothing in the interface changed — but
+          two things are worth writing down for consumers:
+          (1) `ulpf.derived_fields` **values** are engine vocabulary, not interface. A4 emits
+          `vocab:severity_words`, `ts:token`, `received`, `from:<path>`, `token:no-span`,
+          `text:no-span`, `default:unknown`, `default:informational`, `default:raw_prefix`. Treat
+          them as opaque strings; the guarantee is only that every claimed value is either in
+          `field_offsets` or in `derived_fields`, which `provenance_check` now enforces.
+          (2) A raw slice must be decoded with `ulpf.encoding.detected`, **not** UTF-8. Offsets are
+          built against the codec the engine detected, so a Big5 or GB18030 event re-read as UTF-8
+          slices to replacement characters. Found by fuzzing; `provenance_check` was wrong about this
+          until A4 and is now fixed.
+          Also: `engine_version` 0.3.0 → 0.4.0 (stamped on every event; the tier of an unregistered
+          source changed, so rows should stay attributable to the engine that produced them), and
+          `VEYRA_POISON_MAX_RETRIES` now has teeth — the in-flight batch is journalled to
+          `data/state/<service>_inflight` so a record that kills the *process* is quarantined on
+          restart rather than crash-looping, with one tier 4 `engine_crash` DLQ record per skipped
+          message (P2: skipped, never silently dropped).
+Why:      A4's whole point is that messy input becomes useful without inventing anything, and the
+          two clarifications above are the places a downstream consumer would otherwise get it
+          subtly wrong — showing no highlight instead of "derived", or highlighting the wrong bytes.
+IDs:      IF-ULPF (clarification only), IF-ENGINE-LIB (`provenance_check` is stricter: it now reports
+          unexplained claims, which is the second half the phase file always specified)
+Files patched: track-A-dataplane/A4_tier3_offsets_robustness.md (status done, tasks/ACs ticked,
+          Implementation notes), reports/A4.md, 06_STATUS_BOARD.md, track-A-dataplane/A5 and A6
+          (downstream notes).
+ACTION REQUIRED:
+  - [ ] @B B6's highlighter: decode raw slices with `ulpf.encoding.detected`, and use
+        `derived_fields` to explain a value that has no offset rather than showing nothing.
+        `provenance_check(event, raw_bytes)` is exported and now covers both halves.
+  - [ ] @C C3 and C4 can be built against real tier-3 records now, not stand-ins: `ulpf.template.sig`
+        is stable for tier 3 (Drain3 has a key), `extract_tokens` and `mask()` are final, and
+        `unmapped` carries every kv/JSON field the cascade found — that is the candidate set a draft
+        should choose from. `mask()` keeps IPs on purpose.
+  - [ ] @C REQUEST (stands from A3): `linux_sshd@1` covers 3 of the corpus shapes; the other 13 sshd
+        lines are now tier 3 with observables rather than tier 4. Better, but still a gap in the
+        seeded library pack.
+
 ## 2026-09-28 — C — DECISION + REQUEST @A  (contracts v1.3, no bump)
 TYPE: DECISION
 What:     The contract registry leaves this repository. It is now its own repository,
@@ -108,16 +173,19 @@ Files patched: 00_MASTER.md (repo layout), 01_TEAM_GUIDE.md §1, 02_CONTRACTS.md
 Note:     No contracts version bump: the YAML format is untouched. If the team reads §0 as "a
           location change is breaking", bump to v1.4 and re-sync the headers.
 ACTION REQUIRED:
-  - [ ] @A @B @C Clone the contracts repository next to `Veyra/` (same parent folder):
+  - [x] @A @B @C Clone the contracts repository next to `Veyra/` (same parent folder):
         `git clone https://github.com/arnavmahajan630/contracts-repo` — tests,
         `make contracts-repo-init` and the demo need it there.
-  - [x] @A REQUEST (done by C 2026-09-28, please review): the move merged before A switched, so
-        C patched the three A3 files that still read the seed from inside this repo
+  - [x] @A REQUEST: three A3 files still read the seed from inside this repo
         (`REPO / "contracts-repo" / "t_ntro_core"`): packages/veyra_engine/tests/test_golden.py,
         packages/veyra_engine/tests/test_invariants.py, tools/bench/engine_bench.py. Point them at
         `os.environ.get("VEYRA_CONTRACTS_REPO", REPO.parent / "contracts-repo")`. Until then those
         tests need the sibling checkout. (C checked: A3's golden suite passes unchanged with
         veyra_contracts.compile swapped in for mini_compile, 24/24.)
+        <!-- done before A4: all four call sites (the fourth was tools/mock_control_publish.py) now
+             use veyra_common.settings.contracts_repo_path(), which honours VEYRA_CONTRACTS_REPO and
+             defaults to ../contracts-repo; the two test files skip with a clear message when the
+             sibling checkout is missing. -->
   - [x] @C CI checks out the contracts repository (done 2026-09-28). It is private: an admin must
         add a `CONTRACTS_REPO_TOKEN` secret with read access, or make the repository public.
   - [ ] @B In B7, nothing changes in the API call (`/internal/reset` still resets the registry);

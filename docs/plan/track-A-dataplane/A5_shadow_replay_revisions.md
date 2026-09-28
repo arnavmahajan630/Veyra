@@ -46,6 +46,11 @@ C2 and C4 call this in-process for the instant "8/8 tier 3 → 1" panel.
   `candidate` block from `contract:<id>` messages and calls `set_candidate`. What remains is running
   both and emitting IF-SHADOW.
 - [ ] 2. `backtest()` + tests using the T3 corpus with a hand-written `authsrv@2`.
+  <!-- synced from A4 --> Tier 3 changes what "improvement" means here: an unregistered source already
+  produces observables and offsets, so the comparison is tier 3 -> tier 1 **plus field coverage**, not
+  "tier 4 became tier 1". Also note `normalize` now enforces a per-event `Budget` at stage boundaries —
+  a backtest over thousands of events should pass a generous limit (or none) rather than inherit the
+  realtime one, or long events will be reported as `budget_exceeded` regressions that are not real.
   <!-- synced from A3 --> `authsrv@2` already exists as
   `packages/veyra_engine/tests/contracts/authsrv_v2.yaml`, and
   `test_authsrv_v2_upgrades_t3_to_tier_one` proves all 8 T3 events go tier 3 -> tier 1 with the

@@ -8,6 +8,10 @@ publisher A owns until C1 lands). Covers the guarantees that only show up with a
 * a source with no contract still produces an event plus a DLQ copy (P2);
 * the same event is never emitted twice, and killing the service mid-stream loses nothing
   (transactions with offsets committed inside them) — A3 task 9, CP1 check 7.
+
+A4 adds the tier-3 half: an ultra-messy line from a source nobody wrote a contract for still
+arrives as a usable event, with observables and with byte offsets that still slice the original
+bytes after the round trip through two Kafka topics.
 """
 
 from __future__ import annotations
@@ -177,6 +181,129 @@ def test_a_source_without_a_contract_still_produces_an_event_and_a_dlq_copy(cfg:
     event = NormEvent.model_validate(seen[normalized[0]])
     assert event.ulpf.tier >= 3
     assert event.raw_data, "the raw text must survive even when nothing parses"
+
+
+def messy_line(marker: str) -> bytes:
+    """The demo's T3 shape: syslog header, JSON body, kv remainder, and a trace tail.
+
+    Nothing in the registry matches it, which is the point — this is what "ultra-messy in, useful
+    out" has to survive.
+    """
+    return (
+        f'<134>Sep 26 14:05:14 app-{marker} svc[233]: {{"evt":"auth","msg":"user={marker} '
+        f'FAILED login from 103.21.4.77 via 10.2.3.4"}} attempts:1 | trace=  at '
+        f"com.x.Auth.login(Auth.java:88)"
+    ).encode()
+
+
+def dlq_copy_of(cfg: Settings, event_uid: str, *, timeout: float = 45.0) -> dict | None:
+    """The DLQ record for one event, read from the beginning of the topic.
+
+    The DLQ text is masked, so it cannot be found by searching for the probe's user name. Reading
+    the topic and matching on ``event_uid`` is what a console would do too.
+    """
+    consumer = make_consumer(f"it-dlq-{uuid.uuid4().hex[:8]}", cfg=cfg)
+    try:
+        metadata = consumer.list_topics("dlq", timeout=20)
+        partitions = list(metadata.topics["dlq"].partitions)
+        positions = []
+        for partition in partitions:
+            low, high = consumer.get_watermark_offsets(
+                TopicPartition("dlq", partition), timeout=10, cached=False
+            )
+            # The last few hundred records are plenty: this probe was just produced.
+            positions.append(TopicPartition("dlq", partition, max(low, high - 500)))
+        consumer.assign(positions)
+        deadline = time.monotonic() + timeout
+        while time.monotonic() < deadline:
+            message = consumer.poll(1.0)
+            if message is None or message.error():
+                continue
+            payload = json.loads(message.value())
+            if payload.get("event_uid") == event_uid:
+                return payload
+    finally:
+        consumer.close()
+    return None
+
+
+def test_an_unregistered_messy_event_arrives_as_tier_three_with_observables(cfg: Settings) -> None:
+    """A4 AC1, end to end: the cascade runs inside the real service, not just in a unit test."""
+    marker = f"messy{uuid.uuid4().hex[:8]}"
+    line = messy_line(marker)
+    consumer = pinned_consumer(cfg)
+    try:
+        send(line)
+        seen = collect(consumer, marker, want=3)
+    finally:
+        consumer.close()  # type: ignore[attr-defined]
+
+    normalized = [topic for topic in seen if topic.startswith("norm.")]
+    assert normalized, f"the messy event must still be delivered, saw {sorted(seen)}"
+    topic = normalized[0]
+    assert topic == "norm.uncategorized", f"an unmatched event is uncategorized, got {topic}"
+
+    payload = seen[topic]
+    event = NormEvent.model_validate(payload)
+    assert event.ulpf.tier == 3, f"expected unknown_template, got tier {event.ulpf.tier}"
+    assert event.ulpf.conformance == "unknown_template"
+    assert event.class_uid == 0, "tier 3 never claims a class — the guess lives in class_hint"
+
+    # The cascade must have recognised the layers it walked through.
+    path = event.ulpf.parse_path
+    assert any(step.startswith("auto:") for step in path), path
+    assert any("json" in step for step in path), path
+
+    values = {str(observable["value"]) for observable in payload.get("observables", [])}
+    assert {"103.21.4.77", "10.2.3.4", marker} <= values, values
+    # Neither IP may be assigned to an endpoint: at tier 3 nothing says which end is which.
+    for endpoint in ("src_endpoint", "dst_endpoint"):
+        assert not payload.get(endpoint, {}).get("ip"), f"tier 3 must not fill {endpoint}.ip"
+
+    assert event.ulpf.class_hint is not None, "an auth event should carry a hint"
+
+    # P2: a tier 3 event still leaves a DLQ copy — but it cannot be found by searching for the user,
+    # because `text_masked` replaces it with <USER_1> (that is the point of masking). The copy is
+    # found by the event_uid instead, which is also how the console will join the two.
+    dlq = dlq_copy_of(cfg, event.ulpf.event_uid)
+    assert dlq is not None, "no DLQ copy for the tier 3 event"
+    assert dlq["reason_code"] in {"no_contract", "no_template_match"}
+    assert dlq["tier"] == 3
+    assert marker not in dlq["text_masked"], "the user must be masked in the DLQ text"
+    assert "<USER_" in dlq["text_masked"], dlq["text_masked"]
+
+
+def test_tier_three_offsets_still_slice_the_raw_bytes_after_kafka(cfg: Settings) -> None:
+    """P4 for tier 3: every observable and field offset survives the trip, byte for byte."""
+    marker = f"prov3{uuid.uuid4().hex[:8]}"
+    line = messy_line(marker)
+    consumer = pinned_consumer(cfg)
+    try:
+        send(line)
+        seen = collect(consumer, marker, want=3)
+    finally:
+        consumer.close()  # type: ignore[attr-defined]
+
+    normalized = [topic for topic in seen if topic.startswith("norm.")]
+    assert normalized, f"no event delivered, saw {sorted(seen)}"
+    event = seen[normalized[0]]
+    offsets = event["ulpf"]["field_offsets"]
+    assert offsets, "tier 3 without offsets would be a guess, not evidence"
+
+    observables = {observable["name"]: observable["value"] for observable in event["observables"]}
+    for path, span in offsets.items():
+        if path.startswith("observables."):
+            expected = observables[path.split(".", 1)[1]]
+        else:
+            cursor: object = event
+            for part in path.split("."):
+                cursor = cursor[part]  # type: ignore[index]
+            expected = cursor
+        assert line[span[0] : span[1]].decode() == str(expected), path
+
+    # And at least one of the extracted IPs is located, not merely derived.
+    assert any(name.startswith("ip") for name in observables), observables
+    assert any(path.startswith("observables.ip") for path in offsets), sorted(offsets)
 
 
 def test_no_duplicate_event_uid_revision_pairs(cfg: Settings) -> None:

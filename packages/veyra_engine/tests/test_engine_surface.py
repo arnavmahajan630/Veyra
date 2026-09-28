@@ -213,10 +213,14 @@ def test_peel_reports_the_text_field() -> None:
 def test_provenance_check_validates_spans() -> None:
     env = make_env()
     result = Engine().normalize(env)
-    assert provenance_check(result.ocsf, env.raw_bytes) == [], "nothing mapped, nothing to locate"
-    result.ocsf["ulpf"]["field_offsets"] = {"user.name": (10, 5000)}
+    # Since A4 this is a tier-3 event, so it *does* locate things — and every one must check out.
     checks = provenance_check(result.ocsf, env.raw_bytes)
-    assert checks and not checks[0].ok
+    assert checks, "tier 3 must locate the values it extracted"
+    assert all(check.ok for check in checks), [c for c in checks if not c.ok]
+
+    result.ocsf["ulpf"]["field_offsets"] = {"user.name": (10, 5000)}
+    broken = provenance_check(result.ocsf, env.raw_bytes)
+    assert broken and not broken[0].ok, "a span outside the raw bytes must be rejected"
 
 
 def test_mask_keeps_ips() -> None:

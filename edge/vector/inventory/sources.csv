@@ -1,5 +1,3 @@
 listener,match_kind,match_value,source_id,tenant_id,vendor,zone
-dmz-tcp,peer_ip,172.20.0.21,src_fw_dmz_01,t_ntro_core,acme_ngfw,dmz
-dmz-tcp,syslog_host,fw01,src_fw_dmz_01,t_ntro_core,acme_ngfw,dmz
-core-udp,peer_ip,172.20.0.31,src_lnx_core_07,t_ntro_core,linux,core
 core-udp,syslog_host,core-lnx-07,src_lnx_core_07,t_ntro_core,linux,core
+dmz-tcp,syslog_host,fw-dmz-01,src_fw_dmz_01,t_ntro_core,acme_ngfw,dmz

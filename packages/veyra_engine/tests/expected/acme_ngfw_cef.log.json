@@ -8,6 +8,8 @@
       "disposition_id": "const",
       "metadata.product.name": "const",
       "metadata.product.vendor_name": "const",
+      "observables.ip_1": "from:dst_endpoint.ip",
+      "observables.ip_2": "from:src_endpoint.ip",
       "severity_id": "const"
     },
     "dlq_reason": null,
@@ -59,6 +61,8 @@
       "disposition_id": "const",
       "metadata.product.name": "const",
       "metadata.product.vendor_name": "const",
+      "observables.ip_1": "from:dst_endpoint.ip",
+      "observables.ip_2": "from:src_endpoint.ip",
       "severity_id": "const"
     },
     "dlq_reason": null,
@@ -108,6 +112,8 @@
     "conformance": "match",
     "derived_fields": {
       "disposition_id": "const",
+      "observables.ip_1": "from:dst_endpoint.ip",
+      "observables.ip_2": "from:src_endpoint.ip",
       "severity_id": "const"
     },
     "dlq_reason": null,
@@ -157,6 +163,8 @@
     "conformance": "match",
     "derived_fields": {
       "disposition_id": "const",
+      "observables.ip_1": "from:dst_endpoint.ip",
+      "observables.ip_2": "from:src_endpoint.ip",
       "severity_id": "const"
     },
     "dlq_reason": null,
@@ -208,6 +216,8 @@
       "disposition_id": "const",
       "metadata.product.name": "const",
       "metadata.product.vendor_name": "const",
+      "observables.ip_1": "from:dst_endpoint.ip",
+      "observables.ip_2": "from:src_endpoint.ip",
       "severity_id": "const"
     },
     "dlq_reason": null,
@@ -257,6 +267,8 @@
     "conformance": "match",
     "derived_fields": {
       "disposition_id": "const",
+      "observables.ip_1": "from:dst_endpoint.ip",
+      "observables.ip_2": "from:src_endpoint.ip",
       "severity_id": "const"
     },
     "dlq_reason": null,
@@ -306,6 +318,8 @@
     "conformance": "match",
     "derived_fields": {
       "disposition_id": "const",
+      "observables.ip_1": "from:dst_endpoint.ip",
+      "observables.ip_2": "from:src_endpoint.ip",
       "severity_id": "const"
     },
     "dlq_reason": null,
@@ -355,6 +369,8 @@
     "conformance": "match",
     "derived_fields": {
       "disposition_id": "const",
+      "observables.ip_1": "from:dst_endpoint.ip",
+      "observables.ip_2": "from:src_endpoint.ip",
       "severity_id": "const"
     },
     "dlq_reason": null,
@@ -406,6 +422,8 @@
       "disposition_id": "const",
       "metadata.product.name": "const",
       "metadata.product.vendor_name": "const",
+      "observables.ip_1": "from:dst_endpoint.ip",
+      "observables.ip_2": "from:src_endpoint.ip",
       "severity_id": "const"
     },
     "dlq_reason": null,
@@ -455,6 +473,8 @@
     "conformance": "match",
     "derived_fields": {
       "disposition_id": "const",
+      "observables.ip_1": "from:dst_endpoint.ip",
+      "observables.ip_2": "from:src_endpoint.ip",
       "severity_id": "const"
     },
     "dlq_reason": null,
@@ -506,6 +526,8 @@
       "disposition_id": "const",
       "metadata.product.name": "const",
       "metadata.product.vendor_name": "const",
+      "observables.ip_1": "from:dst_endpoint.ip",
+      "observables.ip_2": "from:src_endpoint.ip",
       "severity_id": "const"
     },
     "dlq_reason": null,
@@ -557,6 +579,8 @@
       "disposition_id": "const",
       "metadata.product.name": "const",
       "metadata.product.vendor_name": "const",
+      "observables.ip_1": "from:dst_endpoint.ip",
+      "observables.ip_2": "from:src_endpoint.ip",
       "severity_id": "const"
     },
     "dlq_reason": null,
@@ -606,6 +630,8 @@
     "conformance": "match",
     "derived_fields": {
       "disposition_id": "const",
+      "observables.ip_1": "from:dst_endpoint.ip",
+      "observables.ip_2": "from:src_endpoint.ip",
       "severity_id": "const"
     },
     "dlq_reason": null,
@@ -655,6 +681,8 @@
     "conformance": "match",
     "derived_fields": {
       "disposition_id": "const",
+      "observables.ip_1": "from:dst_endpoint.ip",
+      "observables.ip_2": "from:src_endpoint.ip",
       "severity_id": "const"
     },
     "dlq_reason": null,
@@ -706,6 +734,8 @@
       "disposition_id": "const",
       "metadata.product.name": "const",
       "metadata.product.vendor_name": "const",
+      "observables.ip_1": "from:dst_endpoint.ip",
+      "observables.ip_2": "from:src_endpoint.ip",
       "severity_id": "const"
     },
     "dlq_reason": null,
@@ -755,6 +785,8 @@
     "conformance": "match",
     "derived_fields": {
       "disposition_id": "const",
+      "observables.ip_1": "from:dst_endpoint.ip",
+      "observables.ip_2": "from:src_endpoint.ip",
       "severity_id": "const"
     },
     "dlq_reason": null,
@@ -804,6 +836,8 @@
     "conformance": "match",
     "derived_fields": {
       "disposition_id": "const",
+      "observables.ip_1": "from:dst_endpoint.ip",
+      "observables.ip_2": "from:src_endpoint.ip",
       "severity_id": "const"
     },
     "dlq_reason": null,
@@ -853,6 +887,8 @@
     "conformance": "match",
     "derived_fields": {
       "disposition_id": "const",
+      "observables.ip_1": "from:dst_endpoint.ip",
+      "observables.ip_2": "from:src_endpoint.ip",
       "severity_id": "const"
     },
     "dlq_reason": null,
@@ -904,6 +940,8 @@
       "disposition_id": "const",
       "metadata.product.name": "const",
       "metadata.product.vendor_name": "const",
+      "observables.ip_1": "from:dst_endpoint.ip",
+      "observables.ip_2": "from:src_endpoint.ip",
       "severity_id": "const"
     },
     "dlq_reason": null,
@@ -953,6 +991,8 @@
     "conformance": "match",
     "derived_fields": {
       "disposition_id": "const",
+      "observables.ip_1": "from:dst_endpoint.ip",
+      "observables.ip_2": "from:src_endpoint.ip",
       "severity_id": "const"
     },
     "dlq_reason": null,

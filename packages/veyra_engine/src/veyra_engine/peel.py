@@ -35,6 +35,12 @@ def named_span(match: Any, pattern: Any, name: str) -> tuple[int, int] | None:
     return None if start < 0 else (start, end)
 
 
+# One layer may expose at most this many fields. A line with a thousand key=value pairs is noise
+# past the first couple of hundred, and exposing them all cost ~17 ms — over three times the
+# per-event budget (A4 AC4). Fields are taken in document order, and `raw_data` keeps everything.
+MAX_FIELDS_PER_LAYER = 256
+
+
 @dataclass(slots=True)
 class PeeledField:
     """One value a layer exposed, with where it came from."""
@@ -266,7 +272,7 @@ def peel_kv(region: Region, prefix: str = "kv", *, spaced_values: bool = False) 
         pairs = [
             (m.group(1), m.span(2)[0], m.span(2)[1]) for m in _RE_KV_PAIR.finditer(region.text)
         ]
-    for key, start, end in pairs:
+    for key, start, end in pairs[:MAX_FIELDS_PER_LAYER]:
         raw_value = region.text[start:end].rstrip()
         end = start + len(raw_value)
         value = raw_value
@@ -382,7 +388,7 @@ def peel_csv(region: Region, delimiter: str = ",", header: list[str] | None = No
     position = 0
     index = 0
     text = region.text
-    while position <= len(text):
+    while position <= len(text) and index < MAX_FIELDS_PER_LAYER:
         end = text.find(delimiter, position)
         if end == -1:
             end = len(text)
