@@ -17,6 +17,16 @@ ACTION REQUIRED:
 
 ---
 
+## 2026-09-29 — C5 — CLARIFICATION  (contracts v1.4, no bump)
+TYPE: CLARIFICATION
+What:     PR #6 (`c5-console-shell`) is on `main`. C5 stays in-progress: the live halves of AC1 and AC2
+          wait for B1/B4's evidence-api (CP2). C6 starts on `c6-console-pages`.
+Why:      The status board and reports/C5.md still described C5 as unmerged.
+IDs:      none
+Files patched: 06_STATUS_BOARD.md, reports/C5.md.
+ACTION REQUIRED:
+  - (none)
+
 ## 2026-09-29 — C4 — CLARIFICATION  (contracts v1.4, no bump)
 TYPE: CLARIFICATION
 What:     PR #5 (`c4-drafter`) is on `main`. C4 stays in-progress: the live p95 bench and the
