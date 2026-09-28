@@ -11,6 +11,7 @@ dependencies = [
     "sqlmodel>=0.0.22",
     "argon2-cffi>=23.1",
     "dulwich>=1.2",
+    "httpx>=0.28",
 ]
 
 [build-system]
