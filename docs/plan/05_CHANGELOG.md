@@ -17,6 +17,76 @@ ACTION REQUIRED:
 
 ---
 
+## 2026-09-28 — C1/C2/C3 — CONTRACT-ADDITIVE  (contracts v1.3 → v1.4)
+TYPE: CONTRACT-ADDITIVE
+What:     IF-API-CONTROL (all additive):
+          - new endpoints: `POST /auth/demo-switch` (demo mode), `GET /sources/{id}/keys`,
+            `POST /contracts/{id}/versions/{v}/backtest`, `GET /replay?contract_id=`, `GET /drift/{id}`,
+            `POST /drift/{id}/dismiss`;
+          - `/internal/drift` gains `related_sigs` and `sample_event_uids`;
+          - the SSE `contract`, `replay` and `drift` payloads are documented.
+          IF-API-DEMO: drift-worker `POST /reset` (control-api's `/internal/reset` calls it).
+          IF-TOPICS: control-api reads `raw.*` by `raw_ref` and `lineage` by `replay_job_id`, both
+          assign-only.
+          IF-CONTROL, details written down: pepper hashing and `pepper_id`; transport vocabulary; a
+          contract is published only once it has an active version; reset tombstones stale keys.
+Why:      C1 is merged, and C2 + C3 are code-complete on branch `c2-c3-registry-drift`. Reports in
+          reports/C1.md, C2.md and C3.md.
+IDs:      IF-API-CONTROL, IF-API-DEMO, IF-TOPICS, IF-CONTROL
+Files patched: 02_CONTRACTS.md (v1.4), every plan file's `contracts:` header,
+          track-C-control-console/{C1,C2,C3} (implementation notes), {C4,C5,C6} (downstream notes),
+          06_STATUS_BOARD.md, reports/C1.md, reports/C2.md, reports/C3.md.
+ACTION REQUIRED:
+  - [ ] @A A2: hash API-key secrets exactly as IF-CONTROL now states,
+        `sha256(pepper_bytes + secret_utf8)`, and match on `pepper_id`.
+  - [ ] @A A5: set `replay_job_id` on `lineage` records for `replay.raw` input. control-api's replay
+        progress counts exactly those records; without them every replay job times out.
+  - [ ] @A A3: `tools/mock_control_publish.py` can go; control-api now publishes `control`.
+  - [ ] @B B4: serve `/templates/{sig}/events` (B's `TemplateEvent` rows, including `raw_ref` and the
+        latest `revision`) and `/events/{uid}` at the paths Caddy forwards (`/api/lineage` stripped).
+        control-api's backtest and replay call exactly those.
+  - [ ] @B B4 (later, not blocking): an event listing by source and tier, so C2's backtest can
+        sample tier-1 events for regressions.
+  - [ ] @B Caddyfile (adopted from S0): add `respond /api/control/internal/* 404`. control-api's
+        internal endpoints are currently reachable from the browser.
+  - [ ] @B B7: no change. One `POST /internal/reset` now also resets the drift worker.
+
+## 2026-09-28 — C1/C3 — VERSION-PIN  (contracts v1.4)
+TYPE: VERSION-PIN
+What:     Control plane: sqlmodel 0.0.47, argon2-cffi 25.1.0, dulwich 1.2.15 (pure-Python git; the
+          image has no git binary) and httpx 0.28.1 in control-api. Drift: drain3 0.9.11, which pulls
+          jsonpickle 1.5.1 and cachetools 4.2.1 (old but working on 3.12; watch for conflicts).
+Why:      S0 left Drain3 to C3; the control-plane libraries arrived with C1 and were never recorded.
+IDs:      IF-VERSIONS
+Files patched: 02_CONTRACTS.md (IF-VERSIONS), uv.lock.
+ACTION REQUIRED:
+  - [ ] @C Pin React/Vite/Tailwind when C5 lands in `console/` (Drain3 is now done).
+
+## 2026-09-28 — C2/C3 — DECISION  (contracts v1.4)
+TYPE: DECISION
+What:     Decisions in C2 and C3 (details in reports/C2.md, C3.md):
+          - Four-eyes: the author is whoever *submits* a version. Approving your own version is 403
+            with a message containing "four-eyes". Promote needs an approved canary. Rollback restores
+            only a version that was active before.
+          - A brand-new contract's first version is not on `control` while it is a canary; it
+            appears when promoted.
+          - Drift items resolve when the **active** version covers them, not the canary.
+          - Drift worker restart: counts are persisted beside the Drain3 state.
+          - Library packs live in the registry's `library/` (tenant `t_library`). Library
+            `linux_sshd` covers all 24 corpus shapes. This answers A3's REQUEST @C below. The seeded
+            `t_ntro_core/linux_sshd@1` is unchanged, so A's snapshots stay valid.
+Why:      The phase files left these open or ambiguous.
+IDs:      IF-CONTROL, IF-API-CONTROL
+Files patched: reports/C2.md, reports/C3.md, track-C-control-console/C2, C3.
+ACTION REQUIRED:
+  - [ ] @C Owner decision: should the demo's seeded `linux_sshd` become the library version?
+        Otherwise 13 sshd shapes sit in the demo's drift inbox beside authsrv. If yes: REQUEST @A to
+        regenerate `packages/veyra_engine/tests/expected/linux_sshd.log.json`.
+  - [ ] @C Owner decision before C4's bench (S0 REQUEST below): GPU, or `VEYRA_LLM_MODE=cache` on the
+        laptop.
+  - [ ] @C Move the registry's `seed` tag to the commit with the golden samples and library packs,
+        and force-push it. Otherwise a demo reset deletes them.
+
 ## 2026-09-28 — C — DECISION + REQUEST @A  (contracts v1.3, no bump)
 TYPE: DECISION
 What:     The contract registry leaves this repository. It is now its own repository,
@@ -67,7 +137,7 @@ IDs:      IF-VERSIONS
 Files patched: 02_CONTRACTS.md (IF-VERSIONS + header v1.3), every plan file's contracts header,
           track-A-dataplane/A3_engine_core.md, 06_STATUS_BOARD.md, reports/A3.md.
 ACTION REQUIRED:
-  - [ ] @C C2's golden-test runner validates compiled contracts against the same schema; use
+  - [x] @C C2's golden-test runner validates compiled contracts against the same schema; use
         `veyra_engine.validate.validate_event` rather than calling jsonschema directly, so the
         compiled validator and its cache are shared.
 
@@ -104,7 +174,7 @@ Why:      A owns the engine, not contracts-repo/, so A did not extend the contra
 IDs:      none (no interface changed)
 Files patched: reports/A3.md, track-A-dataplane/A3_engine_core.md.
 ACTION REQUIRED:
-  - [ ] @C In C3, decide per shape: extend linux_sshd's library pack, or leave it as drift the demo
+  - [x] @C In C3, decide per shape: extend linux_sshd's library pack, or leave it as drift the demo
         can show. `packages/veyra_engine/tests/expected/linux_sshd.log.json` lists exactly which
         lines fall through.
 
@@ -126,7 +196,7 @@ Files patched: 02_CONTRACTS.md (IF-INVENTORY + header v1.2), every plan file's c
 ACTION REQUIRED:
   - [ ] @C In C1, write sources.csv.tmp + atomic rename; skip the reload.stamp touch (harmless if
         kept) and do not restart the edge container. Batch inventory changes: a reload costs
-        in-flight events.
+        in-flight events.  <!-- C: atomic write and no restart done in C1; writes are not batched yet (reports/C1.md) -->
   - [ ] @B In B7's demo senders, give the containers static addresses on veyra_net if you want the
         (listener, peer_ip) resolution path exercised; from the host, peer_ip is the docker
         gateway, so only the syslog_host path is reachable.
@@ -184,7 +254,7 @@ Files patched: shared/S0_bootstrap.md (implementation notes), reports/S0.md, 06_
 ACTION REQUIRED:
   - [ ] @C Before C4's bench: get Ollama onto the GPU (or record CPU numbers honestly and set
         LLM_MODE=cache in profiles/laptop.env as the demo default).
-  - [ ] @C Pin Drain3 (C3) and React/Vite/Tailwind (C5) with a VERSION-PIN entry each; S0 left
+  - [ ] @C Pin Drain3 (C3) and React/Vite/Tailwind (C5) with a VERSION-PIN entry each; S0 left  <!-- C: Drain3 pinned 2026-09-28; React stack with C5 -->
         those rows open rather than guessing.
 
 ## 2026-09-26 18:30 — S0 — VERSION-PIN  (contracts v1.0 → v1.1)
@@ -204,7 +274,7 @@ Files patched: 02_CONTRACTS.md (IF-VERSIONS + header v1.1), every track/shared/p
 ACTION REQUIRED:
   - [ ] @B Use `codenotary/immudb:1.11.2-bullseye-slim` for B3; the pg-wire port is published
         on 5432 and `IMMUDB_PGSQL_SERVER=true` is already set in compose.
-  - [ ] @C Pin Drain3 in C3 and React/Vite/Tailwind in C5, then add a VERSION-PIN entry each.
+  - [ ] @C Pin Drain3 in C3 and React/Vite/Tailwind in C5, then add a VERSION-PIN entry each.  <!-- C: Drain3 done 2026-09-28 -->
 
 ## 2026-09-26 18:30 — S0 — CLARIFICATION  (contracts v1.1)
 TYPE: CLARIFICATION

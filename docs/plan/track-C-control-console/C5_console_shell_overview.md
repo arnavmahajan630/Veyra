@@ -2,7 +2,7 @@
 
 ```
 track: C   owner: C   status: todo
-contracts: v1.3
+contracts: v1.4
 depends_on: [S0, B1 (query fixtures), B4 (OpenAPI), C1 (OpenAPI)]   unblocks: [CP2, B6, B7 (panel), C6]
 consumes: [IF-API-CONTROL, IF-API-EVIDENCE, IF-API-DEMO, IF-ULPF]
 provides: [console shell, design system, RawHighlighter + thread overlay, hotkey registry, i18n, /overview, /sources]
@@ -123,6 +123,8 @@ Sources ─── Edge / Gateway ─── Kafka ─┬─ Normalizer ─── 
 - a link to lineage search filtered by source.
 
 **Silent-source alert:** actual EPS 0 for more than 60 s while expected > 0 → an amber row with "No events for 1m 20s". This is v1's missing-logs detection, cheap and visible.
+
+<!-- synced from C2 --> `POST /auth/demo-switch {email}` (demo mode) and `GET /sources/{id}/keys` now exist in control-api (IF-API-CONTROL v1.4).
 
 ## Tasks
 - [ ] 1. Vite + TS + Tailwind scaffold; tokens; self-hosted fonts; contrast check script.

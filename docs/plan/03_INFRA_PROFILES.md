@@ -77,6 +77,30 @@ All names are prefixed `VEYRA_`. Memory limits are enforced via compose `mem_lim
 | `DRIFT_MIN_CLUSTER` | 5 | 5 | 20 | |
 | `SSE_TICK_MS` | 1000 | 1000 | 500 | |
 
+### 2.5 Control plane, registry and drift (C1–C3) <!-- synced from C1/C2/C3 -->
+
+These are the same on every profile today; none is hardware-bound yet. They live in `veyra_common.settings.Settings` and all three `profiles/*.env`.
+
+| Knob | Value | Notes |
+|---|---|---|
+| `CONTROL_API_PORT` | 8000 | IF-PORTS |
+| `CONTROL_DB` | `data/control/control.db` | SQLite, WAL |
+| `CONTRACTS_REPO` | `../contracts-repo` | The separate registry repository beside `Veyra/` (the container mounts it at `/contracts-repo`) |
+| `INVENTORY_FILE`, `INVENTORY_RELOAD_STAMP` | `edge/vector/inventory/sources.csv`, `edge/vector/reload.stamp` | IF-INVENTORY |
+| `SESSION_TTL_MIN` | 480 | |
+| `DEMO_PASSWORD`, `PUBLIC_HOST` | `veyra-demo`, `localhost` | |
+| `CONTROL_PUBLISH_TIMEOUT_S` | 5 | A `control` flush longer than this answers 503 and rolls back |
+| `SSE_HEARTBEAT_S`, `SSE_QUEUE_MAX` | 15, 256 | |
+| `API_PAGE_DEFAULT`, `API_PAGE_MAX` | 200, 1000 | |
+| `BACKTEST_MAX` | 200 | Events per backtest |
+| `REPLAY_MAX`, `REPLAY_TIMEOUT_S`, `REPLAY_POLL_MS` | 10000, 60, 500 | |
+| `EVIDENCE_API_URL`, `EVIDENCE_TIMEOUT_S` | `http://evidence-api:8100`, 5 | At the paths Caddy forwards |
+| `DRIFT_DEBOUNCE_MS`, `DRIFT_MAX_SAMPLES` | 2000, 5 | |
+| `DRIFT_DRAIN_SIM_TH`, `DRIFT_DRAIN_DEPTH` | 0.4, 4 | Drain3 |
+| `DRIFT_CHECKPOINT_MS`, `DRIFT_POLL_MS` | 5000, 500 | Offsets are committed after each checkpoint |
+| `DRIFT_WORKER_PORT`, `DRIFT_WORKER_URL`, `CONTROL_API_URL` | 8206, `http://drift-worker:8206`, `http://control-api:8000` | |
+| `LIBRARY_MATCH_MIN` | 0.8 | Tier-1 share for a library pack to count as a match |
+
 ## 3. Memory budget (laptop)
 
 | Component | Limit |

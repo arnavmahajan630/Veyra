@@ -2,7 +2,7 @@
 
 ```
 track: C   owner: C   status: todo
-contracts: v1.3
+contracts: v1.4
 depends_on: [C1, A3 (veyra_engine real; stub OK to start)]   unblocks: [CP2, CP3, C3, C4, C6, A5]
 consumes: [IF-CONTRACT-YAML, IF-OCSF-SUBSET, IF-ENGINE-LIB, IF-API-EVIDENCE (raw fetch, template events), IF-TOPICS (replay.raw)]
 provides: [IF-CONTRACT-COMPILED, IF-API-CONTROL (contracts, replay), IF-CONTROL (contract:* with candidate)]
@@ -70,24 +70,35 @@ Turn Log Contracts into governed, versioned, tested, deterministic parse plans, 
   4. SSE `replay` events report progress; state `done` when normalized == total or after a timeout.
 
 ## Tasks
-- [ ] 1. models + catalogue + compiler + determinism tests + compile-error messages with locations.
-- [ ] 2. golden runner + lint; run them on A3's library contracts (`linux_sshd`, `acme_ngfw_cef`).
-- [ ] 3. The git-backed registry, contract tables, the seed tag.
-- [ ] 4. Lifecycle endpoints, four-eyes enforcement, control publishing with candidates.
-- [ ] 5. Backtest integration (with B4 raw fetch; use corpus envelopes as a fallback in tests).
-- [ ] 6. Diff endpoint (YAML + semantic).
-- [ ] 7. Replay jobs + progress + SSE.
-- [ ] 8. `make contracts-test`: runs compile + lint + golden for every contract in the contract registry (`CONTRACTS_REPO`, default `../contracts-repo`; CI must check that repository out beside this one).
+- [x] 1. models + catalogue + compiler + determinism tests + compile-error messages with locations.
+- [x] 2. golden runner + lint; run them on A3's library contracts (`linux_sshd`, `acme_ngfw_cef`).
+- [x] 3. The git-backed registry, contract tables, the seed tag.
+- [x] 4. Lifecycle endpoints, four-eyes enforcement, control publishing with candidates.
+- [x] 5. Backtest integration (with B4 raw fetch; use corpus envelopes as a fallback in tests).
+- [x] 6. Diff endpoint (YAML + semantic).
+- [x] 7. Replay jobs + progress + SSE.
+- [x] 8. `make contracts-test`: runs compile + lint + golden for every contract in the contract registry (`CONTRACTS_REPO`, default `../contracts-repo`; CI must check that repository out beside this one).
 
 ## Acceptance criteria
-- [ ] AC1: The library contracts compile and pass golden tests. Compiled JSON is byte-identical across two runs.
+- [x] AC1: The library contracts compile and pass golden tests. Compiled JSON is byte-identical across two runs.
 - [ ] AC2: Submitting `authsrv@2` with a T3 template → canary; the normalizer emits shadow records (with A5); the backtest shows 8/8 upgraded.
 - [ ] AC3: Approve by the author → 403. Approve by the approver → 200. Promote → the normalizer uses `@2` within 1 s.
 - [ ] AC4: Replay of 8 events → the job reaches `done` with normalized = 8; revision 2 is visible in lineage.
-- [ ] AC5: Rollback to `@1` works and is audited.
+- [x] AC5: Rollback to `@1` works and is audited.
 
 ## Settings
 `VEYRA_BACKTEST_MAX` (200), `VEYRA_REPLAY_MAX` (10000), `VEYRA_CONTRACTS_REPO`.
 
 ## Implementation notes
-_(filled after execution)_
+<!-- synced from C2 --> Code complete on branch `c2-c3-registry-drift`; report in `reports/C2.md`.
+- **AC2 and AC4:** pass standalone. The 8/8 upgrade uses the real engine; the replay job reaches `done` with a fake lineage watcher. Their normalizer halves need A5 and B (CP3).
+- **AC3:** the API half passes.
+- **Decisions:**
+  - a contract with no active version is not published while it is a canary;
+  - the author is the submitter;
+  - raw bytes are read from `raw.*` at `raw_ref`, and replay progress is counted from `lineage` (`replay_job_id`), so the B4 raw fetch isn't needed;
+  - goldens are snapshots written by `--update`;
+  - a failing submission stays a draft outside git;
+  - reset tombstones stale `control` keys;
+  - a contract's `sources:` wins over `source.contract_id`.
+- **Deferred:** a tier-1 regression sample in the backtest (needs an evidence-api listing by source, REQUEST @B).

@@ -2,7 +2,7 @@
 
 ```
 track: shared   owner: presenter + all   status: todo
-contracts: v1.3
+contracts: v1.4
 depends_on: [CP3]   unblocks: [demo day]
 ```
 
