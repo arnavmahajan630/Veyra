@@ -488,12 +488,17 @@ The chain runs over `raw.*` records in offset order per `(topic, partition)`. Th
 
 | step | event_uid | offset | raw_sha256 | h |
 |---|---|---|---|---|
-| h0 | — | — | — | `a93423deac995ba0e328e4dadbe29d43c77d61f273f1f0d0410b65ad6cf41f53` |
-| 1 | …0001 | 100 | `42d88dee…94ab57` | `aa0fe44eda2a9379e4e60997c65579b0a747adfd0f835199190df147cb7d2c2d` |
-| 2 | …0002 | 101 | `d0d2cdd3…dba4dc` | `d361f24129e5f0063c8420b399f7295b0bc7e9e61e2f8a9e4c9310d9c33b8949` |
-| 3 | …0003 | 102 | `9703bf6c…35cea4` | `dea0f94c4673dca513810832005ceeb966e26e26a30a638d61e2bbcfa0da6b97` |
+| h0 | — | — | — | `3d78bdc3924694f97ccedf7d55e171922e7e08bbffc4203fc40aa1845f250820` |
+| 1 | …0001 | 100 | `42d88dee…94ab57` | `f1e002eb0c8402663629e37addc2a7406d7a03ed83ad83ad0fdc4a5cb9338429` |
+| 2 | …0002 | 101 | `d0d2cdd3…dba4dc` | `93527c00a526f77d0373a09977fa605421aea7aa92ec824c16f05af64cc3c085` |
+| 3 | …0003 | 102 | `9703bf6c…35cea4` | `b1586fbf2b233f4cf5249401e522580cc4a7d7b99a81b2116455d8970e96aeb7` |
 
 Full raw inputs are in `reference/spec_vectors.py`.
+<!-- synced from B2 --> The `h` column was corrected on 2026-09-28: the previously printed
+values did not match `reference/spec_vectors.py`, which this section names as the authority
+and which is unchanged. The formula above is unchanged, so this is a clarification (§0), not
+a breaking change. `veyra_evidence.tests.test_chain` now executes the reference script and
+compares, so the two cannot drift again.
 
 ---
 

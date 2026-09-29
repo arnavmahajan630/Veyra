@@ -20,9 +20,9 @@ from veyra_common.envelope import rfc3339_ns
 from veyra_common.hashing import sha256_hex, template_sig
 from veyra_common.ids import uuid7_str
 from veyra_common.kafka import make_producer
-from veyra_common.models import NormEvent
+from veyra_common.models import LineageRecord, NormEvent
 from veyra_common.settings import settings
-from veyra_common.topics import category_for_class, norm_topic
+from veyra_common.topics import TOPIC_LINEAGE, category_for_class, norm_topic
 
 RAW_T1 = (
     b'<134>Sep 26 14:05:09 fw01 app[233]: {"evt":"auth","msg":"user=r.patil OK login '
@@ -136,6 +136,39 @@ def make_event(tier: int, offset: int) -> NormEvent:
     )
 
 
+def make_lineage(event: NormEvent) -> LineageRecord:
+    """The IF-LINEAGE record the normalizer emits next to every norm event.
+
+    Without this the lineage index has norm_events but no norm_lineage, so search by IP
+    or user (which reads ``search_terms``) finds nothing.
+    """
+    u = event.ulpf
+    terms = [str(o["value"]) for o in event.observables if o.get("value")]
+    host = event.unmapped.get("syslog.host")
+    if host:
+        terms.append(str(host))
+    category = category_for_class(event.class_uid)
+    return LineageRecord(
+        event_uid=u.event_uid,
+        revision=u.revision,
+        tenant_id=u.tenant_id,
+        source_id=u.source_id,
+        raw_ref=u.raw_ref,
+        raw_sha256=u.raw_sha256,
+        contract_ref=str(u.contract) if u.contract else None,
+        template_sig=u.template.sig if u.template else "",
+        template_id=u.template.id if u.template else None,
+        tier=u.tier,
+        conformance=u.conformance,
+        class_uid=event.class_uid,
+        category=category,
+        norm_topic=norm_topic(category),
+        produced_at=rfc3339_ns(),
+        replay=u.replay,
+        search_terms=list(dict.fromkeys(terms))[:16],
+    )
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--eps", type=float, default=float(settings.demo_eps_baseline))
@@ -143,6 +176,9 @@ def main() -> int:
     parser.add_argument("--count", type=int, default=10)
     parser.add_argument("--tier", type=int, choices=[1, 3], default=0, help="default: mix 70/30")
     parser.add_argument("--dry-run", action="store_true")
+    parser.add_argument(
+        "--no-lineage", action="store_true", help="skip the IF-LINEAGE record on `lineage`"
+    )
     args = parser.parse_args()
 
     producer = None if args.dry_run else make_producer()
@@ -163,6 +199,9 @@ def main() -> int:
             print(f"{topic} tier={tier} {event.ulpf.event_uid} {len(payload)}B")
         else:
             producer.produce(topic, key=event.ulpf.event_uid, value=payload)
+            if not args.no_lineage:
+                lineage = make_lineage(event).model_dump_json().encode()
+                producer.produce(TOPIC_LINEAGE, key=event.ulpf.event_uid, value=lineage)
             producer.poll(0)
         sent += 1
         if interval:

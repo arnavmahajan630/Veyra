@@ -111,6 +111,12 @@ class Settings(BaseSettings):
     merkle_window_seconds: int = 60
     zstd_level: int = 3
     lineage_ttl_days: int = 90
+    # Lineage indexer (B1): flush a ClickHouse batch at whichever comes first.
+    index_batch_rows: int = 2000
+    index_batch_ms: int = 500
+    # VEYRA_CH_URL is the B1 plan's name for the ClickHouse endpoint; when set it wins
+    # over clickhouse_url (which the profiles and compose already use).
+    ch_url: str = ""
     key_provider: KeyProviderName = "local"
     vault_chattr: bool = True
     openbao_url: str = "http://openbao:8200"
