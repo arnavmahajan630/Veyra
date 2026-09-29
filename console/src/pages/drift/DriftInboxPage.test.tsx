@@ -39,7 +39,7 @@ describe("DriftInboxPage", () => {
     renderInbox();
     await screen.findByRole("link", { name: /FAILED login/ });
     await userEvent.click(screen.getByRole("button", { name: "Resolved" }));
-    expect(await screen.findByText("Nothing here. New message shapes appear on their own.")).toBeInTheDocument();
+    expect(await screen.findByText("No resolved message shapes.")).toBeInTheDocument();
   });
 
   it("filters to one source from the Sources drawer's link, and can show all again", async () => {

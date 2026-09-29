@@ -23,10 +23,11 @@ export function VersionTimeline({ history }: { history: readonly Transition[] })
                 .map((h, index) => {
                   const age = ageMs(h.at, now);
                   return (
-                    // Separate cells rather than a middle-dot string (C5's default-avoidance review).
-                    <li key={`${h.action}-${index}`} className="grid grid-cols-[8rem_minmax(0,1fr)_5rem] gap-3 py-0.5 text-meta">
+                    // Separate cells rather than a middle-dot string (C5's default-avoidance review). The
+                    // actor is who did it (the four-eyes record), so it wraps rather than truncates.
+                    <li key={`${h.action}-${index}`} className="grid grid-cols-[6.5rem_minmax(0,1fr)_4.5rem] gap-2 py-0.5 text-meta">
                       <span className="font-medium text-ink">{t(`contracts.action.${h.action}`)}</span>
-                      <span className="truncate">{h.actor}</span>
+                      <span className="wrap-anywhere">{h.actor}</span>
                       <span className="text-right tabular-nums text-ink-2">{age === null ? "" : formatAge(age)}</span>
                     </li>
                   );

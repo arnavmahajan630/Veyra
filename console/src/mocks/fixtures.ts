@@ -443,8 +443,15 @@ export function onboardDraft(sourceId: string, tenantId: string): Draft {
   };
 }
 
+/** How many pasted lines fit a Drain template (`<*>` is one token), as the analysis counts a shape. */
+function linesMatching(drainTemplate: string, samples: readonly string[]): number {
+  const escaped = drainTemplate.replace(/[.*+?^${}()|[\]\\]/g, "\\$&").replaceAll("<\\*>", "\\S+");
+  const pattern = new RegExp(escaped);
+  return samples.flatMap((s) => s.split(/\r?\n/)).filter((line) => pattern.test(line)).length;
+}
+
 /** The analyze stream for T1 + T2 (Plan 5 Task 7's frames, in order). */
-export function analyzeFrames(sourceId: string): { event: string; data: unknown }[] {
+export function analyzeFrames(sourceId: string, samples: readonly string[] = []): { event: string; data: unknown }[] {
   const draft = onboardDraft(sourceId, "t_maha_power");
   return [
     {
@@ -457,7 +464,11 @@ export function analyzeFrames(sourceId: string): { event: string; data: unknown 
     },
     {
       event: "templates",
-      data: draft.templates.map((t) => ({ template_sig: t.template_sig, drain_template: t.drain_template, count: 5 })),
+      data: draft.templates.map((t) => ({
+        template_sig: t.template_sig,
+        drain_template: t.drain_template,
+        count: linesMatching(t.drain_template, samples),
+      })),
     },
     { event: "library", data: { matches: draft.library, matched: null } },
     ...draft.templates.map((t) => ({
@@ -472,7 +483,7 @@ export const AUDIT: AuditRow[] = [
   { actor: "approver@veyra", role: "pack_approver", action: "contract.promote", target: "authsrv@1", detail: "", at: "2026-09-26T08:32:40.000000000Z" },
   { actor: "approver@veyra", role: "pack_approver", action: "contract.approve", target: "authsrv@1", detail: "", at: "2026-09-26T08:32:38.000000000Z" },
   { actor: "author@maha", role: "pack_author", action: "contract.submit", target: "authsrv@1", detail: "", at: "2026-09-26T08:32:33.000000000Z" },
-  { actor: "author@maha", role: "pack_author", action: "apikey.issue", target: "src_authsrv_01", detail: "k_2f81", at: "2026-09-26T08:32:45.000000000Z" },
+  { actor: "author@maha", role: "pack_author", action: "key.create", target: "k_2f81", detail: "source=src_authsrv_01", at: "2026-09-26T08:32:45.000000000Z" },
   { actor: "author@maha", role: "pack_author", action: "source.create", target: "src_authsrv_01", detail: "", at: "2026-09-26T08:32:10.000000000Z" },
 ];
 

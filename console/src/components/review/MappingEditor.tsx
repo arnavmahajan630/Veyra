@@ -6,6 +6,8 @@ import type { Row } from "./mappings";
 export interface MappingEditorProps {
   template: DraftTemplate;
   row: Row;
+  /** Fields other rows already map: control-api refuses a field mapped twice, so they aren't offered. */
+  taken: ReadonlySet<string>;
   onApply: (mapping: DraftMapping) => void;
   onCancel: () => void;
 }
@@ -13,7 +15,7 @@ export interface MappingEditorProps {
 const CONTROL = "rounded-control border border-rule bg-paper px-2 py-0.5 text-meta";
 
 /** Inline editor for one mapping row: an OCSF field, a token chip, or an enum constant. */
-export function MappingEditor({ template, row, onApply, onCancel }: MappingEditorProps) {
+export function MappingEditor({ template, row, taken, onApply, onCancel }: MappingEditorProps) {
   const { t } = useI18n();
   const [path, setPath] = useState(row.ocsf_path);
   const [token, setToken] = useState<string | undefined>(row.token);
@@ -25,7 +27,7 @@ export function MappingEditor({ template, row, onApply, onCancel }: MappingEdito
   return (
     <div className="flex flex-wrap items-center gap-2 py-1">
       <select aria-label={t("review.field")} value={path} onChange={(e) => setPath(e.target.value)} className={CONTROL}>
-        {template.request.allowed_fields.map((field) => (
+        {template.request.allowed_fields.filter((field) => !taken.has(field)).map((field) => (
           <option key={field} value={field}>
             {field}
           </option>

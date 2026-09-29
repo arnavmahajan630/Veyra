@@ -92,7 +92,7 @@ export function AnalysisStep({ sourceId, samples, run, onDraft, onLibrary, onBus
             {analysis.shapes.map((shape) => (
               <li key={shape.template_sig} className="flex items-baseline gap-4 py-1.5">
                 <span className="w-20 shrink-0 tabular-nums text-ink-2">{t("onboard.shapeCount", { n: shape.count })}</span>
-                <code className="min-w-0 break-all font-mono text-meta">{shape.drain_template}</code>
+                <code className="min-w-0 wrap-anywhere font-mono text-meta">{shape.drain_template}</code>
               </li>
             ))}
           </ul>

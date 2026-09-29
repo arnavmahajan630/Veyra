@@ -86,7 +86,7 @@ export default function DriftInboxPage() {
       ) : drift.isError ? (
         <p role="alert">{t("common.error", { message: drift.error.message })}</p>
       ) : items.length === 0 ? (
-        <p>{t("drift.empty")}</p>
+        <p>{t(chip === "open" ? "drift.empty" : `drift.empty.${chip}`)}</p>
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
           {items.map((item) => (

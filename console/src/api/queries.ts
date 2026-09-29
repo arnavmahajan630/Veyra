@@ -205,7 +205,10 @@ export function useDismissDrift() {
   const client = useQueryClient();
   return useMutation({
     mutationFn: (id: string) => api.post<DriftItem>(`${CONTROL}/drift/${encodeURIComponent(id)}/dismiss`),
-    onSuccess: () => client.invalidateQueries({ queryKey: ["drift"] }),
+    onSuccess: (item) => {
+      client.setQueryData(queryKeys.driftItem(item.drift_id), item);
+      return client.invalidateQueries({ queryKey: ["drift"] });
+    },
   });
 }
 

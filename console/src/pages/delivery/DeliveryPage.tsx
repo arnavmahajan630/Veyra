@@ -55,10 +55,10 @@ export default function DeliveryPage() {
     },
     { id: "format", header: t("delivery.col.format"), cell: (r) => <code className="font-mono text-meta">{r.spec.format}</code> },
     { id: "masking", header: t("delivery.col.masking"), cell: (r) => <code className="font-mono text-meta">{masking(r.spec)}</code> },
-    { id: "sink", header: t("delivery.col.sink"), cell: (r) => <code className="break-all font-mono text-meta">{sink(r.spec)}</code> },
+    { id: "sink", header: t("delivery.col.sink"), cell: (r) => <code className="wrap-anywhere font-mono text-meta">{sink(r.spec)}</code> },
     { id: "delivered", header: t("delivery.col.delivered"), cell: (r) => r.stats?.delivered_per_min ?? "—", align: "right", sortValue: (r) => r.stats?.delivered_per_min ?? -1 },
     { id: "failed", header: t("delivery.col.failed"), cell: (r) => r.stats?.failed_per_min ?? "—", align: "right" },
-    { id: "lag", header: t("delivery.col.lag"), cell: (r) => (r.stats?.lag_s == null ? "—" : `${r.stats.lag_s} s`), align: "right" },
+    { id: "lag", header: t("delivery.col.lag"), cell: (r) => (r.stats?.lag_s == null ? "—" : `${r.stats.lag_s} s`), align: "right" }, // no break between number and unit
     {
       id: "breaker",
       header: t("delivery.col.breaker"),

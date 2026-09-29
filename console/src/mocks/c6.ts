@@ -150,8 +150,12 @@ export function c6Handlers({ world, me, visible }: C6Context) {
     return found && visible(found.summary.tenant_id) ? found : undefined;
   };
   const version = (c: MockContract, v: number) => c.versions.find((x) => x.version === v);
-  const transition = (c: MockContract, v: number, action: string, from: string | null, to: string) =>
-    c.history.push({ version: v, action, from_state: from, to_state: to, actor: me()?.user.email ?? "", at: now(), reason: "" });
+  // control-api's summary names the last transition's actor as `updated_by` (routes_contracts.py).
+  const transition = (c: MockContract, v: number, action: string, from: string | null, to: string) => {
+    const actor = me()?.user.email ?? "";
+    c.history.push({ version: v, action, from_state: from, to_state: to, actor, at: now(), reason: "" });
+    c.summary.updated_by = actor;
+  };
 
   /** Add a canary version (a submitted draft or a cloned library pack) and return it. */
   const addCanary = (id: string, tenant: string, sources: string[], yaml: string, draftId: string | null) => {
@@ -385,6 +389,8 @@ export function c6Handlers({ world, me, visible }: C6Context) {
       const mappings: DraftMapping[] = edit.mappings ?? template.response.mappings;
       const unknown = mappings.find((m) => !template.request.allowed_fields.includes(m.ocsf_path));
       if (unknown) return detail(422, `${unknown.ocsf_path} is not in the field catalogue for ${template.response.class}`);
+      const twice = mappings.find((m, i) => mappings.findIndex((n) => n.ocsf_path === m.ocsf_path) !== i);
+      if (twice) return detail(422, `${twice.ocsf_path} is mapped twice`); // veyra_contracts problems()
       template.response = {
         ...template.response,
         class: edit.class ?? template.response.class,
@@ -425,7 +431,7 @@ export function c6Handlers({ world, me, visible }: C6Context) {
         created_by: me()?.user.email ?? null, created_at: now(), finished_at: null, detail: "",
       };
       w.replays.set(job.job_id, job);
-      record("replay.start", c.summary.id, job.job_id);
+      record("replay.create", job.job_id, `contract=${c.summary.id} sigs=${job.params.template_sigs.join(",")}`);
       return json(job, 202);
     }),
 
@@ -448,7 +454,10 @@ export function c6Handlers({ world, me, visible }: C6Context) {
       return json(job);
     }),
 
-    http.get("/api/control/audit", () => (signedIn() ? json(world().audit) : unauthorized())),
+    // Newest first, as control-api's audit listing returns it.
+    http.get("/api/control/audit", () =>
+      signedIn() ? json([...world().audit].sort((a, b) => b.at.localeCompare(a.at))) : unauthorized(),
+    ),
 
     http.get("/api/control/routes", () => (signedIn() ? json({ routes: ROUTES }) : unauthorized())),
 
@@ -471,7 +480,7 @@ export function c6Handlers({ world, me, visible }: C6Context) {
       const source = world().sources.find((s) => s.id === body.source_id && visible(s.tenant_id));
       if (!source) return notFound(`source ${body.source_id}`);
       world().drafts.set("dr_onboard", onboardDraft(source.id, source.tenant_id));
-      return new HttpResponse(sseBody(analyzeFrames(source.id)), {
+      return new HttpResponse(sseBody(analyzeFrames(source.id, body.samples)), {
         headers: { "Content-Type": "text/event-stream", "Cache-Control": "no-cache" },
       });
     }),

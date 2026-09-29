@@ -75,6 +75,12 @@ function scopeOf(request: Request): string | null {
   return state.me?.tenant === "*" ? asked : (state.me?.tenant ?? null);
 }
 
+/** Key issue and revoke land in the C6 audit log, as control-api records them. */
+function audit(action: string, target: string, detail: string): void {
+  if (!state.me) return;
+  state.c6.audit.unshift({ actor: state.me.user.email, role: state.me.role, action, target, detail, at: new Date().toISOString() });
+}
+
 const unauthorized = () => HttpResponse.json({ detail: "sign in required" }, { status: 401 });
 const notFound = (what: string) => HttpResponse.json({ detail: `${what} not found` }, { status: 404 });
 
@@ -141,6 +147,7 @@ const httpHandlers = [
       revoked_at: null,
     };
     state.keys.set(source.id, [...(state.keys.get(source.id) ?? []), row]);
+    audit("key.create", keyId, `source=${source.id}`);
     const hec = "http://localhost:8088/services/collector/event";
     const card: KeyCard = {
       key_id: keyId,
@@ -158,6 +165,7 @@ const httpHandlers = [
       if (row) {
         row.status = "revoked";
         row.revoked_at = new Date().toISOString();
+        audit("key.revoke", row.key_id, "");
         return HttpResponse.json({ key_id: row.key_id, status: "revoked" });
       }
     }

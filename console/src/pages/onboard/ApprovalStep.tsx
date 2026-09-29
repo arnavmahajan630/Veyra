@@ -58,6 +58,11 @@ export function ApprovalStep({ contractId, version }: { contractId: string; vers
         )
       ) : row.error ? (
         <p role="alert">{row.error.message}</p>
+      ) : state ? (
+        // Retired or rolled back since: say so rather than wait for a canary that won't come back.
+        <p className="mt-1">
+          {t("drift.versionState", { id: contractId, v: version, state: t(`contracts.state.${state}`) })}
+        </p>
       ) : (
         <p className="text-ink-2">{t("common.loading")}</p>
       )}

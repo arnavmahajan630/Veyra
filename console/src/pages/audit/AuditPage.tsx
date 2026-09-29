@@ -53,7 +53,7 @@ export default function AuditPage() {
       ) : rows.length === 0 ? (
         <p>{t("audit.empty")}</p>
       ) : (
-        <DataTable columns={columns} rows={rows} rowKey={(r) => `${r.at}|${r.action}|${r.target}`} caption={t("audit.title")} />
+        <DataTable columns={columns} rows={rows} rowKey={(r) => `${r.at}|${r.actor}|${r.action}|${r.target}|${r.detail}`} caption={t("audit.title")} />
       )}
     </div>
   );

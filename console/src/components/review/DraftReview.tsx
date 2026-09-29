@@ -53,9 +53,17 @@ export function DraftReview({ draft: given, mode, templateIndex = 0, onSubmit, s
     />
   );
   const badge = (
-    <p className="text-meta text-ink-2">
-      {t("review.draftedBy", { source: template.source, ms: Math.round(template.latency_ms) })}
-    </p>
+    <>
+      {/* A refused edit leaves the draft as it was; say why (a field mapped twice, a bad constant). */}
+      {patch.error ? (
+        <p role="alert" className="text-meta">
+          {patch.error.message}
+        </p>
+      ) : null}
+      <p className="text-meta text-ink-2">
+        {t("review.draftedBy", { source: template.source, ms: Math.round(template.latency_ms) })}
+      </p>
+    </>
   );
   if (mode === "compact") {
     return (

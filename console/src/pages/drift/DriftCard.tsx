@@ -24,7 +24,7 @@ export function DriftCard({ item, isNew }: { item: DriftItem; isNew: boolean }) 
         <code className="truncate font-mono text-meta text-ink-2">{item.source_id}</code>
         <span className="shrink-0 text-meta">{t(`drift.state.${item.state}`)}</span>
       </div>
-      <code className="line-clamp-3 break-all font-mono text-meta text-ink">{item.drain_template}</code>
+      <code className="line-clamp-3 wrap-anywhere font-mono text-meta text-ink">{item.drain_template}</code>
       <div className="mt-auto flex flex-wrap gap-x-4 gap-y-0.5 text-meta text-ink-2">
         <span className="font-medium tabular-nums text-ink">{t("drift.count", { n: item.count })}</span>
         {first !== null ? <span>{t("drift.firstSeen", { age: formatAge(first) })}</span> : null}

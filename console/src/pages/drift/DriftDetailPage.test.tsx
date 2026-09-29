@@ -68,6 +68,34 @@ describe("DriftDetailPage", () => {
     expect(asked).toEqual([{ mode: "cache" }]);
   });
 
+  it("shows why Draft it was refused", async () => {
+    const bare: DriftItem = { ...(DRIFT[0] as DriftItem), state: "open", draft_id: null };
+    server.use(
+      http.get("/api/control/drift/dr_item_t3", () => HttpResponse.json(bare)),
+      http.post("/api/control/drift/dr_item_t3/draft", () =>
+        HttpResponse.json({ detail: "the drafter is busy; try again" }, { status: 503 }),
+      ),
+    );
+    renderDetail("author@maha");
+    await userEvent.click(await screen.findByRole("button", { name: "Draft it" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("the drafter is busy; try again");
+  });
+
+  it("dismisses an unresolved shape as noise", async () => {
+    renderDetail("author@maha");
+    await userEvent.click(await screen.findByRole("button", { name: "Dismiss" }));
+    expect(await screen.findByText("dismissed")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Dismiss" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Submit for approval" })).not.toBeInTheDocument();
+  });
+
+  it("offers no Dismiss once the draft is submitted", async () => {
+    renderDetail("author@maha");
+    await userEvent.click(await screen.findByRole("button", { name: "Submit for approval" }));
+    await screen.findByRole("button", { name: "Approve" });
+    expect(screen.queryByRole("button", { name: "Dismiss" })).not.toBeInTheDocument();
+  });
+
   it("offers Draft it when the item has no draft yet", async () => {
     const bare: DriftItem = { ...(DRIFT[0] as DriftItem), state: "open", draft_id: null };
     server.use(http.get("/api/control/drift/dr_item_t3", () => HttpResponse.json(bare)));

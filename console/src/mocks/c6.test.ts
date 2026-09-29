@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { api, ApiError, CONTROL } from "../api/client";
 import { postStream, type SseFrame } from "../api/stream";
 import type { Draft, DriftItem, ReplayJob, VersionDetail } from "../api/types";
+import { DEMO_SAMPLES } from "../pages/onboard/demoSamples";
 import { signInAs } from "./handlers";
 
 async function refusal(promise: Promise<unknown>): Promise<ApiError> {
@@ -73,6 +74,45 @@ describe("the C6 mock world", () => {
     await postStream(`${CONTROL}/onboarding/analyze`, { source_id: "src_auth_server_01", samples: ["x"] }, (f) => frames.push(f));
     expect(frames.map((f) => f.event)).toEqual(["classification", "templates", "library", "draft", "draft", "done"]);
     expect(frames.at(-1)?.data).toMatchObject({ draft_id: "dr_onboard" });
+  });
+
+  it("refuses an edit that maps one field twice, as control-api's problems() does", async () => {
+    signInAs("author@maha");
+    const twice = await refusal(
+      api.patch(`${CONTROL}/drafts/dr_t3`, {
+        mappings: [
+          { ocsf_path: "user.name", token: "k2" },
+          { ocsf_path: "user.name", token: "k6" },
+        ],
+      }),
+    );
+    expect([twice.status, twice.message]).toEqual([422, "user.name is mapped twice"]);
+  });
+
+  it("counts each message shape's lines in the pasted samples", async () => {
+    signInAs("author@maha");
+    await api.post(`${CONTROL}/sources`, { id: "src_auth_server_01", tenant_id: "t_maha_power", name: "Auth Server" });
+    const frames: SseFrame[] = [];
+    await postStream(`${CONTROL}/onboarding/analyze`, { source_id: "src_auth_server_01", samples: [DEMO_SAMPLES] }, (f) =>
+      frames.push(f),
+    );
+    const shapes = frames.find((f) => f.event === "templates")?.data as { count: number }[];
+    expect(shapes.map((s) => s.count)).toEqual([3, 2]);
+  });
+
+  it("names the last actor as the contract's updated_by, and audits newest first", async () => {
+    signInAs("author@maha");
+    await api.post(`${CONTROL}/drafts/dr_t3/submit`);
+    await api.post(`${CONTROL}/sources/src_authsrv_01/keys`);
+    signInAs("approver@veyra");
+    await api.post(`${CONTROL}/contracts/authsrv/versions/2/approve`);
+    await api.post(`${CONTROL}/contracts/authsrv/versions/2/promote`);
+    const contracts = await api.get<{ id: string; updated_by: string | null }[]>(`${CONTROL}/contracts`);
+    expect(contracts.find((c) => c.id === "authsrv")?.updated_by).toBe("approver@veyra");
+    const audit = await api.get<{ action: string; at: string }[]>(`${CONTROL}/audit`);
+    expect(audit.map((a) => a.action)).toContain("key.create");
+    const times = audit.map((a) => a.at);
+    expect(times).toEqual([...times].sort().reverse());
   });
 
   it("refuses a second source with the same id", async () => {

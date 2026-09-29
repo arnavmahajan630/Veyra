@@ -47,6 +47,32 @@ describe("DraftReview", () => {
     expect(screen.getByRole("button", { name: "Submit for approval" })).toBeDisabled();
   });
 
+  it("the field picker offers only fields no other row maps, so an edit can't map one twice", async () => {
+    signInAs("author@maha");
+    renderWithProviders(<DraftReview draft={DRAFT_T3} mode="full" onSubmit={vi.fn()} />);
+    const row = screen.getByRole("row", { name: /src_endpoint\.ip/ });
+    await userEvent.click(within(row).getByRole("button", { name: "Edit" }));
+    const options = within(screen.getByRole("combobox", { name: "OCSF field" })).getAllByRole("option");
+    const fields = options.map((o) => o.textContent);
+    expect(fields).toContain("src_endpoint.ip");
+    expect(fields).not.toContain("user.name");
+    expect(fields).not.toContain("dst_endpoint.ip");
+  });
+
+  it("an edit the backend refuses shows its reason", async () => {
+    signInAs("author@maha");
+    server.use(
+      http.patch("/api/control/drafts/dr_t3", () =>
+        HttpResponse.json({ detail: "src_endpoint.ip: const 7 is not an allowed enum value" }, { status: 422 }),
+      ),
+    );
+    renderWithProviders(<DraftReview draft={DRAFT_T3} mode="full" onSubmit={vi.fn()} />);
+    const row = screen.getByRole("row", { name: /src_endpoint\.ip/ });
+    await userEvent.click(within(row).getByRole("button", { name: "Edit" }));
+    await userEvent.click(screen.getByRole("button", { name: "Apply" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("const 7 is not an allowed enum value");
+  });
+
   it("compact mode shows only the class line, the table and the badge", () => {
     signInAs("author@maha");
     renderWithProviders(<DraftReview draft={DRAFT_T3} mode="compact" />);

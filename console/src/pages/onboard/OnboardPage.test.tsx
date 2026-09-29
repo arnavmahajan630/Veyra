@@ -1,6 +1,7 @@
 import { screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
+import { api, CONTROL } from "../../api/client";
 import { signInAs } from "../../mocks/handlers";
 import { renderWithProviders } from "../../test/render";
 import OnboardPage from "./OnboardPage";
@@ -39,6 +40,16 @@ describe("OnboardPage", () => {
     await userEvent.click(await screen.findByRole("button", { name: "Approve and activate" }));
     expect(await screen.findByText("auth_server v1 is active")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Issue key" })).toBeInTheDocument();
+  });
+
+  it("a version that has since been retired shows its state, not an endless Loading", async () => {
+    signInAs("author@maha");
+    await api.post(`${CONTROL}/drafts/dr_t3/submit`);
+    signInAs("approver@veyra");
+    await api.post(`${CONTROL}/contracts/authsrv/versions/2/approve`);
+    await api.post(`${CONTROL}/contracts/authsrv/versions/2/promote`);
+    renderWithProviders(<OnboardPage />, { route: "/onboard?contract=authsrv&version=1" });
+    expect(await screen.findByText("authsrv v1: Retired")).toBeInTheDocument();
   });
 
   it("an approver approving their own submission sees the four-eyes refusal verbatim (AC3)", async () => {

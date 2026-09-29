@@ -30,6 +30,17 @@ async function confirm(action: string) {
 }
 
 describe("ContractDetailPage", () => {
+  it("a version that doesn't exist says so instead of loading forever", async () => {
+    renderPage("approver@veyra", "/contracts/authsrv?v=99");
+    expect(await screen.findByRole("alert")).toHaveTextContent("authsrv@99 not found");
+  });
+
+  it("shows each history actor in full", async () => {
+    renderPage("approver@veyra");
+    const actors = await screen.findAllByText("approver@veyra", { selector: "li span" });
+    for (const actor of actors) expect(actor).not.toHaveClass("truncate");
+  });
+
   it("shows the history grouped by version", async () => {
     renderPage("approver@veyra");
     const entry = (await screen.findByText("author@maha")).closest("li") as HTMLElement;

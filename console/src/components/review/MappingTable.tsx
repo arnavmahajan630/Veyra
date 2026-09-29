@@ -53,7 +53,7 @@ export function MappingTable({ rows, template, editable, onHover, onEdit }: Mapp
       <tbody>
         {rows.map((row, index) => (
           <tr
-            key={row.ocsf_path}
+            key={`${index}-${row.ocsf_path}`}
             className="h-10 border-b border-rule"
             onMouseEnter={report(row)}
             onFocus={report(row)}
@@ -67,6 +67,7 @@ export function MappingTable({ rows, template, editable, onHover, onEdit }: Mapp
                 <MappingEditor
                   template={template}
                   row={row}
+                  taken={new Set(rows.filter((_, other) => other !== index).map((r) => r.ocsf_path))}
                   onApply={(mapping) => {
                     setEditing(null);
                     onEdit(index, mapping);

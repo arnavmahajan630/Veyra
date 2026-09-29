@@ -4,6 +4,7 @@ import { useParams } from "react-router";
 import {
   queryKeys,
   useContract,
+  useDismissDrift,
   useDraft,
   useDriftItem,
   useLifecycle,
@@ -23,6 +24,9 @@ import { ReplayProgress } from "./ReplayProgress";
 export const DEMO_FALLBACK_MS = 5_000;
 
 const BUTTON = "rounded-control bg-thread px-3 py-1.5 text-paper disabled:opacity-50";
+const QUIET = "rounded-control border border-rule px-3 py-1.5 text-ink disabled:opacity-50";
+/** States a person can still act on; resolved and dismissed items are history. */
+const UNRESOLVED = new Set(["open", "drafting", "draft_ready"]);
 
 function Header({ item }: { item: DriftItem }) {
   const { t } = useI18n();
@@ -38,13 +42,13 @@ function Header({ item }: { item: DriftItem }) {
         {first !== null ? <span className="text-meta text-ink-2">{t("drift.firstSeen", { age: formatAge(first) })}</span> : null}
         {last !== null ? <span className="text-meta text-ink-2">{t("drift.lastSeen", { age: formatAge(last) })}</span> : null}
       </div>
-      <h1 className="break-all font-mono text-lead">{item.drain_template}</h1>
+      <h1 className="wrap-anywhere font-mono text-lead">{item.drain_template}</h1>
       {item.samples_masked.length > 0 ? (
         <details>
           <summary className="cursor-pointer text-meta text-ink-2">{t("drift.samples")}</summary>
           <ul className="mt-1 flex flex-col gap-0.5">
             {item.samples_masked.map((sample, index) => (
-              <li key={index} className="break-all font-mono text-meta">
+              <li key={index} className="wrap-anywhere font-mono text-meta">
                 {sample}
               </li>
             ))}
@@ -68,6 +72,7 @@ export default function DriftDetailPage() {
   const draftId = item.data?.draft_id ?? null;
   const draft = useDraft(draftId);
   const start = useStartDraft(id);
+  const dismiss = useDismissDrift();
   const submit = useSubmitDraft(draftId ?? "");
   const contractId = draft.data?.contract_id ?? "";
   const contract = useContract(draft.data?.state === "submitted" || submit.isSuccess ? contractId : "");
@@ -99,6 +104,14 @@ export default function DriftDetailPage() {
   }
 
   const version = contract.data?.versions.find((v) => v.draft_id === draftId) ?? null;
+  const unresolved = item.data !== undefined && UNRESOLVED.has(item.data.state);
+  // Noise (a one-off, a test line) can be dismissed until its draft becomes a contract version.
+  const dismissable = unresolved && draft.data?.state !== "submitted" && !submit.isSuccess;
+  const dismissButton = dismissable ? (
+    <button type="button" disabled={dismiss.isPending} onClick={() => dismiss.mutate(id)} className={QUIET}>
+      {t("drift.dismiss")}
+    </button>
+  ) : null;
   const act = async (step: () => Promise<unknown>) => {
     setRefusal(null);
     try {
@@ -110,17 +123,25 @@ export default function DriftDetailPage() {
   };
 
   let actions = null;
-  if (draftId === null || draft.data?.state === "failed") {
+  if (unresolved && (draftId === null || draft.data?.state === "failed")) {
     actions = (
       <div className="flex flex-wrap items-center gap-3">
         {draft.data?.state === "failed" ? <p role="alert">{t("drift.draftFailed", { detail: draft.data.detail })}</p> : null}
         <button type="button" disabled={start.isPending} onClick={() => start.mutate(undefined)} className={BUTTON}>
           {t("drift.draftIt")}
         </button>
+        {dismissButton}
       </div>
     );
   } else if (drafting) {
-    actions = <p className="text-ink-2">{t("drift.drafting")}</p>;
+    actions = (
+      <div className="flex flex-wrap items-center gap-3">
+        <p className="text-ink-2">{t("drift.drafting")}</p>
+        {dismissButton}
+      </div>
+    );
+  } else if (dismissable) {
+    actions = <div className="flex flex-wrap items-center gap-3">{dismissButton}</div>;
   } else if (version) {
     const canary = version.state === "canary";
     actions = (
@@ -182,11 +203,17 @@ export default function DriftDetailPage() {
         <DraftReview
           draft={draft.data}
           mode="full"
-          onSubmit={draft.data.state === "ready" && !version ? () => submit.mutate(undefined) : undefined}
+          onSubmit={unresolved && draft.data.state === "ready" && !version ? () => submit.mutate(undefined) : undefined}
           busy={submit.isPending}
         />
       ) : null}
-      {submit.error ? <p role="alert">{submit.error.message}</p> : null}
+      {[submit.error, start.error, dismiss.error].map((error) =>
+        error ? (
+          <p key={error.message} role="alert">
+            {error.message}
+          </p>
+        ) : null,
+      )}
       {actions}
     </div>
   );

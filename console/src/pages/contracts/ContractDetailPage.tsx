@@ -58,7 +58,7 @@ export default function ContractDetailPage() {
         </span>
       </header>
 
-      <div className="grid gap-8 lg:grid-cols-[18rem_minmax(0,1fr)]">
+      <div className="grid gap-8 lg:grid-cols-[20rem_minmax(0,1fr)]">
         <VersionTimeline history={c.history} />
 
         <div className="flex min-w-0 flex-col gap-4">
@@ -98,7 +98,9 @@ export default function ContractDetailPage() {
           </div>
 
           <div role="tabpanel">
-            {!row ? (
+            {version.isError ? (
+              <p role="alert">{t("common.error", { message: version.error.message })}</p>
+            ) : !row ? (
               <p className="text-ink-2">{t("common.loading")}</p>
             ) : tab === "yaml" ? (
               <YamlView yaml={row.yaml} />
@@ -118,6 +120,8 @@ export default function ContractDetailPage() {
               <p className="text-ink-2">{t("contracts.firstVersion")}</p>
             ) : diff.data ? (
               <DiffView diff={diff.data} />
+            ) : diff.isError ? (
+              <p role="alert">{t("common.error", { message: diff.error.message })}</p>
             ) : (
               <p className="text-ink-2">{t("common.loading")}</p>
             )}
