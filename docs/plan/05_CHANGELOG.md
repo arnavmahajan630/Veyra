@@ -17,6 +17,36 @@ ACTION REQUIRED:
 
 ---
 
+## 2026-09-29 — C6 — CONTRACT-ADDITIVE  (contracts v1.4 → v1.5)
+TYPE: CONTRACT-ADDITIVE
+What:     IF-API-CONTROL gains `POST /onboarding/use-library {source_id, pack}` → 201 contract version
+          (canary): a matched library pack cloned as the source's version 1 (TC41). Also, documented:
+          `GET /routes` → `{routes}` is built; `POST /drift/{id}/draft` accepts a `drafting` item and the
+          new draft supersedes the old one (a superseded draft no longer changes the item);
+          `GET /drift?state=&source_id=` filters on the exact state; approve answers a role 403 before
+          the four-eyes 403.
+Why:      C6's onboarding offers a matched library pack instead of drafting, and the demo's 5 s cache
+          fallback re-drafts an item that is still drafting.
+IDs:      IF-API-CONTROL
+Files patched: 02_CONTRACTS.md (IF-API-CONTROL + header v1.5), every plan file's `contracts:` header,
+          track-C-control-console/C6 (implementation notes), reports/C6.md, 06_STATUS_BOARD.md.
+ACTION REQUIRED:
+  - [ ] @A @B Nothing to change: the header bump is additive (a new control-api endpoint).
+
+## 2026-09-29 — C6 — REQUEST  (contracts v1.5)
+TYPE: REQUEST
+What:     1. Delivery shows route definitions (`GET /api/control/routes`) and live statistics
+          (`/lineage/overview` routes). Its "recent receipts" table needs `GET /lineage/receipts?limit=`
+          → `[{route_id, event_uid, status, at, detail}]` (TC44); until then the page says so.
+          2. After a replay and from each backtest, the console links to `/lineage?q=<template_sig>`
+          (TC45): a replay job doesn't know its event uids, so the search is by template sig.
+Why:      IF-API-EVIDENCE has no receipts listing, and B6's search parameters aren't fixed yet.
+IDs:      IF-API-EVIDENCE
+Files patched: none (B owns IF-API-EVIDENCE and B6).
+ACTION REQUIRED:
+  - [ ] @B (B4) Add `GET /lineage/receipts?limit=` or tell C to drop the receipts table.
+  - [ ] @B (B6) Make the Lineage search accept `q=<template_sig>`, or tell C the parameter to use.
+
 ## 2026-09-29 — C5 — CLARIFICATION  (contracts v1.4, no bump)
 TYPE: CLARIFICATION
 What:     PR #6 (`c5-console-shell`) is on `main`. C5 stays in-progress: the live halves of AC1 and AC2
@@ -124,7 +154,7 @@ Why:      The section already named the routes. The bodies were the Plan 5 shape
 IDs:      IF-API-CONTROL
 Files patched: 02_CONTRACTS.md (IF-API-CONTROL).
 ACTION REQUIRED:
-  - [ ] @C C5/C6 should call these bodies, not the old `{tenant_id, source_name, transport}` analyze sketch.  <!-- C5: calls none of these routes; C6 still open -->
+  - [x] @C C5/C6 should call these bodies, not the old `{tenant_id, source_name, transport}` analyze sketch.  <!-- C5: calls none of these routes; C6 2026-09-29: /onboard sends {source_id, samples:[text], mode?} -->
 
 ## 2026-09-28 23:55 — C2/C3 — CLARIFICATION + DECISION  (contracts v1.4, no bump)
 TYPE: CLARIFICATION

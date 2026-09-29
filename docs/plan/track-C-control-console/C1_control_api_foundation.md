@@ -2,7 +2,7 @@
 
 ```
 track: C   owner: C   status: done
-contracts: v1.4
+contracts: v1.5
 depends_on: [S0]     unblocks: [CP1, A2, C2, B7]
 consumes: [IF-NAMING, IF-TOPICS, IF-ENV]
 provides: [IF-API-CONTROL (auth, tenants, sources, keys, audit, stream, internal), IF-CONTROL (publisher), IF-INVENTORY (writer), IF-AUDIT]

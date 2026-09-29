@@ -2,7 +2,7 @@
 
 ```
 track: C   owner: C   status: in-progress
-contracts: v1.4
+contracts: v1.5
 depends_on: [S0, B1 (query fixtures), B4 (OpenAPI), C1 (OpenAPI)]   unblocks: [CP2, B6, B7 (panel), C6]
 consumes: [IF-API-CONTROL, IF-API-EVIDENCE, IF-API-DEMO, IF-ULPF]
 provides: [console shell, design system, RawHighlighter + thread overlay, hotkey registry, i18n, /overview, /sources]

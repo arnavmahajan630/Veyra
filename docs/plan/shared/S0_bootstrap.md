@@ -2,7 +2,7 @@
 
 ```
 track: shared   owner: A+B+C   status: todo
-contracts: v1.4
+contracts: v1.5
 depends_on: []                      unblocks: [every phase]
 consumes: [IF-TOPICS, IF-PORTS, IF-NAMING, IF-ENV, IF-VERSIONS, IF-ENVELOPE, all record IFs]
 provides: [repo, compose, profiles, veyra_common, stubs, corpus, CI, pinned versions]

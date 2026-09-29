@@ -1,8 +1,8 @@
 # C6 — Console pages: Onboarding wizard, Contracts, Drift & draft review, Delivery, Audit
 
 ```
-track: C   owner: C   status: todo
-contracts: v1.4
+track: C   owner: C   status: in-progress
+contracts: v1.5
 depends_on: [C2, C3, C4, C5]     unblocks: [CP3, Beats 2 and 4]
 consumes: [IF-API-CONTROL, IF-API-EVIDENCE (backtest examples, template events), IF-LLM-DRAFT, IF-ULPF]
 provides: [/onboard, /contracts, /contracts/:id, /drift, /drift/:id (draft review), /delivery, /audit]
@@ -97,23 +97,30 @@ and finished `replay` events; add `drift`/`replay` query invalidation there. The
 template sigs with counts" is still a link to `/drift?source=<id>`; fill it from `GET /drift`.
 
 ## Tasks
-- [ ] 1. The `DraftReview` component (compact + full), with edit, hover-thread and row states.
+- [x] 1. The `DraftReview` component (compact + full), with edit, hover-thread and row states.
   <!-- synced from S0 --> Same toolchain as C5: Node 25.2.1 (IF-VERSIONS, D17). No separate setup.
-- [ ] 2. The onboarding page with streaming analysis, the demo "Paste samples" button, and the key card.
-- [ ] 3. Contracts list + detail + diff + lifecycle actions + confirm dialogs.
-- [ ] 4. The drift inbox + draft review flow + replay progress.
-- [ ] 5. Delivery and Audit pages (cut-able polish).
-- [ ] 6. Hindi strings for the onboarding and drift pages.
-- [ ] 7. Playwright flows:
+- [x] 2. The onboarding page with streaming analysis, the demo "Paste samples" button, and the key card.
+- [x] 3. Contracts list + detail + diff + lifecycle actions + confirm dialogs.
+- [x] 4. The drift inbox + draft review flow + replay progress.
+- [x] 5. Delivery and Audit pages (cut-able polish).
+- [x] 6. Hindi strings for the onboarding and drift pages.
+- [x] 7. Playwright flows (mock mode; the Lineage link's target is B6's):
   - onboarding end-to-end with two users (four-eyes);
   - drift → approve → promote → replay → the Lineage link opens rev 2.
 
 ## Acceptance criteria
 - [ ] AC1: The Beat 2 flow completes in ≤ 25 s of clicking with the cached draft (timed in rehearsal).
 - [ ] AC2: The Beat 4 flow completes in ≤ 40 s, including the replay (timed).
-- [ ] AC3: The same user can't approve their own submission; the UI shows the four-eyes message.
-- [ ] AC4: An edit that breaks provenance shows ✗ immediately and disables Submit, with the reason visible.
+- [x] AC3: The same user can't approve their own submission; the UI shows the four-eyes message.
+- [x] AC4: An edit that breaks provenance shows ✗ immediately and disables Submit, with the reason visible.
 - [ ] AC5: All pages work via keyboard; visible focus; no layout shift on SSE updates.
 
 ## Implementation notes
-_(filled after execution)_
+<!-- synced from C6 --> Built on branch `c6-console-pages` (2026-09-29). Full detail in [reports/C6.md](../reports/C6.md).
+
+- **Backend (TC41):** `GET /routes`, `POST /onboarding/use-library`, and re-drafting a `drafting` item (IF-API-CONTROL v1.5). A superseded draft that finishes late no longer changes its drift item.
+- **Four-eyes on stage:** control-api answers a role 403 before the four-eyes 403, so the author clicking Approve sees "this action needs one of the roles: admin, pack_approver"; an approver approving their own submission sees the four-eyes text. The UI shows either verbatim beside the button (AC3).
+- **Drift inbox:** the "Open" chip is every unresolved item (open, drafting, draft ready), grouped on the page, because `GET /drift?state=` is an exact match. `?source=` (from the Sources drawer) filters by source.
+- **Demo fallback (TC37):** the drift page polls a drafting draft and, in demo mode, re-requests it with `mode: "cache"` after 5 s.
+- **Mock mode:** `make console-mock` runs every page against a post-Beat-2 world (authsrv@1 active, the T3 drift item draft-ready); onboarding creates `src_<name>_01`. `make console-e2e` runs Beats 2 and 4 in it (serially, one worker).
+- **Tests:** 180 console unit tests, 3 Playwright flows, 156 control-api tests.
