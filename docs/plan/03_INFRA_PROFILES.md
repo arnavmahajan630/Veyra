@@ -61,6 +61,7 @@ All names are prefixed `VEYRA_`. Memory limits are enforced via compose `mem_lim
 | `MAX_EVENT_BYTES` | 65536 | 65536 | 262144 | |
 | `ENGINE_BUDGET_US` (per event) | 5000 | 5000 | 5000 | Exceeding it drops the event to tier 4. A4: checked at stage boundaries, and the engine warms its validators and timezones at load so the first event is not charged for one-time work |
 | `PEEL_MAX_DEPTH` | 4 | 4 | 6 | |
+| `SHADOW_BUDGET_US` (per event) | 5000 | 5000 | 5000 | A5: the canary run's own budget, separate from `ENGINE_BUDGET_US`, so a slow candidate can never delay the event being delivered. Over it, the shadow comparison is skipped (`veyra_shadow_skipped_total`), never the event. `0` means no limit, which is what a backtest passes |
 | `POISON_MAX_RETRIES` | 3 | 3 | 3 | A4: attempts are counted **across restarts** via `data/state/<service>_inflight`, so a record that kills the process is skipped on the 3rd start with a tier 4 `engine_crash` DLQ record, not retried forever |
 | `GATEWAY_DEFAULT_QUOTA_EPS` | 500 | 2000 | 20000 | A2: used only when a key carries no `quota_eps`. The bucket holds one second of it, so a source may burst that many at once and then keeps to the rate; over it is 429 + `Retry-After` |
 | `GATEWAY_ACK_TIMEOUT_MS` | 5000 | 5000 | 5000 | A2: how long the gateway waits for Kafka before answering **503**. It never answers 200 for anything unacknowledged, so raising this trades client latency for fewer retries |

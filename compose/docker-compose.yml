@@ -197,6 +197,10 @@ services:
     container_name: veyra-normalizer
     profiles: ["a3"]
     command: ["python", "-m", "normalizer"]
+    # Writes data/state/normalizer_inflight (A4's crash-loop journal), so it runs as the invoking
+    # user like control-api and ingest-gateway. As the image user it could not write there, and the
+    # journal degrades quietly by design — the guard was silently inert.
+    user: "${VEYRA_UID:-1000}:${VEYRA_GID:-1000}"
     ports: ["8201:8201"]
 
   router:

@@ -73,6 +73,15 @@ def pepper() -> bytes:
     return path.read_bytes().strip()
 
 
+def pepper_id(pepper: bytes) -> str:
+    """The id control-api derives from the pepper file (`control_api.keys.ensure_pepper`).
+
+    The gateway refuses a key minted under a different pepper *and says so*, so a test that made one
+    up would be rejected for a reason that has nothing to do with what it is testing.
+    """
+    return "p_" + sha256_hex(pepper)[:8]
+
+
 def issue_key(cfg: Settings, pepper: bytes, *, quota_eps: int = 500) -> tuple[str, str]:
     """Publish an `apikey:` message the way control-api does. Returns ``(key_id, secret)``."""
     key_id = f"k_it{uuid.uuid4().hex[:8]}"
@@ -80,7 +89,7 @@ def issue_key(cfg: Settings, pepper: bytes, *, quota_eps: int = 500) -> tuple[st
     message = ApiKeyMessage(
         key_id=key_id,
         secret_sha256=sha256_hex(pepper + secret.encode()),
-        pepper_id="p_it",
+        pepper_id=pepper_id(pepper),
         source_id=SOURCE_ID,
         tenant_id=TENANT,
         status="active",
@@ -96,7 +105,7 @@ def revoke_key(cfg: Settings, key_id: str, pepper: bytes, secret: str) -> None:
     message = ApiKeyMessage(
         key_id=key_id,
         secret_sha256=sha256_hex(pepper + secret.encode()),
-        pepper_id="p_it",
+        pepper_id=pepper_id(pepper),
         source_id=SOURCE_ID,
         tenant_id=TENANT,
         status="revoked",

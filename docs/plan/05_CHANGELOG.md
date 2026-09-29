@@ -17,6 +17,58 @@ ACTION REQUIRED:
 
 ---
 
+## 2026-09-29 16:30 — A5 — CLARIFICATION + REQUEST @B  (contracts v1.5, no bump)
+TYPE: CLARIFICATION
+What:     IF-SHADOW is **produced** now. The record shape is unchanged (B1's `shadow_row` already
+          indexed it), so this is not a bump — but three things are worth writing down:
+          (1) a `shadow` record is produced **in the same Kafka transaction** as the event it
+          describes, so a shadow row can never outlive the event it is about;
+          (2) `changed_fields` compares **values**, not offsets. A field that stops being located but
+          keeps its value is not a change, and `regressions` lists paths the active version claimed
+          and the candidate no longer does (plus a tier that got worse) — that is the list an approver
+          must read before promoting;
+          (3) `changed_fields`/`regressions` are OCSF paths, and `observables` appear by name
+          (`observables.ip_1`), the same convention A4's `provenance_check` uses.
+          Two fixes that are not interface changes but change behaviour:
+          - **`replay.raw` never worked before A5.** `Envelope` is `extra="forbid"` and a replayed
+            record carries an extra `replay` block, so every replay message was rejected as a broken
+            envelope and DLQ'd as `schema_invalid`. The normalizer now validates `ReplayEnvelope` when
+            the value has a `replay` key. C2's replay jobs would have timed out at CP3 otherwise, with
+            a reason pointing at the wrong track.
+          - **`Budget.expired()` read a limit of 0 as "already over"**, so a backtest asking for "no
+            limit" turned every event into `budget_exceeded`. 0 now means no limit.
+          New knob `VEYRA_SHADOW_BUDGET_US` (default = `ENGINE_BUDGET_US`): the canary's own budget.
+          Over it, the comparison is skipped (`veyra_shadow_skipped_total`), never the event.
+          New metrics: `veyra_shadow_events_total{contract}`, `veyra_shadow_regressions_total`,
+          `veyra_shadow_skipped_total{reason}`, `veyra_replay_events_total{job}`.
+Why:      A5 makes the contract loop's last step real: a canary that cannot affect output, and replayed
+          history that supersedes itself instead of duplicating.
+IDs:      IF-SHADOW (produced; shape unchanged), IF-ENVELOPE (replay block now actually honoured),
+          IF-ENGINE-LIB (`backtest` gains an optional `budget_us`; `Engine.shadow` is new)
+Files patched: 02_CONTRACTS.md (none needed), 03_INFRA_PROFILES.md §2.3 (`SHADOW_BUDGET_US`),
+          profiles/*.env, track-A-dataplane/A5_shadow_replay_revisions.md, reports/A5.md,
+          06_STATUS_BOARD.md.
+ACTION REQUIRED:
+  - [ ] @B B1's `shadow_diffs` table now receives real rows — worth a look at CP2, because until today
+        that code path had never seen a message.
+  - [ ] @B **Plan-state debt:** B1–B5 have code on `main` (archiver, integrity, evidence-api, tamper
+        lab) with no reports, no status-board rows and phase files still `todo v1.0`. A is not writing
+        those for you; the board currently understates what exists, which will bite at CP2 when
+        someone has to know what is real.
+  - [ ] @B `compose/docker-compose.yml` (your file): `normalizer` needs
+        `user: "${VEYRA_UID:-1000}:${VEYRA_GID:-1000}"`, like `control-api` and `ingest-gateway`.
+        Without it the container (uid 10001) cannot write `data/state/`, so A4's crash-loop journal is
+        silently inert — it degrades by design, so nothing looked broken. A has made the change; any
+        other service that writes under `data/` needs the same.
+  - [ ] @C `backtest()` gained `field_coverage: {ocsf_path: pct}` (share of events in which the
+        candidate produced that path). Additive — `run_backtest`'s `asdict` already passes it through,
+        so it is in the API response now; `console/src/api/types.ts::BacktestResult` needs one optional
+        field if C2's panel wants to show it.
+  - [ ] @C Replay progress works end to end now: the normalizer sets `lineage.replay_job_id` and
+        `revision` from the block **exactly as sent**, so `ReplayWatcher` counts what it expects. A
+        replay whose block is malformed is delivered as an ordinary event rather than dropped, which
+        means a job with a bad block reports `timed_out`, not `failed`.
+
 ## 2026-09-29 — C6 — CONTRACT-ADDITIVE  (contracts v1.4 → v1.5)
 TYPE: CONTRACT-ADDITIVE
 What:     IF-API-CONTROL gains `POST /onboarding/use-library {source_id, pack}` → 201 contract version

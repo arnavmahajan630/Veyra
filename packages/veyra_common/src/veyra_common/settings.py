@@ -75,8 +75,9 @@ class Settings(BaseSettings):
     # make test-int, demo/tools/*): kafka publishes an EXTERNAL listener on 29092.
     kafka_bootstrap_host: str = "localhost:29092"
     clickhouse_url: str = "http://clickhouse:8123"
-    # Host-side override for tools and tests outside the compose network. `veyra_lineage.client`
-    # (B) reads this first and falls back to `clickhouse_url`; empty means "not overridden".
+    # `VEYRA_CH_URL` is B1's name for the ClickHouse endpoint, and the host-side override for tools
+    # and tests outside the compose network. `veyra_lineage.client` reads it first and falls back to
+    # `clickhouse_url` (what the profiles and compose set); empty means "not overridden".
     ch_url: str = ""
     clickhouse_db: str = "veyra"
     clickhouse_user: str = "default"
@@ -114,9 +115,6 @@ class Settings(BaseSettings):
     # Lineage indexer (B1): flush a ClickHouse batch at whichever comes first.
     index_batch_rows: int = 2000
     index_batch_ms: int = 500
-    # VEYRA_CH_URL is the B1 plan's name for the ClickHouse endpoint; when set it wins
-    # over clickhouse_url (which the profiles and compose already use).
-    ch_url: str = ""
     key_provider: KeyProviderName = "local"
     vault_chattr: bool = True
     openbao_url: str = "http://openbao:8200"
@@ -125,6 +123,8 @@ class Settings(BaseSettings):
     # --------------------------------------------------- §2.3 engine / ingestion limits
     max_event_bytes: int = 65536
     engine_budget_us: int = 5000
+    # A5: the shadow (canary) run's own budget, so a slow candidate cannot delay real output.
+    shadow_budget_us: int = 5000
     peel_max_depth: int = 4
     gateway_default_quota_eps: int = 500
 

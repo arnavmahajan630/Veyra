@@ -111,6 +111,27 @@ class BacktestResult:
 
 
 @dataclass(slots=True)
+class ShadowDiff:
+    """What a candidate contract version would have done to one event (A5, IF-SHADOW).
+
+    This is a comparison, not an output: the candidate's event is thrown away.
+    ``changed_fields`` and ``regressions`` are what a reviewer reads before promoting a
+    version, so they compare **values**, not offsets — a field that moves from located to
+    derived but keeps its value is not a change to the data.
+    """
+
+    contract_id: str
+    candidate_ref: str
+    active_tier: int
+    candidate_tier: int
+    active_ref: str | None = None
+    changed_fields: list[str] = field(default_factory=list)
+    regressions: list[str] = field(default_factory=list)
+    # Set when the shadow run was abandoned rather than compared (budget, or an engine failure).
+    skipped: str | None = None
+
+
+@dataclass(slots=True)
 class Budget:
     """A per-event time budget the pipeline stages consult (A4).
 
@@ -128,6 +149,11 @@ class Budget:
         return monotonic_us() - self.started_us
 
     def expired(self) -> bool:
+        # A limit of 0 means "no limit" (A5: backtests and bulk replays pass that), not "already
+        # over" — the opposite reading turns every event into budget_exceeded, which is exactly the
+        # bug a backtest over stored events would hit first.
+        if self.limit_us <= 0:
+            return False
         return self.elapsed_us() > self.limit_us
 
     @classmethod
@@ -148,6 +174,9 @@ class EngineContext:
     vocab: dict[str, dict[str, Any]] = field(default_factory=dict)
     enrich: dict[str, list[dict[str, Any]]] = field(default_factory=dict)
     budget_us: int = 5000
+    # A5: the candidate's shadow run gets its own budget, so a slow canary can never delay the
+    # output an operator is actually waiting for. 0 means "no limit" (backtests pass that).
+    shadow_budget_us: int = 5000
     peel_max_depth: int = 4
     max_event_bytes: int = 65536
     ocsf_version: str = "1.9.0"

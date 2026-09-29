@@ -49,6 +49,7 @@ from veyra_engine.types import (
     Field,
     NormResult,
     PeelResult,
+    ShadowDiff,
     Token,
 )
 
@@ -237,6 +238,51 @@ class Engine:
         result.timings_us.setdefault("total", monotonic_us() - started)
         _carry_sender_metadata(result, envelope)
         return result
+
+    def shadow(self, envelope: Envelope, active: NormResult) -> ShadowDiff | None:
+        """Run the candidate version beside the active one and report the difference (A5).
+
+        Returns ``None`` when this source has no candidate — the common case, and the cheap one:
+        no second parse happens. The candidate's event is **never** returned for delivery; only the
+        comparison is, which is what makes a canary safe to run on live traffic.
+
+        The shadow run uses ``ctx.shadow_budget_us``, separate from the event's own budget, and
+        a run that overruns or fails comes back with ``skipped`` set rather than raising — a canary
+        must not be able to disturb the output an operator is waiting for.
+        """
+        candidate = self._resolve_contract(envelope.source_id, use_candidate=True)
+        active_contract = self._by_source.get(envelope.source_id)
+        if candidate is None or candidate is active_contract:
+            return None
+
+        diff = ShadowDiff(
+            contract_id=candidate.id,
+            candidate_ref=f"{candidate.id}@{candidate.version}",
+            active_ref=(
+                f"{active_contract.id}@{active_contract.version}"
+                if active_contract is not None
+                else None
+            ),
+            active_tier=active.tier,
+            candidate_tier=active.tier,
+        )
+
+        budget = Budget.start(self.ctx.shadow_budget_us) if self.ctx.shadow_budget_us else None
+        try:
+            shadowed = self._normalize(envelope, use_candidate=True, budget=budget)
+        except Exception as exc:
+            # A broken candidate is a review finding, not an outage.
+            diff.skipped = f"{type(exc).__name__}: {exc}"
+            return diff
+        if budget is not None and budget.expired():
+            diff.skipped = f"budget_exceeded after {budget.elapsed_us()}us"
+            return diff
+
+        diff.candidate_tier = shadowed.tier
+        diff.changed_fields, diff.regressions = _compare_events(active.ocsf, shadowed.ocsf)
+        if shadowed.tier > active.tier:
+            diff.regressions.append(f"tier:{active.tier}->{shadowed.tier}")
+        return diff
 
     def _normalize(
         self, envelope: Envelope, *, use_candidate: bool, budget: Budget | None = None
@@ -967,22 +1013,80 @@ def _claimed_paths(event: dict[str, Any], prefix: str = "") -> list[str]:
     return paths
 
 
+def _values(event: dict[str, Any]) -> dict[str, Any]:
+    """Every claim the event makes, as ``{path: value}``.
+
+    Built from :func:`_claimed_paths`, so A4 and A5 agree on what counts as a claim: OCSF
+    scaffolding and the bulky verbatim ``unmapped`` block are excluded, observables are named.
+    """
+    values: dict[str, Any] = {}
+    for path in _claimed_paths(event):
+        if path.startswith("observables."):
+            name = path.split(".", 1)[1]
+            for observable in event.get("observables") or []:
+                if isinstance(observable, dict) and observable.get("name") == name:
+                    values[path] = observable.get("value")
+                    break
+            continue
+        values[path] = _dig(event, path)
+    return values
+
+
+def _compare_events(
+    active: dict[str, Any], candidate: dict[str, Any]
+) -> tuple[list[str], list[str]]:
+    """``(changed_fields, regressions)`` between two normalizations of the same event (A5).
+
+    * **changed** — a path the candidate adds, or one whose value it changes. Comparison is on
+      values, not offsets: a field that stops being located but keeps its value has not changed.
+    * **regression** — a path the active version claimed and the candidate no longer does. That is
+      the list a reviewer must read before promoting, because it is the only way a "better" contract
+      can quietly lose a field a SIEM rule depends on.
+    """
+    before, after = _values(active), _values(candidate)
+    changed = sorted(
+        path for path, value in after.items() if path not in before or before[path] != value
+    )
+    regressions = sorted(path for path in before if path not in after)
+    return changed, regressions
+
+
+# A backtest is not the hot path, and the events it reads may be far larger than the realtime
+# profile allows. Inheriting the per-event budget would report `budget_exceeded` regressions that
+# are not real, so a backtest runs with a deliberately generous one.
+BACKTEST_BUDGET_US = 250_000
+
+
 def backtest(
     active: dict[str, Any] | None,
     candidate: dict[str, Any],
     envelopes: list[Envelope],
+    *,
+    budget_us: int | None = None,
 ) -> BacktestResult:
-    """What would the candidate contract do to these stored events? (A5 refines this.)"""
-    before = Engine()
+    """What would the candidate contract do to these stored events?
+
+    Pure and in-process: C2's lifecycle and C4's drafter call this to render the "8/8 tier 3 → 1"
+    panel, and the normalizer runs the same library, so the answer is what production would do.
+
+    ``budget_us`` overrides :data:`BACKTEST_BUDGET_US` per call; ``0`` disables the budget entirely,
+    which is what a bulk backtest over thousands of events wants.
+    """
+    limit = BACKTEST_BUDGET_US if budget_us is None else budget_us
+    context = EngineContext(budget_us=limit, shadow_budget_us=limit)
+    before = Engine(context)
     if active:
         before.load([active])
-    after = Engine()
+    after = Engine(context)
     after.load([candidate])
 
     tier_before: dict[int, int] = {}
     tier_after: dict[int, int] = {}
     upgraded = regressed = unchanged = 0
     examples: list[dict[str, Any]] = []
+    # How many events the candidate produced each path in, which is the number a reviewer actually
+    # asks for: "does it map user.name in all of them, or only in the two I pasted?"
+    produced: dict[str, int] = {}
 
     for envelope in envelopes:
         old = before.normalize(envelope)
@@ -995,31 +1099,33 @@ def backtest(
             regressed += 1
         else:
             unchanged += 1
+        for path in _values(new.ocsf):
+            produced[path] = produced.get(path, 0) + 1
         if len(examples) < 20:
+            changed, _ = _compare_events(old.ocsf, new.ocsf)
             examples.append(
                 {
                     "event_uid": envelope.event_uid,
                     "before_tier": old.tier,
                     "after_tier": new.tier,
-                    "changed_fields": sorted(
-                        set(new.ulpf.get("field_offsets", {}))
-                        ^ set(old.ulpf.get("field_offsets", {}))
-                    ),
+                    "changed_fields": changed,
                     "provenance_ok": all(
                         check.ok for check in provenance_check(new.ocsf, envelope.raw_bytes)
                     ),
                 }
             )
 
+    total = len(envelopes)
+    coverage = {path: round(100.0 * count / total, 1) for path, count in sorted(produced.items())}
     return BacktestResult(
-        n=len(envelopes),
+        n=total,
         tier_before=tier_before,
         tier_after=tier_after,
         upgraded=upgraded,
         regressed=regressed,
         unchanged=unchanged,
         examples=examples,
-        field_coverage={},
+        field_coverage=coverage if total else {},
     )
 
 

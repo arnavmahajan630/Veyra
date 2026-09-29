@@ -26,11 +26,20 @@ from typing import Any
 
 from confluent_kafka import Message
 from prometheus_client import Counter, Gauge, Histogram
+from pydantic import ValidationError
 
 from normalizer.control import ControlFollower
 from veyra_common.ids import monotonic_us
 from veyra_common.kafka import OutputRecord, TxnProcessor
-from veyra_common.models import DlqRecord, Envelope, LineageRecord, RawRef
+from veyra_common.models import (
+    DlqRecord,
+    Envelope,
+    LineageRecord,
+    RawRef,
+    ReplayBlock,
+    ReplayEnvelope,
+    ShadowRecord,
+)
 from veyra_common.service import ServiceApp
 from veyra_common.settings import ServiceSettings
 from veyra_common.topics import (
@@ -38,6 +47,7 @@ from veyra_common.topics import (
     TOPIC_DLQ,
     TOPIC_LINEAGE,
     TOPIC_REPLAY_RAW,
+    TOPIC_SHADOW,
     norm_topic,
 )
 from veyra_engine import Engine, EngineContext, serialize
@@ -53,6 +63,14 @@ LATENCY = Histogram(
 ENGINE_ERRORS = Counter("veyra_norm_engine_errors_total", "Engine failures", ["kind"])
 CONTRACTS_LOADED = Gauge("veyra_control_contracts_loaded", "Contracts currently loaded")
 BATCHES = Counter("veyra_norm_batches_total", "Transactions committed")
+SHADOW = Counter("veyra_shadow_events_total", "Candidate versions compared in shadow", ["contract"])
+SHADOW_REGRESSIONS = Counter(
+    "veyra_shadow_regressions_total", "Shadow comparisons that lost a field or a tier"
+)
+SHADOW_SKIPPED = Counter(
+    "veyra_shadow_skipped_total", "Shadow runs abandoned without a comparison", ["reason"]
+)
+REPLAY = Counter("veyra_replay_events_total", "Replayed events normalized", ["job"])
 
 
 class NormalizerSettings(ServiceSettings):
@@ -70,7 +88,7 @@ def build_outputs(engine: Engine, message: Message, cfg: NormalizerSettings) -> 
     started = monotonic_us()
 
     try:
-        envelope = Envelope.model_validate_json(raw_value)
+        envelope, replay_block = _parse(raw_value)
     except Exception as exc:
         # Not a valid envelope: emit a DLQ record so the event is accounted for, and move on.
         ENGINE_ERRORS.labels("invalid_envelope").inc()
@@ -106,13 +124,14 @@ def build_outputs(engine: Engine, message: Message, cfg: NormalizerSettings) -> 
     result.ulpf["raw_ref"] = raw_ref.model_dump()
     result.ocsf["ulpf"] = result.ulpf
 
-    replay_block = _replay_block(raw_value)
-    if replay_block:
-        # A5 owns replay semantics; the service already carries them through so a replayed event
-        # is never mistaken for a first-time one.
+    if replay_block is not None:
+        # The revision is used **exactly as sent**, never recomputed here. That is what makes a
+        # record re-processed after a crash produce the same (event_uid, revision) pair, which is
+        # what lets B1's ReplacingMergeTree collapse the duplicate instead of double-counting it.
         result.ulpf["replay"] = True
-        result.ulpf["revision"] = int(replay_block.get("revision", 2))
-        result.ulpf["supersedes"] = replay_block.get("supersedes")
+        result.ulpf["revision"] = replay_block.revision
+        result.ulpf["supersedes"] = replay_block.supersedes
+        REPLAY.labels(replay_block.job_id).inc()
 
     outputs = [
         OutputRecord(
@@ -134,7 +153,53 @@ def build_outputs(engine: Engine, message: Message, cfg: NormalizerSettings) -> 
                 value=result.dlq.model_dump_json().encode(),
             )
         )
+    shadow = _shadow_record(engine, envelope, result)
+    if shadow is not None:
+        # In the same transaction as the event it describes: a shadow row that survives a crash the
+        # event did not would tell a reviewer about a comparison that never really happened.
+        outputs.append(
+            OutputRecord(
+                topic=TOPIC_SHADOW,
+                key=envelope.event_uid,
+                value=shadow.model_dump_json().encode(),
+            )
+        )
     return outputs
+
+
+def _shadow_record(engine: Engine, envelope: Envelope, result: Any) -> ShadowRecord | None:
+    """Compare the source's candidate version against what was just delivered (A5, IF-SHADOW).
+
+    ``None`` when the source has no candidate, which is every event until someone submits one. A
+    candidate that overruns its own budget or raises is counted and dropped — the canary is being
+    reviewed, so its failures are findings, not incidents.
+    """
+    diff = engine.shadow(envelope, result)
+    if diff is None:
+        return None
+    if diff.skipped is not None:
+        reason = "budget" if diff.skipped.startswith("budget") else "error"
+        SHADOW_SKIPPED.labels(reason).inc()
+        log.warning(
+            "shadow run skipped",
+            extra={"contract": diff.contract_id, "reason": diff.skipped},
+        )
+        return None
+
+    SHADOW.labels(diff.contract_id).inc()
+    if diff.regressions:
+        SHADOW_REGRESSIONS.inc()
+    return ShadowRecord(
+        event_uid=envelope.event_uid,
+        contract_id=diff.contract_id,
+        active_ref=diff.active_ref,
+        candidate_ref=diff.candidate_ref,
+        active_tier=diff.active_tier,
+        candidate_tier=diff.candidate_tier,
+        changed_fields=diff.changed_fields,
+        regressions=diff.regressions,
+        produced_at=envelope.received_time,
+    )
 
 
 def poison_records(batch: list[Message], exc: Exception) -> list[OutputRecord]:
@@ -186,23 +251,45 @@ def _event_uid_of(message: Message) -> str:
     return str(uid) if isinstance(uid, str) and uid else "00000000-0000-7000-8000-000000000000"
 
 
-def _replay_block(raw_value: bytes) -> dict[str, Any] | None:
-    """The optional ``replay`` block on ``replay.raw`` messages (IF-ENVELOPE + replay)."""
+def _parse(raw_value: bytes) -> tuple[Envelope, ReplayBlock | None]:
+    """Validate one Kafka value as an envelope, with its replay block when it has one.
+
+    ``replay.raw`` carries IF-ENVELOPE **plus** a ``replay`` block, and ``Envelope`` forbids extra
+    fields — so a replayed record must be validated as :class:`ReplayEnvelope`, or it is rejected
+    as a broken envelope. (It was: every replay message went to the DLQ as ``schema_invalid``
+    until A5, which would have failed C2's replay jobs at CP3 with a misleading reason.)
+
+    The block is validated rather than read loosely, because ``revision`` and ``supersedes`` decide
+    which record supersedes which: a half-formed block that quietly defaulted to revision 2 would
+    overwrite real history. A malformed block degrades to an ordinary event — still normalized and
+    delivered (P2), just not credited as a replay.
+    """
+    if b'"replay"' not in raw_value:
+        return Envelope.model_validate_json(raw_value), None
+    try:
+        replayed = ReplayEnvelope.model_validate_json(raw_value)
+    except ValidationError as exc:
+        ENGINE_ERRORS.labels("invalid_replay_block").inc()
+        log.error("replay block did not validate", extra={"error": str(exc)})
+        # The envelope half may still be perfectly good; deliver it as a first-time event.
+        return Envelope.model_validate(_without_replay(raw_value)), None
+    block = replayed.replay
+    return Envelope.model_validate(replayed.model_dump(exclude={"replay"})), block
+
+
+def _without_replay(raw_value: bytes) -> dict[str, Any]:
     import json
 
-    try:
-        payload = json.loads(raw_value)
-    except (json.JSONDecodeError, TypeError):
-        return None
-    block = payload.get("replay")
-    return block if isinstance(block, dict) else None
+    payload = json.loads(raw_value)
+    payload.pop("replay", None)
+    return dict(payload)
 
 
 def _lineage(
     envelope: Envelope,
     result: Any,
     raw_ref: RawRef,
-    replay_block: dict[str, Any] | None,
+    replay_block: ReplayBlock | None,
 ) -> LineageRecord:
     contract = result.ulpf.get("contract")
     search_terms: list[str] = []
@@ -232,7 +319,9 @@ def _lineage(
         norm_topic=norm_topic(result.category),
         produced_at=envelope.received_time,
         replay=bool(result.ulpf.get("replay")),
-        replay_job_id=(replay_block or {}).get("job_id"),
+        # control-api's replay job counts exactly these records to know when a job is done, so this
+        # is the field that closes the loop back to the console (C2's REQUEST @A).
+        replay_job_id=replay_block.job_id if replay_block else None,
         search_terms=search_terms[:16],
     )
 
@@ -253,6 +342,7 @@ def main() -> None:
     engine = Engine(
         EngineContext(
             budget_us=cfg.engine_budget_us,
+            shadow_budget_us=cfg.shadow_budget_us,
             peel_max_depth=cfg.peel_max_depth,
             max_event_bytes=cfg.max_event_bytes,
         )

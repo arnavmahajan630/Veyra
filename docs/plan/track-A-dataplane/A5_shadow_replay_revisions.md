@@ -1,7 +1,7 @@
 # A5 — Shadow mode, backtest library, replay consumption, revisions
 
 ```
-track: A   owner: A   status: todo
+track: A   owner: A   status: done
 contracts: v1.5
 depends_on: [A4, C2 (candidate in control msg; mock until then)]   unblocks: [CP3, Beat 4]
 consumes: [IF-CONTROL (contract candidate), IF-ENVELOPE (+replay block), IF-SHADOW, IF-LINEAGE]
@@ -39,13 +39,13 @@ C2 and C4 call this in-process for the instant "8/8 tier 3 → 1" panel.
 **Idempotence.** A replay record re-processed after a crash yields the same revision number, so `norm_lineage` has no duplicate `(event_uid, revision)` (ReplacingMergeTree in B1).
 
 ## Tasks
-- [ ] 1. Candidate support in `Engine` + control follower; shadow diff computation; IF-SHADOW production.
+- [x] 1. Candidate support in `Engine` + control follower; shadow diff computation; IF-SHADOW production.
   <!-- synced from A3 --> `Engine.set_candidate` and `_resolve_contract` are in place: candidates are
   keyed by **contract id**, and resolution follows source -> active contract -> candidate, including a
   candidate that declares a source no active contract covers. The control follower already reads the
   `candidate` block from `contract:<id>` messages and calls `set_candidate`. What remains is running
   both and emitting IF-SHADOW.
-- [ ] 2. `backtest()` + tests using the T3 corpus with a hand-written `authsrv@2`.
+- [x] 2. `backtest()` + tests using the T3 corpus with a hand-written `authsrv@2`.
   <!-- synced from A4 --> Tier 3 changes what "improvement" means here: an unregistered source already
   produces observables and offsets, so the comparison is tier 3 -> tier 1 **plus field coverage**, not
   "tier 4 became tier 1". Also note `normalize` now enforces a per-event `Budget` at stage boundaries —
@@ -56,7 +56,7 @@ C2 and C4 call this in-process for the instant "8/8 tier 3 → 1" panel.
   `test_authsrv_v2_upgrades_t3_to_tier_one` proves all 8 T3 events go tier 3 -> tier 1 with the
   attacker IP located in the raw bytes. `backtest()` has the real shape (tier histograms, upgraded /
   regressed / unchanged, examples); it still needs `field_coverage` and the richer examples A5 lists.
-- [ ] 3. `replay.raw` consumption, revision fields, `lineage.replay_job_id`.
+- [x] 3. `replay.raw` consumption, revision fields, `lineage.replay_job_id`.
   <!-- synced from A2 --> Envelopes can now arrive with `custody="post_hoc"` (batch upload) and with
   `hec_meta` set (HTTP push). A replay must carry both through unchanged — re-stamping a batch-uploaded
   event as `realtime` would erase the one field that tells an analyst it was back-filled.
@@ -64,17 +64,64 @@ C2 and C4 call this in-process for the instant "8/8 tier 3 → 1" panel.
   `replay`, `revision` and `supersedes` from the envelope's replay block into `ulpf`, with
   `lineage.replay_job_id` filled. A5's work is the semantics (revision from ClickHouse, idempotence
   under crash), not the plumbing.
-- [ ] 4. `tools/mock_replay.py` to produce replay messages until C2's replay job exists.
-- [ ] 5. Metrics:
+- [x] 4. `tools/mock_replay.py` to produce replay messages until C2's replay job exists.
+  Selects by `--source`, `--event-uid` or `--contains TEXT`; `--contains` matches the **decoded** raw
+  bytes, because an envelope carries them base64-encoded. Without it the tool replays the oldest
+  events on a source, which is almost never the ones you meant.
+- [x] 5. Metrics:
   - `veyra_shadow_events_total{contract}`
   - `veyra_shadow_regressions_total`
   - `veyra_replay_events_total{job}`
 
 ## Acceptance criteria
-- [ ] AC1: Candidate `authsrv@2` published with T3 traffic flowing → `shadow` shows candidate tier 1 vs active tier 3; `norm.*` still shows tier 3 only.
-- [ ] AC2: `backtest(authsrv@1, authsrv@2, 8 T3 envelopes)` → `upgraded=8`, `regressed=0`, in < 200 ms.
-- [ ] AC3: Replay 8 events → 8 `norm.iam` events with `revision=2`, `supersedes` set, tier 1, same `event_uid`s.
-- [ ] AC4: Kill the normalizer mid-replay → no duplicate `(event_uid, revision)` after recovery.
+- [x] AC1: Candidate `authsrv@2` published with T3 traffic flowing → `shadow` shows candidate tier 1 vs active tier 3; `norm.*` still shows tier 3 only.
+- [x] AC2: `backtest(authsrv@1, authsrv@2, 8 T3 envelopes)` → `upgraded=8`, `regressed=0`, in < 200 ms.
+- [x] AC3: Replay 8 events → 8 `norm.iam` events with `revision=2`, `supersedes` set, tier 1, same `event_uid`s.
+- [x] AC4: Kill the normalizer mid-replay → no duplicate `(event_uid, revision)` after recovery.
 
 ## Implementation notes
-_(filled after execution)_
+
+Executed 2026-09-29 by Person A. Report: [A5.md](../reports/A5.md). All 5 tasks and all 4 ACs pass.
+
+**The bug this phase existed to find.** `replay.raw` never worked. `Envelope` is `extra="forbid"`, and
+a replayed record carries an extra `replay` block, so **every replay message was rejected as a broken
+envelope and DLQ'd as `schema_invalid`** — A3's "the plumbing is already there" note was wrong about
+the one line that mattered. `normalizer._parse` now validates `ReplayEnvelope` when the value carries a
+`replay` key and `Envelope` otherwise. Without this, C2's replay jobs would have failed at CP3 with a
+reason that pointed at the wrong track.
+
+**Shadow is a comparison, never an output.** `Engine.shadow(envelope, active)` returns `None` when the
+source has no candidate — the common case pays nothing. Otherwise it runs the candidate under
+`ctx.shadow_budget_us` (a **separate** budget, new knob `VEYRA_SHADOW_BUDGET_US`) and returns a
+`ShadowDiff`; a run that overruns or raises comes back with `skipped` set, is counted, and emits no
+record. The normalizer produces the `IF-SHADOW` record in the **same transaction** as the event it
+describes, because a shadow row that outlived its event would describe a comparison that never
+happened.
+
+**`changed_fields` compares values, not offsets.** The placeholder computed the symmetric difference of
+`field_offsets`, which reports a field that merely stopped being located — not a change to the data a
+SIEM rule reads. `_compare_events` diffs `{path: value}` built from `_claimed_paths`, so A4's notion of
+"a claim" and A5's notion of "a change" are the same notion. `regressions` is the list that matters to
+an approver: a path the active version claimed and the candidate no longer does, plus a tier that got
+worse.
+
+**Budget 0 now means "no limit".** `Budget.expired()` read `elapsed > limit`, so a limit of 0 made
+every event instantly over budget — the first thing a bulk backtest would have hit. `backtest()` takes
+`budget_us` (default `BACKTEST_BUDGET_US = 250 ms`, `0` disables it) because stored events can be far
+larger than the realtime profile allows, and inheriting the per-event budget would report
+`budget_exceeded` regressions that are not real.
+
+**`backtest()` kept its shape for C.** C2's lifecycle and C4's drafter call it positionally and
+`asdict()` the result, and `console/src/api/types.ts` is built against the example keys, so
+`field_coverage` (share of events in which the candidate produced each path) is additive and the
+example keys are untouched.
+
+**Replay semantics.** The revision is used **exactly as sent** — control-api computes `latest + 1` from
+the lineage index — which is what makes a record re-processed after a crash produce the same
+`(event_uid, revision)` and lets B1's ReplacingMergeTree collapse it. A malformed block degrades to an
+ordinary event rather than dropping it (P2), and `custody` plus `hec_meta` survive a replay, so a
+batch-uploaded event does not come back looking realtime.
+
+**Deviation from the AC text:** AC2 says "8 T3 envelopes"; the corpus holds **14** logical events once
+continuation lines are joined (`gen_corpus.py` grew after the phase file was written). The test asserts
+all 14 upgrade with zero regressions, which is the same claim, stricter.

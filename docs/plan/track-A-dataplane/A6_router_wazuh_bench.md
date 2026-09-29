@@ -81,6 +81,11 @@ Output: `reports/A6-bench-<machine>.md` with a table and the machine spec. These
   `data/sinks/wazuh/veyra.ndjson` as the invoking user — nothing in the manager container may create
   it, or the router (uid 10001) cannot append.
 - [ ] 4. Full routes: filters, masking, the partner route, syslog_tcp with breaker, http_json.
+  <!-- synced from A5 --> `shadow` is a live topic now and must **not** be routed anywhere: it is a
+  candidate-vs-active comparison, not an event. A replayed event, on the other hand, *is* routed —
+  it carries `ulpf.revision >= 2` and `ulpf.supersedes`, so a route that does not account for it will
+  deliver the same event to Wazuh twice under different revisions. Decide deliberately whether the
+  router suppresses superseded revisions or lets the sink see both.
 - [ ] 5. Full rules 100110–100130 + logtest samples; brute force verified.
   <!-- synced from A4 --> Tier-3 events now carry `ulpf.class_hint` and a `severity_id` derived from a
   word vocabulary (`derived_fields["severity_id"] = "vocab:severity_words"`). Both are **hints**: the
@@ -91,6 +96,9 @@ Output: `reports/A6-bench-<machine>.md` with a table and the machine spec. These
 - [ ] 6. (minimal) Integration test: event → sink line → Wazuh API `GET /alerts`-style query or indexer search finds it (automated, via the indexer REST API).
 - [ ] 7. Saved objects export; `WAZUH=remote` mode (route sink switches to syslog_tcp to `VEYRA_WAZUH_REMOTE_HOST`; the remote manager has a `<remote>` syslog config and the same rules; document it in `wazuh/REMOTE.md`).
 - [ ] 8. Throughput bench + report (laptop now; workstation if procured).
+  <!-- synced from A5 --> Bench one pass with a **canary attached** to the busiest source: shadow mode
+  doubles the engine work for that source, so that is the realistic worst case now, and
+  `veyra_shadow_skipped_total` says whether the candidate kept up or was being dropped.
   <!-- synced from A2 --> There are two ingestion paths to bench now, and they cost different things:
   the edge (Vector, syslog) and the gateway (HTTP, per-request `flush` with an ack timeout). The
   gateway's ceiling is dominated by how many events a request carries, since durability is paid per
