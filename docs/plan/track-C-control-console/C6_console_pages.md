@@ -123,4 +123,5 @@ template sigs with counts" is still a link to `/drift?source=<id>`; fill it from
 - **Drift inbox:** the "Open" chip is every unresolved item (open, drafting, draft ready), grouped on the page, because `GET /drift?state=` is an exact match. `?source=` (from the Sources drawer) filters by source.
 - **Demo fallback (TC37):** the drift page polls a drafting draft and, in demo mode, re-requests it with `mode: "cache"` after 5 s.
 - **Mock mode:** `make console-mock` runs every page against a post-Beat-2 world (authsrv@1 active, the T3 drift item draft-ready); onboarding creates `src_<name>_01`. `make console-e2e` runs Beats 2 and 4 in it (serially, one worker).
-- **Tests:** 180 console unit tests, 3 Playwright flows, 156 control-api tests.
+- **Tests:** 191 console unit tests, 3 Playwright flows, 156 control-api tests.
+- **Refinements** (after a walkthrough): Dismiss on the drift page, refused edits and drafts shown, no field mapped twice; see the report.
