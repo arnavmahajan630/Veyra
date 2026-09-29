@@ -2,7 +2,7 @@
 
 ```
 track: B   owner: B   status: todo
-contracts: v1.4
+contracts: v1.5
 depends_on: [B4]     unblocks: [CP3, Beat 5, "tamper matrix" slide]
 consumes: [IF-SEGMENT, IF-SIGNED-ROOT, IF-API-DEMO (tamper endpoints)]
 provides: [tools/tamper.py, demo-engine tamper hooks, tamper matrix]

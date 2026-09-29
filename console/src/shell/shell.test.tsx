@@ -10,7 +10,7 @@ function renderShell(route = "/") {
   return renderWithProviders(<AppShell />, { route, client: createQueryClient() });
 }
 
-const pageTitle = (name: string) => screen.findByRole("heading", { level: 1, name });
+const pageTitle = (name: string | RegExp) => screen.findByRole("heading", { level: 1, name });
 
 describe("the shell", () => {
   it("asks for a login, then shows the Overview", async () => {
@@ -72,15 +72,35 @@ describe("the shell", () => {
     renderShell("/sources");
     await screen.findByText("Acme NGFW (DMZ)");
     await userEvent.selectOptions(await screen.findByLabelText("Tenant"), "t_maha_power");
-    expect(await screen.findByText("No sources yet. Onboard your first source.")).toBeInTheDocument();
+    expect(await screen.findByText("Maha Power auth server")).toBeInTheDocument();
+    expect(screen.queryByText("Acme NGFW (DMZ)")).not.toBeInTheDocument();
   });
 
-  it("shows a placeholder for pages other phases build, and sends unknown paths home", async () => {
+  it("shows a placeholder for the pages Track B builds", async () => {
     signInAs("admin@veyra");
-    renderShell("/contracts/acme_ngfw_cef");
-    await pageTitle("Contracts");
+    renderShell("/lineage");
+    await pageTitle("Lineage");
     expect(screen.getByText("This page isn't built yet.")).toBeInTheDocument();
-    expect(document.querySelector('[data-phase="C6"]')).not.toBeNull();
+    expect(document.querySelector('[data-phase="B6"]')).not.toBeNull();
+  });
+
+  it("routes every C6 page to the real page, not a placeholder", async () => {
+    signInAs("admin@veyra");
+    const pages: [string, string | RegExp][] = [
+      ["/onboard", "Onboard a source"],
+      ["/contracts", "Contracts"],
+      ["/contracts/acme_ngfw_cef", "acme_ngfw_cef"],
+      ["/drift", "Unknown message shapes"],
+      ["/drift/dr_item_t3", /FAILED login/],
+      ["/delivery", "Delivery"],
+      ["/audit", "Audit"],
+    ];
+    for (const [route, title] of pages) {
+      const view = renderShell(route);
+      await pageTitle(title);
+      expect(document.querySelector("[data-phase]")).toBeNull();
+      view.unmount();
+    }
   });
 
   it("redirects an unknown path to the Overview", async () => {

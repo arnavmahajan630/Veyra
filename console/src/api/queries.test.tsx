@@ -30,7 +30,7 @@ describe("data hooks", () => {
   it("filters sources by tenant", async () => {
     signInAs("approver@veyra");
     const { result } = renderHook(() => useSources("t_maha_power"), { wrapper: wrapper() });
-    await waitFor(() => expect(result.current.data).toEqual([]));
+    await waitFor(() => expect(result.current.data?.map((s) => s.id)).toEqual(["src_authsrv_01"]));
   });
 
   it("issues a key, lists it, then revokes it", async () => {

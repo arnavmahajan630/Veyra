@@ -67,12 +67,38 @@ describe("useLiveUpdates", () => {
     setup();
     const control = stream(CONTROL_STREAM);
     act(() => control.emit("contract", { type: "contract", data: { id: "authsrv" } }));
-    act(() => control.emit("drift", { type: "drift", data: { source_id: "src_authsrv_01" } }));
+    act(() => control.emit("drift", { type: "drift", data: { source_id: "src_authsrv_01", created: true } }));
     act(() => control.emit("replay", { type: "replay", data: { job_id: "rp_1", status: "running" } }));
     act(() => control.emit("replay", { type: "replay", data: { job_id: "rp_1", status: "done" } }));
     const toasts = screen.getByRole("status");
     expect(toasts).toHaveTextContent("Contract authsrv changed");
     expect(toasts).toHaveTextContent("New message shape on src_authsrv_01");
     expect(toasts.textContent?.match(/Replay rp_1 finished/g)).toHaveLength(1);
+  });
+
+  it("refreshes the inbox for every drift event but toasts only new items", () => {
+    const client = setup();
+    const invalidate = vi.spyOn(client, "invalidateQueries");
+    act(() => stream(CONTROL_STREAM).emit("drift", { type: "drift", data: { source_id: "src_authsrv_01", created: false } }));
+    expect(invalidate).toHaveBeenCalledWith({ queryKey: ["drift"] });
+    expect(invalidate).toHaveBeenCalledWith({ queryKey: ["driftItem"] });
+    expect(screen.queryByText(/New message shape/)).not.toBeInTheDocument();
+  });
+
+  it("reads a draft event through its {type, data} wrapper", () => {
+    const client = setup();
+    const invalidate = vi.spyOn(client, "invalidateQueries");
+    act(() => stream(CONTROL_STREAM).emit("draft", { type: "draft", data: { draft_id: "dr_t3", state: "ready" } }));
+    expect(invalidate).toHaveBeenCalledWith({ queryKey: queryKeys.draft("dr_t3") });
+  });
+
+  it("writes replay progress from the event into the job's query", () => {
+    const client = setup();
+    const job = { job_id: "rp_1", contract_id: "authsrv", state: "normalizing", total: 8, normalized: 3 };
+    client.setQueryData(queryKeys.replay("rp_1"), job);
+    act(() =>
+      stream(CONTROL_STREAM).emit("replay", { type: "replay", data: { job_id: "rp_1", status: "done", normalized: 8 } }),
+    );
+    expect(client.getQueryData(queryKeys.replay("rp_1"))).toMatchObject({ state: "done", normalized: 8 });
   });
 });

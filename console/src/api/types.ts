@@ -116,3 +116,266 @@ export interface SourceHealth {
   tiers: TierCounts;
   clock_skew_p50_ms: number | null;
 }
+
+// ---- C6: contracts, drift, drafts, replay, audit (Plans 3–5 response models)
+
+export type ContractState = "draft" | "testing" | "canary" | "active" | "retired";
+
+export interface VersionSummary {
+  contract_id: string;
+  version: number;
+  state: ContractState;
+  author: string;
+  approved_by: string | null;
+  approved_at: string | null;
+  promoted_by: string | null;
+  promoted_at: string | null;
+  retired_reason: string | null;
+  git_commit: string | null;
+  created_at: string;
+  draft_id: string | null;
+}
+
+export interface GoldenCase {
+  sample: string;
+  expect: string;
+  ok: boolean;
+  tier: number | null;
+  diffs: string[];
+  schema_errors: string[];
+  error: string | null;
+}
+
+export interface BacktestExample {
+  event_uid: string;
+  before_tier: number;
+  after_tier: number;
+  changed_fields: string[];
+  provenance_ok: boolean;
+}
+
+export interface BacktestResult {
+  n: number;
+  tier_before: Record<string, number>;
+  tier_after: Record<string, number>;
+  upgraded: number;
+  regressed: number;
+  unchanged: number;
+  examples: BacktestExample[];
+  sigs: string[];
+  samples: number;
+  events_found: number;
+  raw_missing: number;
+  error: string | null;
+  ms: number;
+}
+
+export interface LintFinding {
+  level: "error" | "warning";
+  code: string;
+  message: string;
+  template: string | null;
+}
+
+export interface VersionDetail extends VersionSummary {
+  yaml: string;
+  compiled: Record<string, unknown> | null;
+  golden: { passed: boolean; total: number; failed: number; cases: GoldenCase[] } | null;
+  lint: LintFinding[];
+  backtest: BacktestResult | null;
+}
+
+export interface Transition {
+  version: number;
+  action: string;
+  from_state: string | null;
+  to_state: string;
+  actor: string;
+  at: string;
+  reason: string;
+}
+
+export interface ContractSummary {
+  id: string;
+  tenant_id: string;
+  sources: string[];
+  active_version: number | null;
+  canary_version: number | null;
+  latest_version: number;
+  latest_state: ContractState;
+  updated_at: string | null;
+  updated_by: string | null;
+}
+
+export interface ContractDetail extends ContractSummary {
+  versions: VersionSummary[];
+  history: Transition[];
+}
+
+export interface TemplateChange {
+  id: string;
+  pattern_changed: boolean;
+  class_changed: boolean;
+  map_added: string[];
+  map_removed: string[];
+  map_changed: string[];
+  unmapped_added: string[];
+  unmapped_removed: string[];
+}
+
+export interface DiffOut {
+  contract_id: string;
+  from_version: number;
+  to_version: number;
+  semantic: {
+    templates_added: string[];
+    templates_removed: string[];
+    templates_changed: TemplateChange[];
+    order_changed: boolean;
+    changed_sections: string[];
+  };
+  yaml: string;
+}
+
+export type DriftState = "open" | "drafting" | "draft_ready" | "resolved" | "dismissed";
+
+export interface DriftItem {
+  drift_id: string;
+  source_id: string;
+  tenant_id: string;
+  template_sig: string;
+  related_sigs: string[];
+  drain_template: string;
+  count: number;
+  first_seen: string;
+  last_seen: string;
+  samples_masked: string[];
+  sample_event_uids: string[];
+  state: DriftState;
+  draft_id: string | null;
+  resolved_by: string | null;
+  updated_at: string | null;
+}
+
+export interface DraftMapping {
+  ocsf_path: string;
+  token?: string;
+  const?: number;
+}
+
+export interface DraftSpan {
+  id: string;
+  value: string;
+  kind: string;
+  start: number;
+  end: number;
+}
+
+export interface DraftTemplate {
+  template_sig: string;
+  drain_template: string;
+  request: {
+    tokens: { id: string; value: string; kind: string; key?: string }[];
+    allowed_classes: Record<string, string[]>;
+    allowed_fields: string[];
+    enums: Record<string, Record<string, string>>;
+  };
+  response: { class: string; activity: string; confidence: string; mappings: DraftMapping[]; rationale: string };
+  source: string;
+  latency_ms: number;
+  review: string[];
+  notes: string[];
+  template: { id: string; pattern: string; class: string; activity: string; map: Record<string, unknown>; unmapped?: string[] };
+  sample_text: string;
+  spans: DraftSpan[];
+}
+
+export interface ProvenanceRow {
+  ocsf_path: string;
+  ok: boolean;
+  reason: string;
+  kind: "located" | "derived";
+}
+
+export interface Verification {
+  ok: boolean;
+  compile_error: { message: string; line: number | null; column: number | null } | null;
+  tiers: Record<string, number>;
+  provenance: ProvenanceRow[];
+  type_issues: string[];
+}
+
+export interface LibraryMatch {
+  contract_id: string;
+  path: string;
+  tier1_pct: number;
+  tier2_pct: number;
+  matched: boolean;
+}
+
+export interface Draft {
+  draft_id: string;
+  tenant_id: string;
+  source_id: string | null;
+  drift_id: string | null;
+  contract_id: string | null;
+  state: "drafting" | "ready" | "failed" | "submitted";
+  detail: string;
+  templates: DraftTemplate[];
+  yaml: string;
+  verification: Verification | null;
+  backtest: BacktestResult | null;
+  library: LibraryMatch[];
+  created_by: string | null;
+  created_at: string;
+  updated_at: string | null;
+}
+
+export interface DraftEdit {
+  template_sig?: string;
+  class?: string;
+  activity?: string;
+  mappings?: DraftMapping[];
+}
+
+export type ReplayState = "pending" | "publishing" | "normalizing" | "done" | "timed_out" | "failed";
+
+export interface ReplayJob {
+  job_id: string;
+  contract_id: string;
+  tenant_id: string;
+  state: ReplayState;
+  total: number;
+  published: number;
+  normalized: number;
+  params: { template_sigs: string[]; source_id: string | null };
+  created_by: string | null;
+  created_at: string;
+  finished_at: string | null;
+  detail: string;
+}
+
+export interface AuditRow {
+  actor: string;
+  role: string;
+  action: string;
+  target: string;
+  detail: string;
+  at: string;
+}
+
+export interface RouteSpec {
+  id: string;
+  filter: Record<string, unknown>;
+  format: string;
+  masking: Record<string, string> | "none";
+  sink: Record<string, unknown>;
+}
+
+export type AnalyzeEvent =
+  | { event: "classification"; data: { layers: Record<string, unknown>[]; contract_id: string } }
+  | { event: "templates"; data: { template_sig: string; drain_template: string; count: number }[] }
+  | { event: "library"; data: { matches: LibraryMatch[]; matched: string | null } }
+  | { event: "draft"; data: { template_sig: string; source: string; pattern: string; latency_ms: number } }
+  | { event: "done"; data: { draft_id: string | null; library?: string; verification?: Verification } }
+  | { event: "error"; data: { message: string } };

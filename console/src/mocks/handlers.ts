@@ -1,6 +1,7 @@
 import { http, HttpResponse, sse } from "msw";
 import type { ApiKeyRow, KeyCard, Me } from "../api/types";
-import { DEMO_PASSWORD, KEYS, SOURCES, TENANTS, USERS, healthAt, overviewAt, tierHistoryAt } from "./fixtures";
+import { c6Handlers, freshC6, type C6World } from "./c6";
+import { DEMO_PASSWORD, KEYS, TENANTS, USERS, healthAt, overviewAt, tierHistoryAt } from "./fixtures";
 
 const LIVE_TICK_MS = 1_000;
 
@@ -12,6 +13,8 @@ interface MockState {
   tick: number;
   issued: number;
   keys: Map<string, ApiKeyRow[]>;
+  /** Sources, contracts, drift, drafts, replay jobs and audit (C6). */
+  c6: C6World;
 }
 
 // A real session is a cookie and survives a reload; the mock keeps the signed-in email in
@@ -44,6 +47,7 @@ function freshState(): MockState {
     tick: 0,
     issued: 0,
     keys: new Map(Object.entries(KEYS).map(([source, rows]) => [source, [...rows]])),
+    c6: freshC6(),
   };
 }
 
@@ -69,6 +73,12 @@ function visible(tenantId: string): boolean {
 function scopeOf(request: Request): string | null {
   const asked = new URL(request.url).searchParams.get("tenant");
   return state.me?.tenant === "*" ? asked : (state.me?.tenant ?? null);
+}
+
+/** Key issue and revoke land in the C6 audit log, as control-api records them. */
+function audit(action: string, target: string, detail: string): void {
+  if (!state.me) return;
+  state.c6.audit.unshift({ actor: state.me.user.email, role: state.me.role, action, target, detail, at: new Date().toISOString() });
 }
 
 const unauthorized = () => HttpResponse.json({ detail: "sign in required" }, { status: 401 });
@@ -109,20 +119,20 @@ const httpHandlers = [
     if (!state.me) return unauthorized();
     const tenant = new URL(request.url).searchParams.get("tenant");
     return HttpResponse.json(
-      SOURCES.filter((s) => visible(s.tenant_id) && (!tenant || s.tenant_id === tenant)),
+      state.c6.sources.filter((s) => visible(s.tenant_id) && (!tenant || s.tenant_id === tenant)),
     );
   }),
 
   http.get("/api/control/sources/:sourceId/keys", ({ params }) => {
     if (!state.me) return unauthorized();
-    const source = SOURCES.find((s) => s.id === params.sourceId);
+    const source = state.c6.sources.find((s) => s.id === params.sourceId);
     if (!source || !visible(source.tenant_id)) return notFound("source");
     return HttpResponse.json(state.keys.get(source.id) ?? []);
   }),
 
   http.post("/api/control/sources/:sourceId/keys", ({ params }) => {
     if (!state.me) return unauthorized();
-    const source = SOURCES.find((s) => s.id === params.sourceId);
+    const source = state.c6.sources.find((s) => s.id === params.sourceId);
     if (!source || !visible(source.tenant_id)) return notFound("source");
     state.issued += 1;
     const keyId = `k_MOCK${String(state.issued).padStart(4, "0")}`;
@@ -137,6 +147,7 @@ const httpHandlers = [
       revoked_at: null,
     };
     state.keys.set(source.id, [...(state.keys.get(source.id) ?? []), row]);
+    audit("key.create", keyId, `source=${source.id}`);
     const hec = "http://localhost:8088/services/collector/event";
     const card: KeyCard = {
       key_id: keyId,
@@ -154,6 +165,7 @@ const httpHandlers = [
       if (row) {
         row.status = "revoked";
         row.revoked_at = new Date().toISOString();
+        audit("key.revoke", row.key_id, "");
         return HttpResponse.json({ key_id: row.key_id, status: "revoked" });
       }
     }
@@ -198,4 +210,6 @@ function streamHandlers() {
   ];
 }
 
-export const handlers = [...httpHandlers, ...streamHandlers()];
+const c6 = c6Handlers({ world: () => state.c6, me: () => state.me, visible });
+
+export const handlers = [...httpHandlers, ...c6, ...streamHandlers()];

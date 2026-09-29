@@ -1,6 +1,13 @@
 import { Navigate, Route, Routes } from "react-router";
 import type { Me } from "../api/types";
+import AuditPage from "../pages/audit/AuditPage";
+import ContractDetailPage from "../pages/contracts/ContractDetailPage";
+import ContractsPage from "../pages/contracts/ContractsPage";
+import DeliveryPage from "../pages/delivery/DeliveryPage";
 import ComponentsPage from "../pages/dev/ComponentsPage";
+import DriftDetailPage from "../pages/drift/DriftDetailPage";
+import DriftInboxPage from "../pages/drift/DriftInboxPage";
+import OnboardPage from "../pages/onboard/OnboardPage";
 import OverviewPage from "../pages/overview/OverviewPage";
 import SourcesPage from "../pages/sources/SourcesPage";
 import { AuthGate } from "./AuthGate";
@@ -18,6 +25,13 @@ function AppRoutes({ me }: { me: Me }) {
       <Route element={<Layout me={me} />}>
         <Route index element={<OverviewPage />} />
         <Route path="sources" element={<SourcesPage />} />
+        <Route path="onboard" element={<OnboardPage />} />
+        <Route path="contracts" element={<ContractsPage />} />
+        <Route path="contracts/:id" element={<ContractDetailPage />} />
+        <Route path="drift" element={<DriftInboxPage />} />
+        <Route path="drift/:id" element={<DriftDetailPage />} />
+        <Route path="delivery" element={<DeliveryPage />} />
+        <Route path="audit" element={<AuditPage />} />
         {placeholders.map((item) => (
           <Route
             key={item.to}

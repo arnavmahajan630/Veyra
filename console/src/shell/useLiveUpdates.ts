@@ -1,6 +1,6 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { queryKeys } from "../api/queries";
-import type { Overview } from "../api/types";
+import type { Overview, ReplayJob } from "../api/types";
 import { useToast } from "../components/Toast";
 import { recordOverview } from "../pages/overview/useTierSeries";
 import { useI18n } from "../i18n/i18n";
@@ -54,10 +54,21 @@ export function useLiveUpdates(createSource?: (url: string) => EventSourceLike):
         void client.invalidateQueries({ queryKey: ["contracts"] });
         push(t("toast.contract", { id: text(payload(event), "id") }));
       },
-      drift: (event) => push(t("toast.drift", { source: text(payload(event), "source_id") })),
+      drift: (event) => {
+        void client.invalidateQueries({ queryKey: ["drift"] });
+        void client.invalidateQueries({ queryKey: ["driftItem"] });
+        const data = payload(event) as { source_id?: string; created?: boolean };
+        if (data.created) push(t("toast.drift", { source: data.source_id ?? "" }));
+      },
+      draft: (event) => {
+        const data = payload(event) as { draft_id?: string };
+        if (data.draft_id) void client.invalidateQueries({ queryKey: queryKeys.draft(data.draft_id) });
+      },
       replay: (event) => {
-        const data = payload(event);
-        if (data.status === "done") push(t("toast.replay", { job: text(data, "job_id") }), "success");
+        const job = payload(event) as Partial<ReplayJob> & { job_id?: string; status?: string };
+        if (job.job_id) client.setQueryData(queryKeys.replay(job.job_id), (old: ReplayJob | undefined) =>
+          old ? { ...old, ...job, state: (job.status ?? old.state) as ReplayJob["state"] } : old);
+        if (job.status === "done") push(t("toast.replay", { job: job.job_id ?? "?" }), "success");
       },
     },
     createSource,

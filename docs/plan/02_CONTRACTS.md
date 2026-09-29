@@ -1,6 +1,6 @@
 # 02 — CONTRACTS (shared interfaces)
 
-**Contract version: v1.4**. Bump rules are in §0. Every section has an ID (`IF-*`). Phase files reference these IDs. When you change a section, grep for its ID across the plan folder and update every file that references it.
+**Contract version: v1.5**. Bump rules are in §0. Every section has an ID (`IF-*`). Phase files reference these IDs. When you change a section, grep for its ID across the plan folder and update every file that references it.
 
 ---
 
@@ -594,20 +594,25 @@ POST /onboarding/analyze {source_id, samples:[str], mode?} → text/event-stream
       events: classification {layers, contract_id}, templates [{template_sig, drain_template, count, tokens}],
       library {matches, matched}, draft {template_sig, source, pattern, latency_ms}, done {draft_id, verification}|{draft_id:null, library}, error
       (source_name is accepted and ignored; the contract id comes from source_id — TC32)
+POST /onboarding/use-library {source_id, pack} → 201 contract version (canary): the matched library pack cloned
+      as the source's version 1, provenance.drafted_by: library; 404 for an unknown pack  <!-- synced from C6 -->
 GET  /drafts/{id} → {draft_id, state, templates, yaml, verification, backtest, library, detail}
 PATCH /drafts/{id} {template_sig?, class?, activity?, mappings:[{ocsf_path, token|const}]} → re-verify; 422 outside the closed vocabulary
 POST /drafts/{id}/submit → 201 contract version in testing; the submitter is the author (TC17)
 GET/POST /contracts, GET /contracts/{id}, GET /contracts/{id}/versions/{v}, GET /contracts/{id}/diff?from=&to=
-POST /contracts/{id}/versions/{v}/approve   (403 if approver == author)
+POST /contracts/{id}/versions/{v}/approve   (403 if approver == author; a role without approve rights gets its role 403 first)
 POST /contracts/{id}/versions/{v}/promote   (canary → active; publishes control)
 POST /contracts/{id}/rollback {to_version}
 POST /contracts/{id}/versions/{v}/backtest {template_sigs?, samples?} → backtest result (also run automatically at canary)
-GET  /drift?state=open → [{drift_id, source_id, template_sig, drain_template, count, first_seen, last_seen, samples_masked, draft_id|null}]
+GET  /drift?state=&source_id= → [{drift_id, source_id, template_sig, drain_template, count, first_seen, last_seen, samples_masked, draft_id|null}]
+     (state is an exact match: open | drafting | draft_ready | resolved | dismissed)  <!-- synced from C6 -->
 GET  /drift/{id} → one item (+ related_sigs, sample_event_uids, state, resolved_by)      POST /drift/{id}/dismiss
 POST /drift/{id}/draft {mode?} → 202 {draft_id}   (does not submit; auto-draft actor is drift-worker)
+     <!-- synced from C6 --> also accepts a `drafting` item: the new draft supersedes the old one (the demo's 5 s cache
+     fallback); a superseded draft still finishes but no longer changes the item
 POST /replay {contract_id, template_sigs?, source_id?, from?, to?} → {job_id}      GET /replay/{job_id} → progress
 GET  /replay?contract_id= → jobs, newest first
-GET  /routes        GET /audit
+GET  /routes → {routes: [IF-ROUTES route]}        GET /audit  <!-- synced from C6 -->
 GET  /stream (SSE): events {type: overview|drift|draft|contract|replay|source, data}
      <!-- synced from C2/C3/C4 --> contract: {id, version, state, action}; replay: {job_id, contract_id, status, total, published, normalized, detail}; drift: {drift_id, source_id, template_sig, count, state, created}; draft: {draft_id, drift_id, state, source_id}
 

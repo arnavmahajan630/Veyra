@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import Literal
 
+import yaml
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
@@ -16,6 +17,7 @@ from control_api.drafts import (
     DraftOut,
     EditRejected,
     apply_edit,
+    contract_id_for,
     draft_event,
     draft_out,
     payload,
@@ -55,7 +57,7 @@ def draft_drift(
     db: DbSession = Depends(get_db),
 ) -> DraftStarted:
     item = load_item(db, principal, drift_id)
-    if item.state not in ("open", "draft_ready"):
+    if item.state not in ("open", "drafting", "draft_ready"):
         raise HTTPException(status_code=409, detail=f"drift item is {item.state}")
     draft = start_drift_draft(
         ctx, db, item, actor=principal.email, mode=(body or DraftStart()).mode
@@ -128,3 +130,36 @@ def onboarding_analyze(
         media_type="text/event-stream",
         headers={"Cache-Control": "no-cache"},
     )
+
+
+class UseLibraryIn(BaseModel):
+    source_id: str
+    pack: str
+
+
+@router.post("/onboarding/use-library", response_model=VersionDetail, status_code=201)
+def use_library(
+    body: UseLibraryIn,
+    principal: Principal = Depends(require(*WRITERS)),
+    ctx: AppContext = Depends(get_ctx),
+    db: DbSession = Depends(get_db),
+) -> VersionDetail:
+    """Clone a matched library pack into the tenant as the source's version 1 (TC41)."""
+    source = db.get(Source, body.source_id)
+    if source is None or not principal.can_see(source.tenant_id):
+        raise HTTPException(status_code=404, detail=f"source {body.source_id} not found")
+    path = ctx.cfg.contracts_repo / "library" / f"{body.pack}.yaml"
+    if not body.pack.isidentifier() or not path.is_file():
+        raise HTTPException(status_code=404, detail=f"library pack {body.pack} not found")
+    document = yaml.safe_load(path.read_text(encoding="utf-8"))
+    document |= {
+        "contract": contract_id_for(source.id),
+        "version": 1,
+        "tenant": source.tenant_id,
+        "sources": [source.id],
+        "provenance": {"drafted_by": "library", "draft_id": None},
+    }
+    document.pop("state", None)
+    document.pop("tests", None)  # the pack's goldens name the pack's own sample files
+    text = yaml.safe_dump(document, sort_keys=False, allow_unicode=True, width=1000)
+    return submit_contract(SubmitIn(yaml=text), principal, ctx, db)
