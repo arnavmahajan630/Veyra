@@ -19,7 +19,7 @@ CONTRACTS_URL="${VEYRA_CONTRACTS_URL:-https://github.com/arnavmahajan630/contrac
 OLLAMA_IMAGE="ollama/ollama:0.34.4"
 KAFKA_IMAGE="apache/kafka:4.1.2"
 NODE_IMAGE="node:25-bookworm-slim"
-SERVICE_PROFILES=(a2 a3 c1 c3 b1 b2 b3 b4)
+SERVICE_PROFILES=(a2 a3 a6 c1 c3 b1 b2 b3 b4)
 
 # ---------------------------------------------------------------- output
 if [[ -t 1 ]]; then

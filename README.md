@@ -46,7 +46,7 @@ That single command:
 6. starts Wazuh (workstation profile), with certificates and security set up automatically;
 7. starts the AI model server (on the GPU when Docker can see one) and downloads the model;
 8. starts every Veyra service;
-9. runs a smoke check: every service answers, and a syslog line comes out the far end as OCSF;
+9. runs a smoke check: every service answers, and a syslog line comes out the far end as OCSF, delivered to Wazuh's input file;
 10. prints the URLs and sign-ins.
 
 The first run downloads images and a model, so allow **10 to 25 minutes**. Later runs take about a minute.
@@ -126,9 +126,9 @@ plain-English and technical explanations, read the **Veyra, explained** doc and
 [`docs/plan/`](docs/plan/README.md).
 
 **What is built today** (30 Sep 2026):
-- Ingestion, normalization (tiers 1 to 4, byte offsets, shadow and replay), the control plane, drift and the AI drafter are built.
+- Ingestion, normalization (tiers 1 to 4, byte offsets, shadow and replay), the router to Wazuh and a masked partner feed, the control plane, drift and the AI drafter are built.
 - The evidence side runs as working prototypes: verify checks 7 of its 8 steps, and the tamper lab works.
-- **The router that delivers to Wazuh, the demo engine, and the console's Lineage and Evidence pages are not built yet.**
+- **The demo engine and the console's Lineage and Evidence pages are not built yet.**
 
 [`docs/DEMO_GUIDE.md`](docs/DEMO_GUIDE.md) has the full scope matrix.
 

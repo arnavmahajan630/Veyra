@@ -24,7 +24,7 @@ and it ended with **Ready**. It covers:
 | 6 | Wazuh (workstation) | Sets `vm.max_map_count`, makes certificates once, starts the indexer, manager and dashboard, initialises security once | 3–6 min | ~1 min |
 | 7 | AI model | Starts Ollama (GPU if found), downloads the profile's model, loads it | 2–10 min (download) | seconds |
 | 8 | Veyra services | Gateway, normalizer, control API, drift worker, lineage indexer, archiver, integrity, evidence API; waits until each answers | 1–2 min | < 1 min |
-| 9 | Smoke check | Every service answers; all topics exist; admin can sign in; a syslog probe comes out as OCSF tier 1 | < 1 min | < 1 min |
+| 9 | Smoke check | Every service answers; all topics exist; admin can sign in; a syslog probe comes out as OCSF tier 1 and reaches the Wazuh sink file | < 1 min | < 1 min |
 | 10 | Ready | Prints URLs and sign-ins | — | — |
 
 Script overrides the demo relies on (in `.env.runtime`, never in your `.env.local`):
@@ -57,6 +57,7 @@ demo: it says why and moves on.
 - "Never drop": watch tier 3 and tier 4 arrive in `norm.*`; nothing is rejected.
 - "The AI can't make things up": a draft refers to numbered tokens of the real log, never to free text.
 - "Four-eyes": the 403 in beat 3 is the author trying to approve their own change.
+- "A pre-processor, not a SIEM" (workstation, Wazuh on): open the Wazuh dashboard (https://localhost:8443), Discover, and filter on `rule.id` 100100 to 100130. Beat 1's sshd failures show as 100110 and the 100111 brute-force alert; beat 4's replayed events show as 100130, "corrected event, revision 2". The detection is Wazuh's; Veyra only fed it.
 
 ---
 
@@ -80,7 +81,7 @@ demo: it says why and moves on.
 | Evidence API: verify and export | **Prototype** (B4) | 7 of 8 verify steps (the immudb step is not implemented); proof-pack zip with a standalone `verify.py`. No lineage search routes yet | Beat 5; http://localhost:8100/docs |
 | Tamper lab | **Prototype** (B5) | 4 modes (bit flip, insider rewrite, deleted segment, edited ledger), each caught at the expected step and undoable | Beat 5; `tools/tamper.py` |
 | Lineage index (ClickHouse) | **Prototype** (B1) | Every topic indexed, restart-safe. Its query speed on 1M rows isn't measured yet | `tools/seed_ch.py`; ClickHouse at http://localhost:8123 |
-| Router → Wazuh, masked partner route | **Not built** (A6) | Wazuh runs and its custom rule fires on a test event, but Veyra doesn't deliver to it yet | Wazuh dashboard (workstation) |
+| Router → Wazuh, masked partner route | **Built** (A6) | Routes are data (filters, masking, formats); offsets commit only after every route flushes; receipts per route; a breaker for remote sinks. Wazuh rules: 100110 auth failure, 100111 brute force, 100120/100121 tier 3/4, 100130 corrected revision. The partner file has `user.name` and IPs HMAC'd and `raw_data` removed | Wazuh dashboard, Discover or Security events (workstation); `data/sinks/partner/partner.ndjson` |
 | Demo engine, reset, hotkeys | **Not built** (B7) | `./veyra.sh demo` and `./veyra.sh reset` cover the demo for now | — |
 | Console Lineage and Evidence pages | **Not built** (B6) | Use the Evidence API docs page or Beat 5 | — |
 | Iceberg lake, Keycloak SSO, Kubernetes, HSM | **Slide only** | Declared deviations (`docs/plan/00_MASTER.md` §7) | — |
@@ -157,7 +158,7 @@ falling back to zero.
 
 ## 6. Known limits
 
-- Nothing reaches Wazuh through Veyra until the router (A6) is built. Wazuh's own rule works on a test event.
+- On the laptop profile Wazuh is off, so the router still writes `data/sinks/wazuh/veyra.ndjson` but nothing reads it. To ship to an existing Wazuh instead, see `wazuh/REMOTE.md`.
 - Verify's 8th step (immudb) and the vault index topic are not implemented in the prototypes.
 - The console runs on sample data; live panels need B4's lineage routes.
 - The seeded firewall contract (`acme_ngfw_cef`) parses bare CEF. CEF that comes through the syslog edge carries a syslog header, so it lands as tier 3 until the contract gains a syslog envelope layer. The demo therefore sends CEF stamped as the edge would.

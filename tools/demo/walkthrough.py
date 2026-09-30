@@ -614,19 +614,15 @@ def main(argv: list[str] | None = None) -> int:
 
     print(bold("\nWhat you just saw vs. what is not built yet"))
     say(
-        "shown live: syslog + HTTP ingest, tiers 1-4, byte offsets, "
+        "shown live: syslog + HTTP ingest, tiers 1-4, byte offsets, delivery to Wazuh, "
         "onboarding with four-eyes, drift, drafting,"
     )
     say(
         "            promotion, replay as revision 2, sealed evidence with verify, "
         "tamper detection, ledger audit"
     )
-    say(
-        yellow(
-            "not built:  the router (so nothing reaches Wazuh through Veyra yet), the demo engine,"
-        )
-    )
-    say(yellow("            the console's Lineage/Evidence pages, and the immudb step of verify"))
+    say(yellow("not built:  the demo engine, the console's Lineage/Evidence pages,"))
+    say(yellow("            and the immudb step of verify"))
     return results.summary()
 
 

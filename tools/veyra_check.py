@@ -18,17 +18,21 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from veyra_lib import Results, bold, collect, http, tail_consumer
+from veyra_lib import Results, bold, collect, http, tail_consumer, wait_until
 
 from veyra_common.kafka import make_consumer
 from veyra_common.settings import settings
 from veyra_common.topics import topic_specs
+
+# The router's wazuh_main route appends here; Wazuh's localfile tails it (A6).
+WAZUH_SINK = Path("data/sinks/wazuh/veyra.ndjson")
 
 # name, url, required
 HEALTH = [
     ("control-api", "http://control-api:8000/healthz", True),
     ("ingest-gateway", "http://ingest-gateway:8088/healthz", True),
     ("normalizer", "http://normalizer:8201/healthz", True),
+    ("router", "http://router:8202/healthz", True),
     ("drift-worker", "http://drift-worker:8206/healthz", True),
     ("lineage-indexer", "http://lineage-indexer:8205/healthz", True),
     ("archiver", "http://archiver:8203/healthz", True),
@@ -110,6 +114,7 @@ def check_flow(results: Results) -> None:
         f"from 45.12.3.9 port 52144 ssh2"
     ).encode()
     consumer = tail_consumer(("raw.", "norm."))
+    start = WAZUH_SINK.stat().st_size if WAZUH_SINK.exists() else 0
     seen_raw: list[str] = []
 
     def is_probe(topic: str, payload: dict) -> bool:
@@ -140,6 +145,20 @@ def check_flow(results: Results) -> None:
         norm is not None and tier == 1,
         f"tier={tier}" if norm else "no norm.* record within 60 s",
     )
+    delivered = wait_until(lambda: sink_has(WAZUH_SINK, start, user), timeout=30)
+    results.check(
+        "router delivered it to the Wazuh sink",
+        delivered,
+        str(WAZUH_SINK) if delivered else "not in the sink file within 30 s",
+    )
+
+
+def sink_has(path: Path, start: int, needle: str) -> bool:
+    if not path.exists():
+        return False
+    with path.open("rb") as handle:
+        handle.seek(start)
+        return needle.encode() in handle.read()
 
 
 def main(argv: list[str] | None = None) -> int:
