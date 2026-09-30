@@ -11,7 +11,8 @@
 SHELL := /bin/bash
 .DEFAULT_GOAL := help
 .PHONY: help up down ps logs restart build topics wipe-data test test-int lint fmt typecheck ci \
-        test-int-slow plan-check wazuh-certs wazuh-init wazuh-logtest console-dev console-build \
+        test-int-slow plan-check wazuh-certs wazuh-init wazuh-logtest wazuh-rules-test \
+        console-dev console-build \
         console-mock console-test console-contrast console-e2e \
         contracts-repo-init contracts-test \
         edge-render edge-check edge-test \
@@ -173,6 +174,9 @@ wazuh-init: ## upload the indexer security config with our CA (once, after wazuh
 	    -cacert $$C/root-ca.pem -cert $$C/admin.pem -key $$C/admin-key.pem -p 9200 -icl' \
 	  | tail -3
 
+wazuh-rules-test: ## check every VEYRA rule against the manager's own engine (A6)
+	$(UV) run python tools/wazuh_logtest.py
+
 wazuh-logtest: ## pipe a sample NDJSON line through the manager's rule engine
 	@test -n "$(LINE)" || { echo 'usage: make wazuh-logtest LINE=<json line>'; exit 1; }
 	echo '$(LINE)' | docker exec -i veyra-wazuh-manager /var/ossec/bin/wazuh-logtest -v
@@ -210,8 +214,9 @@ bench-llm: ## draft accuracy + latency bench (C4); MODELS=a,b
 llm-cache-seed: ## record live drafts for the demo shapes T1-T3 into data/llm_cache (C4)
 	$(UV) run --env-file $(RUNTIME_ENV) python tools/bench/llm_bench.py seed
 
-bench-throughput: ## normalizer/router scaling bench (A6)
-	@echo "TODO (A6): tools/bench/throughput.py -> reports/A6-bench-<machine>.md"
+bench-throughput: ## normalizer/router scaling bench (A6); COUNT=20000 REPLICAS=1,2,4
+	$(UV) run python tools/bench/throughput.py --count $(or $(COUNT),20000) \
+		--replicas $(or $(REPLICAS),1,2,4) --router --report
 
 demo-reset: ## reset to the pre-demo state (B7)
 	@echo "TODO (B7): POST /api/demo/reset — wipe + reseed in under 90s"

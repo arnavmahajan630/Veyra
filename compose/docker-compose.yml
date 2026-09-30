@@ -208,6 +208,9 @@ services:
     container_name: veyra-router
     profiles: ["a6"]
     command: ["python", "-m", "router"]
+    # Creates data/keys/route_hmac and appends to the host-owned sink files, so it runs as the
+    # invoking user like control-api, ingest-gateway and the normalizer (A6; A5 logged the rule).
+    user: "${VEYRA_UID:-1000}:${VEYRA_GID:-1000}"
     ports: ["8202:8202"]
     volumes:
       - ../data:/app/data

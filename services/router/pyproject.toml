@@ -5,6 +5,8 @@ description = "Declarative router to Wazuh and partner sinks (owner A)"
 requires-python = ">=3.12,<3.13"
 dependencies = [
     "veyra-common",
+    # The fallback routes document is YAML (IF-ROUTES); control-api ships the same file.
+    "pyyaml>=6.0",
 ]
 
 [build-system]
