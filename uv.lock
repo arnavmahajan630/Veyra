@@ -1016,11 +1016,15 @@ name = "router"
 version = "0.1.0"
 source = { editable = "services/router" }
 dependencies = [
+    { name = "pyyaml" },
     { name = "veyra-common" },
 ]
 
 [package.metadata]
-requires-dist = [{ name = "veyra-common", editable = "packages/veyra_common" }]
+requires-dist = [
+    { name = "pyyaml", specifier = ">=6.0" },
+    { name = "veyra-common", editable = "packages/veyra_common" },
+]
 
 [[package]]
 name = "rpds-py"

@@ -8,18 +8,99 @@
   Hanging our tree under it keeps the OCSF payload exactly as IF-NORM-EVENT defines it
   (no shape changes to please the SIEM) and gets VEYRA events alerting.
 
-  S0 ships only the parent so S0-AC4 is observable: any VEYRA event becomes visible in
-  Discover and in alerts. A6 adds, as children of 100100: 100110 (auth failure), 100111
-  (brute force, frequency 5 in 60 s on the same src_endpoint.ip), 100120/100121 (tier 3/4)
-  and 100130 (corrected event, ulpf.revision > 1), each with wazuh-logtest samples in
-  wazuh/tests/.
+  Everything below is a child of 100100, so one rule decides what "a VEYRA event" is and the
+  rest only decide what is interesting about it.
+
+  Two things about Wazuh shape this file, both established with wazuh-logtest on 4.14.8 rather
+  than assumed:
+
+    * A parent's children are tried in DOCUMENT ORDER and the first match wins; one event
+      produces one alert. So ordering is the design here, not cosmetics — see 100130.
+    * The default field matcher is OS_Regex, which has no alternation. "Any revision but 1"
+      needs type="pcre2".
+
+  Two deliberate restraints, both from A4:
+
+    * tier 3 and tier 4 rules are INFORMATIONAL (level 3 and 4). A tier-3 event's severity comes
+      from a word vocabulary — "failed to disable alerting" reads as a failure — and its class is
+      a hint, not a classification. Nothing here may page a human on a guess.
+    * the brute-force rule correlates on veyra.src_ip, the flat field the router writes beside the
+      event, not the nested src_endpoint.ip. same_field takes a field name, and a flat one is the
+      shape it is reliable with; the nested value is still in the event for anyone reading it.
+
+  Samples for every rule are in wazuh/tests/, and tools/wazuh_logtest.py pipes each through the
+  real rule engine and asserts the expected id fires.
 -->
 <group name="veyra,">
 
+  <!-- The parent: any event VEYRA delivered. Level 3 so everything is visible in alerts. -->
   <rule id="100100" level="3">
     <if_sid>99000</if_sid>
     <field name="veyra.tier">\.+</field>
     <description>VEYRA: normalized event delivered (tier $(veyra.tier), source $(veyra.source))</description>
+    <options>no_full_log</options>
+  </rule>
+
+  <!-- Authentication failure: OCSF Authentication (3002) with a failed status. Fires only for
+       tier 1/2 events, because class_uid is 0 at tier 3 — a guessed auth event must not look
+       like a known one. -->
+  <rule id="100110" level="5">
+    <if_sid>100100</if_sid>
+    <field name="class_uid">^3002$</field>
+    <field name="status_id">^2$</field>
+    <description>VEYRA: authentication failure for $(user.name) from $(veyra.src_ip)</description>
+    <mitre>
+      <id>T1110</id>
+    </mitre>
+    <group>authentication_failed,veyra_auth,</group>
+    <options>no_full_log</options>
+  </rule>
+
+  <!-- Brute force: five more failures from the same source address inside a minute. -->
+  <rule id="100111" level="10" frequency="5" timeframe="60">
+    <if_matched_sid>100110</if_matched_sid>
+    <same_field>veyra.src_ip</same_field>
+    <description>VEYRA: brute force — repeated authentication failures from $(veyra.src_ip)</description>
+    <mitre>
+      <id>T1110</id>
+    </mitre>
+    <group>authentication_failures,veyra_auth,</group>
+    <options>no_full_log</options>
+  </rule>
+
+  <!-- Tier 3: VEYRA extracted what it could from a shape no contract covers. Informational by
+       design — this is the queue an analyst reviews, not an alert that wakes anyone. -->
+  <rule id="100120" level="3">
+    <if_sid>100100</if_sid>
+    <field name="veyra.tier">^3$</field>
+    <description>VEYRA: unknown template from $(veyra.source) — extracted, not classified</description>
+    <group>veyra_drift,</group>
+    <options>no_full_log</options>
+  </rule>
+
+  <!-- Tier 4: nothing could be parsed, and the raw bytes are still preserved (P1/P2). -->
+  <rule id="100121" level="4">
+    <if_sid>100100</if_sid>
+    <field name="veyra.tier">^4$</field>
+    <description>VEYRA: unparseable event from $(veyra.source) — raw bytes preserved</description>
+    <group>veyra_drift,</group>
+    <options>no_full_log</options>
+  </rule>
+
+  <!-- A corrected event: this arrived before, and a newer contract has re-normalized it. The
+       earlier revision is still in the SIEM, which is why saying so matters.
+
+       Placement is the design. This is a child of every other VEYRA rule (if_sid takes a list)
+       and comes last, so:
+         * a corrected event alerts as "corrected" rather than as an indistinguishable second copy
+           of the original — which is what Beat 4 needs an analyst to see;
+         * but 100111 is evaluated before it, so a brute force still outranks a correction. A
+           replayed attack is an attack, not a footnote. -->
+  <rule id="100130" level="3">
+    <if_sid>100100,100110,100120,100121</if_sid>
+    <field name="veyra.revision" type="pcre2">^(?:[2-9]|[1-9][0-9]+)$</field>
+    <description>VEYRA: corrected event, revision $(veyra.revision) supersedes an earlier delivery</description>
+    <group>veyra_replay,</group>
     <options>no_full_log</options>
   </rule>
 

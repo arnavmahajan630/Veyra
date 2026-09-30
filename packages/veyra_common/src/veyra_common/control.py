@@ -114,14 +114,17 @@ class ControlReader:
                     raise KafkaException(message.error())
 
                 last_message = time.monotonic()
-                self._handle(message.key(), message.value())
-                if self.ready.is_set():
-                    # Already serving: apply each change as it arrives.
-                    if self.on_change is not None:
-                        self.on_change()
-                elif self._caught_up(consumer, targets, last_message):
-                    # The last message of the backlog: the rebuild is done.
-                    self._open_the_gate()
+                mine = self._handle(message.key(), message.value())
+                if not self.ready.is_set():
+                    if self._caught_up(consumer, targets, last_message):
+                        # The last message of the backlog: the rebuild is done.
+                        self._open_the_gate()
+                elif mine and self.on_change is not None:
+                    # Already serving: apply each change as it arrives — but only for the keys
+                    # this reader asked for. Otherwise every service rebuilds its whole state
+                    # whenever any other service publishes anything, which had the router
+                    # reinstalling its routes (aborting in-flight deliveries) on every apikey.
+                    self.on_change()
         except Exception:
             log.exception("control follower stopped")
         finally:
@@ -171,12 +174,13 @@ class ControlReader:
                 return False
         return True
 
-    def _handle(self, key: bytes | None, value: bytes | None) -> None:
+    def _handle(self, key: bytes | None, value: bytes | None) -> bool:
+        """Dispatch one message. False when it was not a key this reader cares about."""
         if not key:
-            return
+            return False
         name = key.decode("utf-8", errors="replace")
         if self.prefixes and not name.startswith(self.prefixes):
-            return
+            return False
         payload: dict[str, Any] | None = None
         if value is not None:
             try:
@@ -185,6 +189,7 @@ class ControlReader:
                 # One malformed message must not stop the rebuild, or a single bad publish would
                 # take the whole data plane down with it.
                 log.error("control message is not JSON", extra={"key": name})
-                return
+                return False
         self.on_message(name, payload)
         self.updates += 1
+        return True

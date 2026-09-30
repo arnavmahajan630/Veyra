@@ -1,0 +1,23 @@
+# IF-ROUTES — the router's fallback document.
+#
+# The authoritative copy is published by control-api on the compacted `control` topic under the key
+# `routes` (C1 seeds it from services/control_api/seed/routes.yaml, which this file mirrors). This
+# copy is used only when that key is absent, so the router is useful on a fresh stack before C1 has
+# booted — and so A's integration tests do not need the control plane up.
+#
+# Keep the two in step. If they ever disagree, `control` wins: the router swaps to it as soon as the
+# key arrives.
+routes:
+  # Everything, unmasked, to the file Wazuh's <localfile> follows.
+  - id: wazuh_main
+    filter: {tenants: ["*"], tiers: [1, 2, 3, 4]}
+    format: ocsf_json
+    masking: none
+    sink: {type: ndjson_file, path: /sinks/wazuh/veyra.ndjson, fsync_ms: 200}
+  # One tenant's authentication and network events, with identities HMAC'd and the raw bytes removed:
+  # the partner can correlate on h_… without ever learning the user or seeing the original log line.
+  - id: partner_masked
+    filter: {tenants: [t_maha_power], classes: [3002, 4001]}
+    format: ocsf_json
+    masking: {user.name: hmac, src_endpoint.ip: hmac, raw_data: redact}
+    sink: {type: ndjson_file, path: /sinks/partner/partner.ndjson}
