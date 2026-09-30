@@ -17,6 +17,64 @@ ACTION REQUIRED:
 
 ---
 
+## 2026-09-30 — S2 — DECISION + REQUEST @A @B  (contracts v1.5, no bump)
+TYPE: DECISION
+What:     One-command setup for reviewers and the workstation demo: `./veyra.sh` (Linux/WSL/macOS)
+          and `.\veyra.ps1` (Windows; runs veyra.sh through WSL or a toolbox container). It
+          writes `.env.runtime`, builds the image and the console (Node 25 in a container), starts
+          everything, sets up Wazuh, pulls the AI model into an Ollama container (GPU when
+          visible), smoke-checks (`tools/veyra_check.py`), and adds `demo` (a narrated
+          walkthrough, `tools/demo/walkthrough.py`) and `load` (Kafka perf test + a pipeline
+          load generator, `tools/bench/load_raw.py`). New README.md and docs/DEMO_GUIDE.md.
+          Shared-file changes this needed:
+          - `compose/docker-compose.yml`: services for **lineage-indexer (b1), archiver (b2),
+            integrity (b3), evidence-api (b4)**, all as `VEYRA_UID` (they share the 0400 keys);
+            `drift-worker` now runs as `VEYRA_UID` too (it writes `data/state`);
+            `normalizer-2..6` (profile `scale`, distinct `VEYRA_INSTANCE`) for load tests;
+            a `tools` one-off service.
+          - New overlays: `docker-compose.ollama.yml`, `.gpu.yml`, `.ui.yml` (Kafka UI on 8085),
+            `.fastdata.yml` (Kafka/ClickHouse data in volumes when the repo is on a Windows drive).
+          - `Caddyfile`: `/api/evidence/*` now strips only `/api`, because evidence-api's routes
+            start with `/evidence/` (every call through Caddy was a 404 before).
+          - `.gitattributes`: LF for scripts and container configs. With core.autocrlf=true,
+            `wazuh/entrypoint-veyra.sh` was being checked out as CRLF and bash fails on it.
+          - `.dockerignore` (new); `Makefile`: `data/control` in `up`, `veyra-*` passthroughs.
+Why:      Tomorrow's workstation demo (Windows + Docker Desktop) and reviewers must be able to run
+          the system with one command and only Docker + git installed.
+IDs:      IF-PORTS (8085 Kafka UI, 11434 now also a container), IF-TOPICS (unchanged)
+Files patched: README.md, docs/DEMO_GUIDE.md, compose/*, Caddyfile, Makefile, .gitattributes.
+ACTION REQUIRED:
+  - [ ] @B Your B1–B4 services are now in compose (profiles b1–b4) and start with `./veyra.sh up`.
+        Please check the entries, and note the Caddy evidence path fix; the console's live
+        mode still needs your `/lineage/*` routes.
+  - [ ] @A `normalizer-2..6` rely on `VEYRA_INSTANCE` for distinct transactional ids; please
+        confirm that is the intended knob before A6's scaling bench uses it.
+
+## 2026-09-29 23:30 — C4 — CLARIFICATION  (contracts v1.5, no bump)
+TYPE: CLARIFICATION
+What:     C4's GPU items were measured on this laptop's RTX 4050 (6 GiB) with Ollama 0.34.4 on the host.
+          AC2 and AC5 pass: live p95 is 5.3 s (qwen2.5:3b) and 6.3 s (llama3.2:3b), and
+          `live_then_cache` falls back at 25 047 ms (bound 25 200). Accuracy is the real limit: both
+          models map T3's relay IP to `src_endpoint.port`, and verify flags it, so **live drafting is not
+          safe for Beat 4**, and `make llm-cache-seed` would record that wrong draft. It was not run.
+          `cache` mode with an empty cache falls back to the heuristic, which gets T3 right.
+          Three drafter fixes, none changing an interface: the timeout now covers a whole draft,
+          retry included (before, it applied per call, so a draft could take 50 s); `warm()` has its own
+          180 s budget (the first load after boot is 26–32 s, and Ollama aborts a load when the client
+          disconnects); the bench reports each model's own VRAM and calls its verify column "Verify %".
+Why:      AC2 and AC5 were waiting for a GPU (TC40).
+IDs:      IF-LLM-DRAFT (unchanged)
+Files patched: track-C-control-console/C4_llm_drafter.md, reports/C4.md, reports/C4-bench-laptop.md,
+          06_STATUS_BOARD.md.
+ACTION REQUIRED:
+  - [ ] @C Owner decision: keep `VEYRA_LLM_MODEL=qwen2.5:3b` (more valid drafts: 85% vs 56%) or switch
+        to llama3.2:3b (better precision: 0.59 vs 0.36). Neither drafts T3 correctly.
+  - [ ] @C Owner decision: how Beat 4's cached draft gets made. Options: seed from a reviewed draft (the
+        heuristic's T3 draft is correct), or improve the prompt and re-bench before running
+        `llm-cache-seed`.
+  - [ ] @B B7's `demo-reset`/preflight should call `make llm-warm` if the demo ever uses `live*`: the
+        first load after boot is longer than `LLM_TIMEOUT_S`.
+
 ## 2026-09-29 16:30 — A5 — CLARIFICATION + REQUEST @B  (contracts v1.5, no bump)
 TYPE: CLARIFICATION
 What:     IF-SHADOW is **produced** now. The record shape is unchanged (B1's `shadow_row` already
@@ -188,8 +246,8 @@ IDs:      IF-LLM-DRAFT, IF-API-CONTROL
 Files patched: 06_STATUS_BOARD.md, track-C-control-console/C4_llm_drafter.md, reports/C4.md,
           profiles/laptop.env (mode set when the drafter landed).
 ACTION REQUIRED:
-  - [ ] @C Run `make bench-llm MODELS=qwen2.5:3b,llama3.2:3b` when a GPU is available, and set
-        `VEYRA_LLM_MODEL` from the winner.
+  - [x] @C Run `make bench-llm MODELS=qwen2.5:3b,llama3.2:3b` when a GPU is available, and set
+        `VEYRA_LLM_MODEL` from the winner.  <!-- C: bench run 2026-09-29 (reports/C4-bench-laptop.md); no clear winner, so the model choice is an owner decision in the 23:30 C4 entry -->
 
 ## 2026-09-29 01:10 — C4 — CONTRACT-ADDITIVE  (contracts v1.4, no bump)
 TYPE: CONTRACT-ADDITIVE
@@ -596,8 +654,8 @@ Why:      C4's live drafting and `make bench-llm` depend on GPU residency; until
 IDs:      IF-VERSIONS (LLM model row)
 Files patched: shared/S0_bootstrap.md (implementation notes), reports/S0.md, 06_STATUS_BOARD.md.
 ACTION REQUIRED:
-  - [ ] @C Before C4's bench: get Ollama onto the GPU (or record CPU numbers honestly and set
-        LLM_MODE=cache in profiles/laptop.env as the demo default).
+  - [x] @C Before C4's bench: get Ollama onto the GPU (or record CPU numbers honestly and set
+        LLM_MODE=cache in profiles/laptop.env as the demo default).  <!-- C: 2026-09-29, 100% GPU on the RTX 4050; laptop stays on cache for accuracy, not speed -->
   - [x] @C Pin Drain3 (C3) and React/Vite/Tailwind (C5) with a VERSION-PIN entry each; S0 left  <!-- C: Drain3 pinned 2026-09-28; React stack 2026-09-29 (C5) -->
         those rows open rather than guessing.
 

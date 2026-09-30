@@ -15,6 +15,9 @@ x-py: &py
     VEYRA_KAFKA_BOOTSTRAP: kafka:9092
     VEYRA_CLICKHOUSE_URL: http://clickhouse:8123
     VEYRA_IMMUDB_HOST: immudb
+    # Services run as the invoking uid, which has no passwd entry in the image. dulwich (the
+    # contract registry's git) and getpass need a user name, or control-api's reset fails.
+    USER: veyra
   mem_limit: ${VEYRA_MEM_PY_SERVICE:-192m}
   restart: unless-stopped
   extra_hosts: ["host.docker.internal:host-gateway"]
@@ -235,8 +238,120 @@ services:
     container_name: veyra-drift-worker
     profiles: ["c3"]
     command: ["python", "-m", "drift_worker"]
+    # Writes data/state/{drift,drain3}, so it runs as the invoking user like the others.
+    user: "${VEYRA_UID:-1000}:${VEYRA_GID:-1000}"
     # /flush and /reset for demo-engine and control-api; state in data/state/{drift,drain3}
     ports: ["8206:8206"]
+
+  # Track B services. They share data/vault and data/keys (mode 0400 files), so every one of
+  # them runs as the invoking user: the archiver writes the KEK, the others must read it.
+  lineage-indexer:
+    <<: *py
+    container_name: veyra-lineage-indexer
+    profiles: ["b1"]
+    command: ["python", "-m", "lineage_indexer"]
+    user: "${VEYRA_UID:-1000}:${VEYRA_GID:-1000}"
+    ports: ["8205:8205"]
+    depends_on:
+      kafka:
+        condition: service_healthy
+      clickhouse:
+        condition: service_healthy
+
+  archiver:
+    <<: *py
+    container_name: veyra-archiver
+    profiles: ["b2"]
+    command: ["python", "-m", "archiver"]
+    user: "${VEYRA_UID:-1000}:${VEYRA_GID:-1000}"
+    ports: ["8203:8203"]
+
+  integrity:
+    <<: *py
+    container_name: veyra-integrity
+    profiles: ["b3"]
+    command: ["python", "-m", "integrity"]
+    user: "${VEYRA_UID:-1000}:${VEYRA_GID:-1000}"
+    ports: ["8204:8204"]
+
+  evidence-api:
+    <<: *py
+    container_name: veyra-evidence-api
+    profiles: ["b4"]
+    command: ["python", "-m", "evidence_api"]
+    user: "${VEYRA_UID:-1000}:${VEYRA_GID:-1000}"
+    ports: ["8100:8100"]
+
+  # Extra normalizer instances for the load test (`veyra load`). Same consumer group, so
+  # Kafka spreads the raw.* partitions across them; a distinct VEYRA_INSTANCE gives each its
+  # own transactional.id, which exactly-once needs.
+  normalizer-2: &norm_scale
+    <<: *py
+    profiles: ["scale"]
+    command: ["python", "-m", "normalizer"]
+    user: "${VEYRA_UID:-1000}:${VEYRA_GID:-1000}"
+    environment:
+      VEYRA_KAFKA_BOOTSTRAP: kafka:9092
+      VEYRA_CLICKHOUSE_URL: http://clickhouse:8123
+      VEYRA_IMMUDB_HOST: immudb
+      USER: veyra
+      VEYRA_INSTANCE: "2"
+  normalizer-3:
+    <<: *norm_scale
+    environment:
+      VEYRA_KAFKA_BOOTSTRAP: kafka:9092
+      VEYRA_CLICKHOUSE_URL: http://clickhouse:8123
+      VEYRA_IMMUDB_HOST: immudb
+      USER: veyra
+      VEYRA_INSTANCE: "3"
+  normalizer-4:
+    <<: *norm_scale
+    environment:
+      VEYRA_KAFKA_BOOTSTRAP: kafka:9092
+      VEYRA_CLICKHOUSE_URL: http://clickhouse:8123
+      VEYRA_IMMUDB_HOST: immudb
+      USER: veyra
+      VEYRA_INSTANCE: "4"
+  normalizer-5:
+    <<: *norm_scale
+    environment:
+      VEYRA_KAFKA_BOOTSTRAP: kafka:9092
+      VEYRA_CLICKHOUSE_URL: http://clickhouse:8123
+      VEYRA_IMMUDB_HOST: immudb
+      USER: veyra
+      VEYRA_INSTANCE: "5"
+  normalizer-6:
+    <<: *norm_scale
+    environment:
+      VEYRA_KAFKA_BOOTSTRAP: kafka:9092
+      VEYRA_CLICKHOUSE_URL: http://clickhouse:8123
+      VEYRA_IMMUDB_HOST: immudb
+      USER: veyra
+      VEYRA_INSTANCE: "6"
+
+  # One-off helper for ./veyra.sh: topics, edge render, smoke check, demo walkthrough, load
+  # generator. The live source trees are mounted over the image's copies, so a fresh edit
+  # runs without a rebuild.
+  tools:
+    <<: *py
+    profiles: ["tools"]
+    restart: "no"
+    user: "${VEYRA_UID:-1000}:${VEYRA_GID:-1000}"
+    command: ["python", "-c", "print('usage: docker compose run --rm tools <command>')"]
+    environment:
+      VEYRA_KAFKA_BOOTSTRAP: kafka:9092
+      VEYRA_CLICKHOUSE_URL: http://clickhouse:8123
+      VEYRA_IMMUDB_HOST: immudb
+      USER: veyra
+      # The invoking uid has no home directory inside the image.
+      HOME: /tmp
+    mem_limit: ${VEYRA_MEM_TOOLS:-2g}
+    volumes:
+      - ../data:/app/data
+      - ../edge:/app/edge
+      - ../demo:/app/demo:ro
+      - ../tools:/app/tools:ro
+      - ../profiles:/app/profiles:ro
 
 networks:
   veyra_net:

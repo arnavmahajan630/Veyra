@@ -18,7 +18,10 @@
 	handle_path /api/lineage/* {
 		reverse_proxy evidence-api:8100
 	}
-	handle_path /api/evidence/* {
+	# evidence-api's own routes start with /evidence/ (IF-API-EVIDENCE), so only /api is
+	# stripped here: /api/evidence/<uid>/verify -> /evidence/<uid>/verify.
+	handle /api/evidence/* {
+		uri strip_prefix /api
 		reverse_proxy evidence-api:8100
 	}
 

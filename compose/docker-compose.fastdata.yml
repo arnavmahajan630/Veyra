@@ -1,0 +1,16 @@
+# Used by ./veyra.sh when the repo sits on a Windows drive (/mnt/c/... under WSL, or the
+# toolbox's /run/desktop/mnt/host/c/...). Bind mounts there cross the Windows filesystem
+# bridge and are far too slow for Kafka and ClickHouse under load, so their data moves into
+# Docker named volumes on the Linux VM's own disk. `./veyra.sh wipe` removes them too.
+services:
+  kafka:
+    volumes:
+      - kafka_data:/var/lib/kafka/data
+  clickhouse:
+    volumes:
+      - clickhouse_data:/var/lib/clickhouse
+      - ./clickhouse/limits.xml:/etc/clickhouse-server/config.d/limits.xml:ro
+
+volumes:
+  kafka_data:
+  clickhouse_data:

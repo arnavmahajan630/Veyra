@@ -1,0 +1,11 @@
+# Gives the ollama container every NVIDIA GPU. ./veyra.sh adds it only after a
+# `docker run --gpus all` probe succeeds (Docker Desktop + WSL2, or Linux + nvidia-container-toolkit).
+services:
+  ollama:
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
