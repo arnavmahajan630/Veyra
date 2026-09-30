@@ -13,8 +13,6 @@ SIH26156 (NTRO). It sits in front of a SIEM such as Wazuh and:
 
 It is a pre-processor, not a SIEM: detection stays with the SIEM it feeds.
 
-![Veyra architecture](docs/architecture/veyra-architecture.png)
-
 ---
 
 ## Quick start
