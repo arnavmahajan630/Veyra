@@ -71,7 +71,9 @@ All names are prefixed `VEYRA_`. Memory limits are enforced via compose `mem_lim
 
 | Knob | laptop | mac | workstation | Notes |
 |---|---|---|---|---|
-| `DEMO_EPS_BASELINE` | 15 | 30 | 200 | Background traffic during the demo |
+| `DEMO_EPS_BASELINE` | 15 | 30 | 200 | Background traffic during the demo, split across the scenario's baseline streams; preflight fails if the actual rate drifts >30% from it |
+| `DEMO_SCENARIO` | `sih_main` | `sih_main` | `sih_main` | Which `demo/scenarios/<name>.yaml` the engine loads (B7) |
+| `DEMO_RESET_BUDGET_S` | 90 | 90 | 60 | `make demo-reset` reports `over_budget` and exits non-zero past this (B7 AC1) |
 | `BENCH_TARGET_EPS` | 2000 | 5000 | 30000+ | A6 bench |
 | `LLM_MODEL` | `qwen2.5:3b` (Q4) or C4 bench winner ≤ 3.5 GB VRAM | 7B–14B instruct (Q4/Q5) | 14B–32B instruct (fits VRAM) | See §4 |
 | `LLM_NUM_CTX` | 4096 | 8192 | 16384 | |

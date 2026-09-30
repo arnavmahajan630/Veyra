@@ -4,9 +4,13 @@ import AuditPage from "../pages/audit/AuditPage";
 import ContractDetailPage from "../pages/contracts/ContractDetailPage";
 import ContractsPage from "../pages/contracts/ContractsPage";
 import DeliveryPage from "../pages/delivery/DeliveryPage";
+import DemoPage from "../pages/demo/DemoPage";
 import ComponentsPage from "../pages/dev/ComponentsPage";
 import DriftDetailPage from "../pages/drift/DriftDetailPage";
 import DriftInboxPage from "../pages/drift/DriftInboxPage";
+import EvidencePage from "../pages/evidence/EvidencePage";
+import { EventDetailView } from "../pages/lineage/EventDetailView";
+import LineagePage from "../pages/lineage/LineagePage";
 import OnboardPage from "../pages/onboard/OnboardPage";
 import OverviewPage from "../pages/overview/OverviewPage";
 import SourcesPage from "../pages/sources/SourcesPage";
@@ -30,8 +34,14 @@ function AppRoutes({ me }: { me: Me }) {
         <Route path="contracts/:id" element={<ContractDetailPage />} />
         <Route path="drift" element={<DriftInboxPage />} />
         <Route path="drift/:id" element={<DriftDetailPage />} />
+        <Route path="lineage" element={<LineagePage />} />
+        <Route path="lineage/:uid" element={<EventDetailView />} />
+        <Route path="evidence" element={<EvidencePage />} />
         <Route path="delivery" element={<DeliveryPage />} />
         <Route path="audit" element={<AuditPage />} />
+        {/* The demo panel is demo-machine only. The nav hides it, and so does the router:
+            without this, typing /demo reaches it on a non-demo deployment. */}
+        {me.demo_mode ? <Route path="demo" element={<DemoPage />} /> : null}
         {placeholders.map((item) => (
           <Route
             key={item.to}

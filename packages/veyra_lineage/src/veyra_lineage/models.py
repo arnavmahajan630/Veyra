@@ -16,7 +16,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from veyra_common.models import Conformance, RawRef
 
@@ -149,6 +149,11 @@ class RawInfo(_Model):
     framing_truncated: bool
     framing_parts: int
     raw_preview: str
+    # IF-API-EVIDENCE asks the event-detail response to carry the bytes themselves
+    # (decoded text + b64). The index never stores them, so the evidence API fills these
+    # from the vault; they stay ``None`` when the event's segment cannot be read.
+    raw_text: str | None = None
+    raw_b64: str | None = None
 
 
 class Revision(_Model):
@@ -168,6 +173,36 @@ class Revision(_Model):
     replay_job_id: str | None = None
     search_terms: list[str] = Field(default_factory=list)
     ocsf: dict[str, Any] | None = None  # None until norm.<category> is indexed
+    # IF-ULPF lineage lifted out of ``ocsf["ulpf"]`` so a client does not have to dig for it.
+    # ocsf_path -> [start, end) byte offsets into the decoded raw bytes.
+    field_offsets: dict[str, tuple[int, int]] = Field(default_factory=dict)
+    # ocsf_path -> "const" | "vocab:<name>" | "ts:<detail>" | "enrich" | "base64"
+    derived_fields: dict[str, str] = Field(default_factory=dict)
+
+    @model_validator(mode="after")
+    def _lift_ulpf(self) -> Revision:
+        """Fill ``field_offsets``/``derived_fields`` from the ULPF block of ``ocsf``.
+
+        Every construction site gets them this way — the ClickHouse path in
+        :mod:`veyra_lineage.queries` and the evidence API's vault-scan fallback alike.
+        An explicitly passed value wins, so a caller can still override.
+        """
+        ulpf = (self.ocsf or {}).get("ulpf")
+        if not isinstance(ulpf, dict):
+            return self
+        if not self.field_offsets:
+            offsets = ulpf.get("field_offsets")
+            if isinstance(offsets, dict):
+                self.field_offsets = {
+                    str(path): (int(span[0]), int(span[1]))
+                    for path, span in offsets.items()
+                    if isinstance(span, (list, tuple)) and len(span) == 2
+                }
+        if not self.derived_fields:
+            derived = ulpf.get("derived_fields")
+            if isinstance(derived, dict):
+                self.derived_fields = {str(k): str(v) for k, v in derived.items()}
+        return self
 
 
 class VaultLocation(_Model):

@@ -132,7 +132,8 @@ Say these honestly if a judge asks.
 7. **No Iceberg lake, no Keycloak, no RKE2, no Harbor.** Slide only.
 8. **Tier 2/3 fallback and template signatures** go beyond v1 (v1 only raw-wraps). These are additions that fill v1 gaps, not deviations.
 9. **Multi-tenancy is lite:** tenant ID on every record, tenant-scoped console views, per-source keys. There is no per-tenant topic or storage isolation.
-10. **Demo engine mounts the Docker socket** (demo profile only), to restart services during reset. It is never present in a production profile.
+10. **Demo engine mounts the Docker socket** (demo profile only), to restart services during reset. It is never present in a production profile. It calls the Docker Engine API over the socket directly rather than through the SDK, because this repo's own `docker/` directory shadows the SDK's import name.
+11. **immudb anchoring is not implemented.** The signed-root ledger is a local hash-chained, Ed25519-signed `ledger.ndjson`, audited by `tools/ledger_audit.py`; the immudb container runs but no root is anchored in it. The eighth verification step reports `status: not_implemented` and the console renders it as a neutral grey node — never green. Production target: anchor each root in immudb (or any external notary) so a whole-ledger replacement is also detectable.
 
 ## 8. Decision log
 

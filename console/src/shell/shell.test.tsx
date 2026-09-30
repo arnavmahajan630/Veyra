@@ -1,8 +1,10 @@
 import { act, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { http, HttpResponse } from "msw";
 import { describe, expect, it } from "vitest";
 import { resetMockState, signInAs } from "../mocks/handlers";
 import { renderWithProviders } from "../test/render";
+import { server } from "../test/server";
 import { AppShell } from "./AppShell";
 import { createQueryClient } from "./queryClient";
 
@@ -76,12 +78,39 @@ describe("the shell", () => {
     expect(screen.queryByText("Acme NGFW (DMZ)")).not.toBeInTheDocument();
   });
 
-  it("shows a placeholder for the pages Track B builds", async () => {
+  it("routes Track B pages to real pages, not placeholders", async () => {
     signInAs("admin@veyra");
-    renderShell("/lineage");
-    await pageTitle("Lineage");
-    expect(screen.getByText("This page isn't built yet.")).toBeInTheDocument();
-    expect(document.querySelector('[data-phase="B6"]')).not.toBeNull();
+    const pages: [string, string | RegExp][] = [
+      ["/lineage", "Lineage Explorer"],
+      ["/evidence", "Evidence & Integrity"],
+      ["/demo", "Demo Control Engine"],
+    ];
+    for (const [route, title] of pages) {
+      const view = renderShell(route);
+      await pageTitle(title);
+      expect(document.querySelector("[data-phase]")).toBeNull();
+      view.unmount();
+    }
+  });
+
+  it("does not serve /demo outside demo mode, even by typing the URL", async () => {
+    // The nav hides the item; the router must refuse the route too, or the demo panel is
+    // reachable on a non-demo deployment (B7).
+    signInAs("admin@veyra");
+    server.use(
+      http.get("/api/control/auth/me", () =>
+        HttpResponse.json({
+          user: { email: "admin@veyra", name: "Admin" },
+          role: "admin",
+          tenant: "*",
+          demo_mode: false,
+        }),
+      ),
+    );
+    renderShell("/demo");
+    // Unknown paths redirect to the Overview.
+    await pageTitle("Overview");
+    expect(screen.queryByText("Demo Control Engine")).not.toBeInTheDocument();
   });
 
   it("routes every C6 page to the real page, not a placeholder", async () => {

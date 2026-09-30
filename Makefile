@@ -17,7 +17,7 @@ SHELL := /bin/bash
         contracts-repo-init contracts-test \
         edge-render edge-check edge-test \
         e2e-smoke llm-warm llm-cache-seed \
-        bench-llm bench-throughput demo-reset demo-preflight demo-stage doctor env-print
+        bench-llm bench-throughput demo-reset demo-preflight demo-stage demo-auto doctor env-print
 
 PROFILE      ?= laptop
 WAZUH        ?= local
@@ -218,11 +218,15 @@ bench-throughput: ## normalizer/router scaling bench (A6); COUNT=20000 REPLICAS=
 	$(UV) run python tools/bench/throughput.py --count $(or $(COUNT),20000) \
 		--replicas $(or $(REPLICAS),1,2,4) --router --report
 
-demo-reset: ## reset to the pre-demo state (B7)
-	@echo "TODO (B7): POST /api/demo/reset — wipe + reseed in under 90s"
+demo-reset: $(RUNTIME_ENV) ## reset to the pre-demo state, under VEYRA_DEMO_RESET_BUDGET_S (B7)
+	$(UV) run --env-file $(RUNTIME_ENV) python -m demo_engine.cli reset
 
-demo-preflight: ## pre-demo checks (B7 + S2)
-	@echo "TODO (B7): GET /api/demo/preflight — health, RAM, LLM, rules, clock, disk"
+demo-preflight: $(RUNTIME_ENV) ## pre-demo checks: containers, RAM, LLM, rules, clock, disk (B7 + S2)
+	$(UV) run --env-file $(RUNTIME_ENV) python -m demo_engine.cli preflight
 
-demo-stage: ## run one demo stage: make demo-stage N=3 (B7)
-	@echo "TODO (B7): POST /api/demo/stage/$(N)"
+demo-stage: $(RUNTIME_ENV) ## run one demo stage: make demo-stage N=3 (B7)
+	@test -n "$(N)" || { echo "usage: make demo-stage N=3"; exit 2; }
+	$(UV) run --env-file $(RUNTIME_ENV) python -m demo_engine.cli stage $(N)
+
+demo-auto: $(RUNTIME_ENV) ## drive the whole demo through the real APIs; make demo-auto N=10 (B7)
+	$(UV) run --env-file $(RUNTIME_ENV) python -m demo_engine.cli auto $(or $(N),1)

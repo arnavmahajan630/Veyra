@@ -1,7 +1,7 @@
 # B7 — Demo engine: scenario runner, reset, stages, preflight, demo panel
 
 ```
-track: B   owner: B   status: todo
+track: B   owner: B   status: done
 contracts: v1.5
 depends_on: [B5, C1 (/internal/reset, /internal/demo/last-key), A6 (saved objects)]   unblocks: [CP4, S2]
 consumes: [IF-API-DEMO, IF-API-CONTROL (internal), IF-PORTS, IF-TOPICS, IF-CH-SCHEMA, IF-WAZUH]
@@ -121,23 +121,61 @@ Runs the `auto:` script against the live system. Each `api:` step drives the rea
 It evaluates every `expect` and prints a PASS/FAIL table with timings. CP4 runs it 10 times: `make demo-auto N=10`.
 
 ## Tasks
-- [ ] 1. Service skeleton + scenario loader + validator (unknown corpus refs, bad stage ids → error at load).
-- [ ] 2. Generators + timestamp rewriter + senders (UDP, TCP, HEC) + rate scheduler.
-- [ ] 3. Baseline loop; stages; idempotence.
-- [ ] 4. Reset orchestration with timings; tune until < 90 s on the laptop.
-- [ ] 5. Preflight.
-- [ ] 6. The `/demo` panel page + hotkeys (via C5's registry).
-- [ ] 7. `demo-auto` runner + expectation evaluators (ClickHouse, Wazuh indexer, control API).
-- [ ] 8. Makefile targets: `demo-reset`, `demo-preflight`, `demo-stage N=`, `demo-auto [N=]`, `llm-warm` (proxy to C4's warm call).
+- [x] 1. Service skeleton + scenario loader + validator (unknown corpus refs, bad stage ids → error at load).
+- [x] 2. Generators + timestamp rewriter + senders (UDP, TCP, HEC) + rate scheduler.
+- [x] 3. Baseline loop; stages; idempotence.
+- [x] 4. Reset orchestration with timings; tune until < 90 s on the laptop.
+- [x] 5. Preflight.
+- [x] 6. The `/demo` panel page + hotkeys (via C5's registry).
+- [x] 7. `demo-auto` runner + expectation evaluators (ClickHouse, Wazuh indexer, control API).
+- [x] 8. Makefile targets: `demo-reset`, `demo-preflight`, `demo-stage N=`, `demo-auto [N=]`, `llm-warm` (proxy to C4's warm call).
 
 ## Acceptance criteria
-- [ ] AC1: `make demo-reset` < 90 s on the laptop profile; the post-reset state matches `04_DEMO_SCRIPT.md` §2 exactly (verified by preflight + a state assertion).
-- [ ] AC2: `make demo-auto` passes every expectation, and passes 10 consecutive runs (CP4).
-- [ ] AC3: Hotkeys trigger stages from any console page; a double press doesn't double-send.
-- [ ] AC4: With Ollama stopped, `demo-auto` still passes (cache fallback) and preflight reports WARN, not FAIL.
+- [ ] AC1: `make demo-reset` < 90 s on the laptop profile; the post-reset state matches
+      `04_DEMO_SCRIPT.md` §2 exactly. **Deferred to the rehearsal** — needs the full profile. The
+      budget is enforced in code (`VEYRA_DEMO_RESET_BUDGET_S`, `over_budget` in the summary) and
+      the step ordering and failure propagation are unit-tested against fakes.
+- [ ] AC2: **deferred to CP4** — the runner, the three real API flows and the evaluators are
+      built and unit-tested; ten live runs need the stack.
+- [x] AC3: Hotkeys trigger stages from any console page; a double press doesn't double-send.
+- [~] AC4: With Ollama stopped, `demo-auto` still passes (cache fallback) and preflight reports
+      WARN, not FAIL. The **preflight half passes** (unit-tested against a refused connection);
+      the `demo-auto` half rides on AC2 and the rehearsal.
 
 ## Settings
 `VEYRA_DEMO_MODE` (1 on demo machines), `VEYRA_DEMO_SCENARIO` (`sih_main`), `VEYRA_DEMO_EPS_BASELINE`, `VEYRA_DEMO_RESET_BUDGET_S` (90).
 
 ## Implementation notes
-_(filled after execution)_
+
+Done 2026-09-30 apart from the two live ACs. Full write-up in [reports/B7.md](../reports/B7.md).
+
+The first pass had the shape right and the substance wrong in ways that would only have shown up
+on stage:
+
+- **Three places reported success unconditionally.** Preflight returned fixed `PASS` strings for
+  the Wazuh rules, the vault and the clock; `_evaluate_expectation` returned `True` for any
+  clause it did not recognise, so stage 3's Wazuh 100111 expectation had never been evaluated;
+  and every reset step was wrapped in a swallow-all `except` with `ok` hardcoded true.
+- **Multi-line events were shredded** — the T3 stack-trace line was sent as its own event, so
+  Beat 5's subject event did not exist. Corpora are now parsed into events.
+- **The baseline would have fired rule 100111 before Beat 3**, because the `Failed password`
+  exclusion the phase file specifies had been dropped from the scenario. Restored.
+- **Half the scenario grammar was declared and never read** (`filter`, `host`, `file#n`,
+  `exclude_patterns`, and no `seed` at all), and the OT and CEF timestamp formats were never
+  rewritten.
+- **Six reset steps did not do what their names said** — 6 hardcoded Kafka topics instead of
+  IF-TOPICS, 8 hardcoded ClickHouse tables, an immudb step that only wrote a filename, no Wazuh
+  index cleanup or saved-object re-import, a restart list missing archiver and integrity, and no
+  pre-warm.
+- **Nothing was reachable**: the `make demo-*` targets were `@echo "TODO (B7)"`, `demo-auto` did
+  not exist, and there was no `demo-engine` service in compose — though Caddy, Prometheus and the
+  Dockerfile all already pointed at it.
+
+The scenario moved to its contracted path `demo/scenarios/sih_main.yaml`. Deviations: the docker
+socket is mounted (demo profile only, over the Engine API with httpx rather than the SDK, whose
+import name the repo's own `docker/` directory shadows); and the OT historian is sent
+byte-for-byte with no `host:` override, because those bytes are what A4's tier-3 goldens and
+S0's parity vectors are computed from — the validator now rejects a `host:` there instead of
+ignoring it.
+
+Verified by 47 pytest tests and 9 `DemoPage` tests, none of which need the stack.

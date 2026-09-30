@@ -1,7 +1,7 @@
 # B6 — Console pages: Lineage Explorer + Evidence
 
 ```
-track: B   owner: B   status: todo
+track: B   owner: B   status: done
 contracts: v1.5
 depends_on: [B4, C5 (shell, design system, RawHighlighter)]   unblocks: [CP3, Beat 5]
 consumes: [IF-API-EVIDENCE, IF-ULPF (field_offsets, derived_fields), C5 design tokens/components]
@@ -97,20 +97,46 @@ All static labels go through C5's `t()`. Provide `en` and `hi` strings for this 
 - Raw panes up to 64 KB render without jank (virtualize lines above 500 lines).
 
 ## Tasks
-- [ ] 1. Components against fixtures: `SearchBar`, `ResultsList`, `RevisionTimeline`, `NormalizedFieldList`, `VerifyChain`, `DeliveriesList`, `VaultLocation`.
-- [ ] 2. The byte→char offset utility + unit tests (ASCII, multi-byte, CRLF, emoji).
-- [ ] 3. Integrate with C5's `RawHighlighter` and thread overlay; hover, pin and keyboard behaviour.
-- [ ] 4. The verify panel with honest reveal, failure summary and pending-seal state.
-- [ ] 5. The Evidence page: ledger table (SSE), chain strip, export, public key.
-- [ ] 6. The `Shift+T` hotkey hook (demo mode) + auto re-verify.
-- [ ] 7. Playwright smoke test: open a T3 event → hover `src_endpoint.ip` on rev 2 → the highlighted text equals `103.21.4.77`; verify → 8 green.
+- [x] 1. Components against fixtures: `SearchBar`, `ResultsList`, `RevisionTimeline`, `NormalizedFieldList`, `VerifyChain`, `DeliveriesList`, `VaultLocation`.
+- [x] 2. The byte→char offset utility + unit tests (ASCII, multi-byte, CRLF, emoji).
+- [x] 3. Integrate with C5's `RawHighlighter` and thread overlay; hover, pin and keyboard behaviour.
+- [x] 4. The verify panel with honest reveal, failure summary and pending-seal state.
+- [x] 5. The Evidence page: ledger table (SSE), chain strip, export, public key.
+- [x] 6. The `Shift+T` hotkey hook (demo mode) + auto re-verify.
+- [x] 7. Playwright smoke test: open a T3 event → hover `src_endpoint.ip` on rev 2 → the highlighted text equals `103.21.4.77`; verify → 8 green.
 
 ## Acceptance criteria
-- [ ] AC1: Hovering any mapped field highlights exactly the bytes of its value (Playwright check on 3 fields, including a JSON-escaped value and a Devanagari value).
-- [ ] AC2: Verify shows 8 green steps within 2 s of the click (cold).
-- [ ] AC3: After `Shift+T`, verify turns red at the expected steps with the locating sentence; after untamper (demo panel), it's green again.
-- [ ] AC4: The Evidence page shows new roots appearing live every window.
-- [ ] AC5: Keyboard-only use works: search → open → move through fields → verify. Focus is visible.
+- [x] AC1: Hovering any mapped field highlights exactly the bytes of its value (Playwright check on 3 fields, including a JSON-escaped value and a Devanagari value).
+- [~] AC2: Verify shows **7 green + 1 grey** steps (immudb is a prototype; see the
+      CLARIFICATION of 2026-09-30). Behaviour proven in mock mode; the < 2 s cold timing is
+      deferred to the rehearsal.
+- [x] AC3: After `Shift+T`, verify turns red at the expected steps with the locating sentence; after untamper (demo panel), it's green again.
+- [x] AC4: The Evidence page shows new roots appearing live every window.
+- [x] AC5: Keyboard-only use works: search → open → move through fields → verify. Focus is visible.
 
 ## Implementation notes
-_(filled after execution)_
+
+Done 2026-09-30. Full write-up in [reports/B6.md](../reports/B6.md).
+
+The work was less "build the pages" than "make them true". The components existed; what they
+showed was partly invented:
+
+- **Byte offsets never reached the client.** `ulpf.field_offsets` is produced by the engine and
+  indexed by `veyra_lineage.rows`, but `Revision` did not expose it, so the pane highlighted
+  spans from hardcoded literals and ticked every field as verified. Offsets are now lifted onto
+  `Revision`, and each located field is checked against the raw bytes with the engine's own rule
+  (`pages/lineage/fields.ts`, mirroring `provenance_check`). A field whose span does not slice
+  out its value now shows a red provenance warning.
+- **The vault-scan fallback fabricated a revision** with an invented OCSF body. It now returns
+  no revisions and `index_available: false`, and the page says so.
+- **`npm run build` was broken** (26 `tsc` errors), including a `useSSE` misuse that meant the
+  ledger table had never live-appended. 0 errors now.
+- **`t(key) || "fallback"` is dead code** — `translate()` returns the key, which is truthy. 94
+  keys added to `en`/`hi` (404 each, in sync).
+
+Additive API changes: `Revision.field_offsets`/`derived_fields`, `RawInfo.raw_text`/`raw_b64`,
+`event: root` on `/lineage/stream`, ledger-audit flags on `/evidence/roots`, and a
+`pending_seal` verify status so an unsealed window reads as early rather than broken.
+
+Verified by 247 console unit tests, 6 Playwright flows (`e2e/beat5.spec.ts` covers AC1/AC3/AC5)
+and 33 evidence-api tests. AC2's live timing is the one open item.

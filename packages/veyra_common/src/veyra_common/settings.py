@@ -90,6 +90,8 @@ class Settings(BaseSettings):
     immudb_grpc_port: int = 3322
     immudb_user: str = "immudb"
     immudb_password: str = "immudb"
+    # gRPC endpoint, for the demo reset's fresh-database step.
+    immudb_host: str = "immudb"
 
     # Retention per IF-TOPICS (days). `control` is compacted and never expires.
     retention_raw_days: int = 3
@@ -153,6 +155,12 @@ class Settings(BaseSettings):
     # test instead of silently doing nothing.
     wazuh_indexer_user: str = "admin"
     wazuh_indexer_password: str = "admin"
+    # The indexer's search API (B7 expectations, reset index cleanup) and the manager's
+    # API (B7 preflight's rules check).
+    wazuh_indexer_url: str = "https://wazuh.indexer:9200"
+    wazuh_manager_url: str = "https://wazuh.manager:55000"
+    wazuh_dashboard_url: str = "https://wazuh.dashboard:5601"
+    wazuh_api_user: str = "wazuh-wui"
     wazuh_dashboard_password: str = "kibanaserver"
     wazuh_api_password: str = "MyS3cr37P450r.*-"
     wazuh_remote_host: str = ""
@@ -160,6 +168,16 @@ class Settings(BaseSettings):
 
     # ------------------------------------------------------------------ §2.4 demo / LLM / drift
     demo_eps_baseline: int = 15
+    # Which file under demo/scenarios/ the demo engine loads (B7).
+    demo_scenario: str = "sih_main"
+    # `make demo-reset` must finish inside this budget on the laptop profile (B7 AC1).
+    demo_reset_budget_s: int = 90
+    # Where the demo engine sends traffic. Defaults are the compose service names; the CLI
+    # on the host overrides them with localhost.
+    demo_edge_dmz_host: str = "edge-dmz"
+    demo_edge_core_host: str = "edge-core"
+    demo_gateway_url: str = "http://ingest-gateway:8088"
+    demo_engine_port: int = 8300
     bench_target_eps: int = 2000
     llm_model: str = "qwen2.5:3b"
     llm_num_ctx: int = 4096

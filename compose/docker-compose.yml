@@ -241,6 +241,29 @@ services:
     # /flush and /reset for demo-engine and control-api; state in data/state/{drift,drain3}
     ports: ["8206:8206"]
 
+  demo-engine:
+    <<: *py
+    container_name: veyra-demo-engine
+    profiles: ["b7"]
+    command: ["python", "-m", "demo_engine"]
+    # Caddy proxies /api/demo/* here and Prometheus scrapes the same port (IF-PORTS).
+    ports: ["8300:8300"]
+    environment:
+      VEYRA_KAFKA_BOOTSTRAP: kafka:9092
+      VEYRA_CLICKHOUSE_URL: http://clickhouse:8123
+      VEYRA_IMMUDB_HOST: immudb
+      VEYRA_DEMO_MODE: "1"
+    volumes:
+      - ../data:/app/data
+      # DEVIATION (00_MASTER §7, demo profile only): the reset restarts the stateful
+      # consumers through the Docker Engine API, so it needs the socket. Nothing else in
+      # VEYRA touches Docker, and this service exists only on a demo machine.
+      - /var/run/docker.sock:/var/run/docker.sock
+    # The demo engine drives the edge listeners and the gateway, so it starts after them.
+    depends_on:
+      kafka:
+        condition: service_healthy
+
 networks:
   veyra_net:
     name: veyra_net

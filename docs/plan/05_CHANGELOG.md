@@ -17,6 +17,101 @@ ACTION REQUIRED:
 
 ---
 
+## 2026-09-30 17:40 — B6 + B7 — CONTRACT-ADDITIVE + CLARIFICATION  (contracts v1.5, no bump)
+TYPE: CONTRACT-ADDITIVE
+What:     B6 and B7 are done (B7 with two live ACs deferred). Five additive interface changes and
+          three clarifications, none of which break an existing consumer.
+
+          **IF-API-EVIDENCE (additive).**
+          (1) `Revision` now carries `field_offsets` (ocsf_path -> [start, end) byte span) and
+          `derived_fields` (ocsf_path -> "const"|"vocab:*"|"ts:*"|"enrich"|"base64"). Both are
+          lifted out of `ocsf["ulpf"]` by a model validator, so the ClickHouse path and the
+          evidence API's vault fallback fill them alike. **This was the bug behind B6's whole
+          signature moment:** the engine produced the offsets and `veyra_lineage.rows` indexed
+          them, but the read model never exposed them, so the console had been highlighting
+          *hardcoded* byte spans and rendering every field as provenance-verified.
+          (2) `RawInfo` gains `raw_text` and `raw_b64` — the bytes the contract always said the
+          event-detail response carries. The evidence API fills them from the vault.
+          (3) `GET /evidence/roots` gains `audit_status` and per-root `signature_ok`,
+          `prev_link_ok`, `window_order_ok`, `chain_ok`, from B3's `tools/ledger_audit`. Absent
+          flags mean the audit could not run, and the console then shows "unknown", not a tick.
+          (4) `GET /lineage/stream` emits a second event type, `event: root`, once per signed
+          window. The Evidence page live-appends from it instead of polling.
+          (5) A verify step may carry `status: "pending_seal"` when the segment is sealed but its
+          window is not signed yet. That is an ordinary wait, not a failure.
+
+          **IF-API-DEMO (additive).** `POST /reset` is now async, returning
+          `{started, budget_s}`, with a real `GET /reset/status` carrying per-step `ok`/`ms`
+          (it used to be a hardcoded `{"ready": true}`). `POST /untamper` accepts an optional
+          `event_uid`. New: `GET /tamper/active`, `GET /baseline`,
+          `POST /baseline/{pause,resume}`, `POST /hotkeys` (the console reports its registered
+          combos so preflight can check them). `GET /scenario` also returns each stage's
+          `expects` labels and stage 2's resolved onboarding `samples`.
+
+          **CLARIFICATION — immudb anchoring is not implemented, and nothing pretends it is.**
+          `immudb_verified` reports `status: not_implemented`; the console renders it as a
+          neutral grey node, never red and never green. B6's AC2 therefore reads **7 green + 1
+          grey**, not 8 green. Animating it green would break the phase file's own honesty rule.
+
+          **CLARIFICATION — the demo scenario lives at `demo/scenarios/sih_main.yaml`**, selected
+          by `VEYRA_DEMO_SCENARIO`. The previous `demo/scenario.yaml` is gone. It had also lost
+          `seed` and the baseline's `exclude_patterns: ["Failed password"]`; without that
+          exclusion the sshd brute force flows during the baseline, Wazuh fires rule 100111
+          before Beat 3, and "Wazuh now catches the attack it missed" is untrue by the time the
+          demo gets there.
+
+          **CLARIFICATION — a verify/preflight/expectation that cannot be evaluated FAILS.**
+          Three places had been reporting success unconditionally: preflight returned fixed
+          `PASS` strings (`"< 50 ms host/container skew"` was a literal) and turned exceptions
+          into PASS; `_evaluate_expectation` returned `True` for any clause it did not recognise,
+          so stage 3's Wazuh 100111 expectation had never once been evaluated; and every reset
+          step was wrapped in a swallow-all `except` with `ok` hardcoded true. All three now fail
+          loudly, which is the only way those commands are worth running.
+
+          New settings, all with working defaults: `VEYRA_DEMO_SCENARIO` (`sih_main`),
+          `VEYRA_DEMO_RESET_BUDGET_S` (90), `VEYRA_DEMO_EDGE_DMZ_HOST`,
+          `VEYRA_DEMO_EDGE_CORE_HOST`, `VEYRA_DEMO_GATEWAY_URL`, `VEYRA_DEMO_ENGINE_PORT`,
+          `VEYRA_WAZUH_INDEXER_URL`, `VEYRA_WAZUH_MANAGER_URL`, `VEYRA_WAZUH_DASHBOARD_URL`,
+          `VEYRA_WAZUH_API_USER`, `VEYRA_IMMUDB_HOST`.
+
+          **DEVIATION.** `compose`'s new `demo-engine` service (profile `b7`, port 8300) mounts
+          `/var/run/docker.sock`, demo profile only, because the reset restarts the stateful
+          consumers through the Docker Engine API. It talks to the API over the socket with
+          `httpx` rather than the Docker SDK, because this repository's own top-level `docker/`
+          directory shadows the SDK's import name depending on the working directory.
+Why:      B6 and B7 are the two phases the demo's last two beats and its reproducibility rest on.
+          Most of this entry is not new capability but the difference between a page that looks
+          right and one that is right.
+IDs:      IF-API-EVIDENCE (additive), IF-API-DEMO (additive), IF-ULPF (consumed),
+          IF-TOPICS (now honoured by the reset rather than hardcoded)
+Files patched: 02_CONTRACTS.md (IF-API-EVIDENCE, IF-API-DEMO), 03_INFRA_PROFILES.md §2.4
+          (new demo settings), profiles/*.env, 00_MASTER.md §7 (docker socket deviation),
+          06_STATUS_BOARD.md (B1-B7 rows + report links), track-B-evidence/B6_*.md and B7_*.md,
+          reports/B1.md-B7.md (B1-B5 are the backfill A5 asked for).
+ACTION REQUIRED:
+  - [ ] @C `EventRevision` now carries `field_offsets` and `derived_fields`, and `RawInfo`
+        carries `raw_text`/`raw_b64`. C2's replay panel and C6's drift review can highlight raw
+        bytes exactly as the Lineage page does — reuse `console/src/pages/lineage/fields.ts`
+        (`buildFields`) rather than writing a second provenance rule.
+  - [ ] @C `api.text()` now exists in `console/src/api/client.ts`. `api.get()` always calls
+        `response.json()`, which is why `/evidence/pubkey` (text/plain PEM) had been rejecting
+        every time. Use `api.text()` for any other text endpoint.
+  - [ ] @C `make demo-auto` drives your real endpoints as a human would (login → analyze SSE →
+        draft → submit → demo-switch → approve → promote → replay). If a response key differs
+        from what `services/demo_engine/src/demo_engine/auto.py` reads, the run names the exact
+        failing call — the cheapest contract test the control plane has.
+  - [ ] @A The console now trusts `ulpf.field_offsets` completely: a field whose span does not
+        slice out its value renders a red provenance warning on screen. That is intended, and it
+        makes an engine regression visible immediately rather than at CP4.
+  - [ ] @all At the rehearsal, close B7 AC1 (`make demo-reset` under 90 s, post-reset state per
+        04_DEMO_SCRIPT §2), B7 AC2 (`make demo-auto N=10`) and B6 AC2's cold <2 s verify. Also
+        confirm the reset's Kafka ordering choice: `control` is **excluded** from the delete set
+        because step 2 has already republished it.
+  - [ ] @B `make typecheck` is broken repo-wide on a **pre-existing** duplicate `conftest`
+        module (`services/ingest_gateway/tests` vs `services/control_api/tests`), and
+        `tools/tamper.py` resolves under two module names. Neither is B6/B7 code; mypy is clean
+        on the files this work touched. Worth fixing before CI is trusted.
+
 ## 2026-09-29 16:30 — A5 — CLARIFICATION + REQUEST @B  (contracts v1.5, no bump)
 TYPE: CLARIFICATION
 What:     IF-SHADOW is **produced** now. The record shape is unchanged (B1's `shadow_row` already

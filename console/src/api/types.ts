@@ -379,3 +379,229 @@ export type AnalyzeEvent =
   | { event: "draft"; data: { template_sig: string; source: string; pattern: string; latency_ms: number } }
   | { event: "done"; data: { draft_id: string | null; library?: string; verification?: Verification } }
   | { event: "error"; data: { message: string } };
+
+// ---------------------------------------------------------------- B6 Lineage & Evidence
+export interface SearchHit {
+  event_uid: string;
+  tenant_id: string;
+  source_id: string;
+  received_time?: string | null;
+  revision?: number | null;
+  tier?: number | null;
+  conformance?: string | null;
+  template_sig?: string | null;
+  contract_ref?: string | null;
+  raw_sha256: string;
+  raw_preview?: string | null;
+}
+
+export interface SearchResult {
+  q: string;
+  matched_on: string | null;
+  hits: SearchHit[];
+}
+
+export interface RawInfo {
+  raw_ref: { topic: string; partition: number; offset: number };
+  raw_sha256: string;
+  raw_len: number;
+  received_time: string;
+  tenant_id: string;
+  source_id: string;
+  vendor: string;
+  zone: string;
+  collector_id: string;
+  transport: string;
+  listener?: string | null;
+  peer_ip?: string | null;
+  custody: string;
+  auth_method: string;
+  framing_method: string;
+  framing_truncated: boolean;
+  framing_parts: number;
+  raw_preview: string;
+  /** The bytes themselves (IF-API-EVIDENCE); null when the segment cannot be read. */
+  raw_text?: string | null;
+  raw_b64?: string | null;
+}
+
+export interface EventRevision {
+  revision: number;
+  tier: number;
+  conformance: string;
+  contract_ref?: string | null;
+  template_sig: string;
+  template_id?: string | null;
+  class_uid: number;
+  category: string;
+  norm_topic: string;
+  produced_at: string;
+  replay: boolean;
+  replay_job_id?: string | null;
+  search_terms?: string[];
+  ocsf?: Record<string, unknown> | null;
+  /** IF-ULPF: ocsf_path -> [start, end) byte offsets into the decoded raw bytes. */
+  field_offsets?: Record<string, [number, number]>;
+  /** IF-ULPF: ocsf_path -> "const" | "vocab:<name>" | "ts:<detail>" | "enrich" | "base64". */
+  derived_fields?: Record<string, string>;
+}
+
+export interface VaultLocation {
+  segment_id: string;
+  record_idx: number;
+  chain_hash: string;
+  sealed: boolean;
+  sealed_at: string;
+  window_id?: string | null;
+}
+
+export interface ReceiptRow {
+  revision: number;
+  route_id: string;
+  status: "delivered" | "filtered" | "failed";
+  detail: string;
+  at: string;
+}
+
+export interface EventDetail {
+  event_uid: string;
+  raw_ref?: { topic: string; partition: number; offset: number } | null;
+  raw?: RawInfo | null;
+  revisions: EventRevision[];
+  vault?: VaultLocation | null;
+  receipts: ReceiptRow[];
+  dlq?: unknown[];
+  shadow?: unknown[];
+  /** False when the lineage index was unreachable and only the vault could answer. */
+  index_available?: boolean;
+}
+
+export interface VerifyStep {
+  id: string;
+  label: string;
+  ok: boolean;
+  detail: string;
+  ms: number;
+  status?: string | null;
+}
+
+export interface VerifyReport {
+  event_uid: string;
+  verified: boolean;
+  steps: VerifyStep[];
+}
+
+export interface LedgerRoot {
+  window_id: string;
+  payload: Record<string, unknown>;
+  sig_b64: string;
+  payload_sha256: string;
+  /** Ledger-audit state (B3). Absent when the audit could not run. */
+  signature_ok?: boolean;
+  prev_link_ok?: boolean;
+  window_order_ok?: boolean;
+  chain_ok?: boolean;
+}
+
+export interface LedgerRootsResponse {
+  count: number;
+  ledger: string;
+  roots: LedgerRoot[];
+  audit_status?: "PASS" | "FAIL" | "unknown";
+}
+
+// ---------------------------------------------------------------- B7 Demo Engine
+export interface DemoStageInfo {
+  title: string;
+  actions_count?: number;
+  /** Human-readable labels of this stage's `expect` clauses. */
+  expects?: string[];
+  /** Onboarding sample lines this stage pre-fills (stage 2). */
+  samples?: string[];
+}
+
+export interface DemoBaselineStream {
+  name: string;
+  via: string;
+  corpus: string;
+  eps: number;
+}
+
+export interface DemoScenario {
+  scenario: string;
+  seed?: number;
+  baseline?: DemoBaselineStream[];
+  stages: Record<string, DemoStageInfo>;
+}
+
+export interface ExpectOutcome {
+  label: string;
+  ok: boolean;
+  detail: string;
+  seconds: number;
+}
+
+export interface DemoStageStatus {
+  stage: number;
+  state: "idle" | "running" | "done" | "failed";
+  /** label -> passed, for a quick lookup. */
+  results?: Record<string, boolean>;
+  /** The same outcomes with their detail and timing. */
+  expects?: ExpectOutcome[];
+  error?: string | null;
+  all_states?: Record<string, string>;
+}
+
+export interface PreflightCheck {
+  check: string;
+  status: "PASS" | "WARN" | "FAIL";
+  detail: string;
+}
+
+export interface ResetStep {
+  name: string;
+  ok: boolean;
+  ms: number;
+  detail?: string;
+}
+
+/** `GET /reset/status`: a reset runs in the background and is polled. */
+export interface ResetStatus {
+  running: boolean;
+  ready: boolean;
+  ok: boolean | null;
+  seconds: number;
+  over_budget: boolean;
+  steps: ResetStep[];
+}
+
+export interface ResetStarted {
+  started: boolean;
+  budget_s: number;
+}
+
+export interface TamperResult {
+  target?: string;
+  mode?: string;
+  detail?: string;
+  verified?: boolean;
+  failed_steps?: string[];
+}
+
+export interface ActiveTamper {
+  mode: string;
+  event_uid: string;
+  at: string;
+}
+
+export interface TamperActive {
+  active: ActiveTamper[];
+  modes: string[];
+}
+
+export interface BaselineSnapshot {
+  paused: boolean;
+  target_eps: number;
+  actual_eps: number;
+  streams: Record<string, { sent: number; errors: number; eps: number }>;
+}

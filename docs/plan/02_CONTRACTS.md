@@ -635,24 +635,47 @@ GET /lineage/overview?tenant= → {eps_1m, totals_by_tier, sources:[…], routes
 GET /lineage/sources?tenant= → Source Health rows (expected vs actual EPS, last_seen, tier mix, contract ref, clock skew p50)
 GET /lineage/search?q=&tenant=&limit= → matches on event_uid, sha, ip, user, template_sig
 GET /lineage/events/{event_uid} → {raw (decoded text + b64), envelope, revisions:[{revision, ocsf, ulpf}], vault location, receipts}
+       raw carries raw_text + raw_b64 (filled from the vault; null when the segment is unreadable)
+       each revision carries field_offsets {ocsf_path: [start,end)} and derived_fields
+       {ocsf_path: "const"|"vocab:<name>"|"ts:<detail>"|"enrich"|"base64"}, lifted from ulpf
+       index_available: false when only the vault could answer — revisions is then [] and no
+       normalization is invented
 GET /lineage/templates/{sig}/events?limit= → event_uids (used by replay)
-GET /evidence/verify/{event_uid} → {ok, steps:[{id, label, ok, detail, ms}]}
+GET /evidence/verify/{event_uid} → {ok, steps:[{id, label, ok, detail, ms, status?}]}
        step ids: fetch_raw, hash_raw, decrypt_segment, chain_walk, segment_digest, merkle_inclusion, root_signature, immudb_verified
+       status: "not_implemented" (immudb, a prototype in this build) | "pending_seal" (the segment
+       is sealed but its window is not signed yet). Neither is a failure: both render grey, and
+       `verified` excludes not_implemented. 7 green + 1 grey is the honest all-good result.
 POST /evidence/export/{event_uid} → zip (raw.bin, envelope.json, proof.json, signed_root.json, pubkey.pem, verify.py, SECTION63_TECHNICAL.md)
-GET /evidence/roots?limit= → signed roots with immudb verification status
-GET /evidence/pubkey
-GET /lineage/stream (SSE): overview ticks
+GET /evidence/roots?limit= → {count, ledger, audit_status: PASS|FAIL|unknown, roots:[{window_id,
+       payload, sig_b64, payload_sha256, signature_ok, prev_link_ok, window_order_ok, chain_ok}]}
+       The per-root flags come from tools/ledger_audit; absent means the audit could not run.
+GET /evidence/pubkey  (text/plain PEM, not JSON)
+GET /lineage/stream (SSE): `overview` ticks every 2 s, and `root` once per newly signed window
 ```
 
 ## IF-API-DEMO — demo-engine (`/api/demo`, owner B)
 
 ```
-POST /reset → wipe + reseed to pre-demo state (async; GET /reset/status)
-POST /stage/{n} → runs scenario stage n (1..6), returns immediately; GET /stage/status
-POST /tamper {mode: naive_flip | insider_rewrite | segment_delete | root_rewrite, event_uid?} → {target, detail}
-POST /untamper → restores from the pristine copy (demo only)
-GET  /scenario → the loaded scenario with stage descriptions
-GET  /preflight → [{check, status: PASS|WARN|FAIL, detail}]
+POST /reset → {started, budget_s}; the reset runs in the background
+GET  /reset/status → {running, ready, ok, seconds, over_budget, steps:[{name, ok, ms, detail}]}
+POST /stage/{n} → runs scenario stage n (1..6): {ok, stage, already_running}. ok=false means it
+       was already running — stages are idempotent. 409 when a stage needs the live API key and
+       none has been issued since the reset.
+GET  /stage/status → {stage, state: idle|running|done|failed, results:{<expect label>: bool},
+       expects:[{label, ok, detail, seconds}], error, all_states}
+       A stage is `done` only when every expectation held.
+POST /tamper {mode: naive_flip | insider_rewrite | segment_delete | root_rewrite, event_uid?} → B5's report {target, mode, detail, segment_id, verified, failed_steps, report}
+POST /untamper {event_uid?} → restores from the pristine copy (demo only); no uid undoes everything
+GET  /tamper/active → {active:[{mode, event_uid, at}], modes:[...]}
+GET  /scenario → {scenario, seed, baseline:[{name, via, corpus, eps}], stages:{n: {title,
+       actions_count, expects:[label], samples:[line]}}}  — stage 2's samples are the onboarding
+       pre-fill, resolved from the corpus
+GET  /preflight → [{check, status: PASS|WARN|FAIL, detail}] — ten measured checks; a check that
+       cannot run reports FAIL, never PASS
+GET  /baseline, POST /baseline/{pause,resume} → {paused, target_eps, actual_eps, streams}
+POST /hotkeys {combos:[...]} → the console reports its registered demo hotkeys, so preflight can
+       tell whether they are live
 (drift-worker, internal, :8206) POST /flush → forces drift emission for all open groups (stage 4 fallback)
 (drift-worker, internal, :8206) POST /reset → forgets every group and cluster; control-api's /internal/reset calls it <!-- synced from C3 -->
 ```

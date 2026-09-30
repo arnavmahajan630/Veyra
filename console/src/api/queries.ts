@@ -1,22 +1,33 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { api, CONTROL, LINEAGE } from "./client";
+import { api, CONTROL, DEMO, EVIDENCE, LINEAGE } from "./client";
 import type {
   ApiKeyRow,
   AuditRow,
   ContractDetail,
   ContractSummary,
+  DemoScenario,
+  DemoStageStatus,
   DiffOut,
   Draft,
   DraftEdit,
   DriftItem,
+  EventDetail,
   KeyCard,
+  LedgerRootsResponse,
   Me,
   Overview,
+  PreflightCheck,
   ReplayJob,
+  ResetStarted,
+  ResetStatus,
+  TamperActive,
   RouteSpec,
+  SearchResult,
   Source,
   SourceHealth,
+  TamperResult,
   Tenant,
+  VerifyReport,
   VersionDetail,
 } from "./types";
 
@@ -38,6 +49,14 @@ export const queryKeys = {
   replay: (jobId: string) => ["replay", jobId] as const,
   audit: ["audit"] as const,
   routes: ["routes"] as const,
+  search: (q: string, tenant: string | null) => ["lineage", "search", q, tenant] as const,
+  eventDetail: (uid: string) => ["lineage", "event", uid] as const,
+  verify: (uid: string) => ["evidence", "verify", uid] as const,
+  roots: (limit: number) => ["evidence", "roots", limit] as const,
+  pubkey: ["evidence", "pubkey"] as const,
+  demoScenario: ["demo", "scenario"] as const,
+  demoStage: (stage: number) => ["demo", "stage", stage] as const,
+  preflight: ["demo", "preflight"] as const,
 };
 
 function tenantQuery(tenant: string | null): string {
@@ -296,3 +315,154 @@ export function useUseLibrary() {
       api.post<VersionDetail>(`${CONTROL}/onboarding/use-library`, body),
   });
 }
+
+// ---------------------------------------------------------------- B6 Hooks
+export function useLineageSearch(q: string, tenant: string | null = null) {
+  const trimmed = q.trim();
+  const query = new URLSearchParams();
+  if (trimmed) query.set("q", trimmed);
+  if (tenant && tenant !== "*") query.set("tenant", tenant);
+  const qs = query.toString();
+  return useQuery({
+    queryKey: queryKeys.search(trimmed, tenant),
+    queryFn: () => api.get<SearchResult>(`${LINEAGE}/search${qs ? `?${qs}` : ""}`),
+    enabled: trimmed.length > 0,
+  });
+}
+
+export function useEventDetail(uid: string | null) {
+  return useQuery({
+    queryKey: queryKeys.eventDetail(uid ?? ""),
+    queryFn: () => api.get<EventDetail>(`${LINEAGE}/events/${encodeURIComponent(uid ?? "")}`),
+    enabled: uid !== null && uid.length > 0,
+  });
+}
+
+export function useVerify(uid: string | null, enabled: boolean = false) {
+  return useQuery({
+    queryKey: queryKeys.verify(uid ?? ""),
+    queryFn: () => api.get<VerifyReport>(`${EVIDENCE}/${encodeURIComponent(uid ?? "")}/verify`),
+    enabled: enabled && uid !== null && uid.length > 0,
+  });
+}
+
+export function useVerifyMutation() {
+  return useMutation({
+    mutationFn: (uid: string) => api.get<VerifyReport>(`${EVIDENCE}/${encodeURIComponent(uid)}/verify`),
+  });
+}
+
+export function useEvidenceRoots(limit: number = 50) {
+  return useQuery({
+    queryKey: queryKeys.roots(limit),
+    queryFn: () => api.get<LedgerRootsResponse>(`${EVIDENCE}/roots?limit=${limit}`),
+  });
+}
+
+export function useEvidencePubkey() {
+  return useQuery({
+    queryKey: queryKeys.pubkey,
+    // /pubkey answers text/plain PEM, not JSON.
+    queryFn: () => api.text(`${EVIDENCE}/pubkey`),
+  });
+}
+
+export function useEvidenceExport() {
+  return useMutation({
+    mutationFn: (uid: string) => api.blob(`${EVIDENCE}/export/${encodeURIComponent(uid)}`),
+  });
+}
+
+// ---------------------------------------------------------------- B7 Demo Hooks
+export function useDemoScenario() {
+  return useQuery({
+    queryKey: queryKeys.demoScenario,
+    queryFn: () => api.get<DemoScenario>(`${DEMO}/scenario`),
+  });
+}
+
+/** Live stage state, including each `expect` result. Polls while a stage is running. */
+export function useDemoStage(enabled: boolean = true, refetchMs: number = 2000) {
+  return useQuery({
+    queryKey: queryKeys.demoStage(0),
+    queryFn: () => api.get<DemoStageStatus>(`${DEMO}/stage/status`),
+    enabled,
+    refetchInterval: refetchMs,
+  });
+}
+
+export function useTriggerStage() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: (stage: number) => api.post<{ ok: boolean; stage: number }>(`${DEMO}/stage/${stage}`),
+    onSuccess: () => {
+      client.invalidateQueries({ queryKey: ["demo"] });
+    },
+  });
+}
+
+export function usePreflight(enabled: boolean = true) {
+  return useQuery({
+    queryKey: queryKeys.preflight,
+    queryFn: () => api.get<PreflightCheck[]>(`${DEMO}/preflight`),
+    enabled,
+  });
+}
+
+/** Starts a reset; it runs in the background and is followed with `useResetStatus`. */
+export function useDemoReset() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: () => api.post<ResetStarted>(`${DEMO}/reset`),
+    onSuccess: () => {
+      client.invalidateQueries();
+    },
+  });
+}
+
+/** Polls the reset's step-by-step progress while one is running. */
+export function useResetStatus(enabled: boolean) {
+  return useQuery({
+    queryKey: ["demo", "reset-status"],
+    queryFn: () => api.get<ResetStatus>(`${DEMO}/reset/status`),
+    enabled,
+    refetchInterval: enabled ? 1000 : false,
+  });
+}
+
+/** What is tampered right now, and which modes the lab offers. */
+export function useTamperActive() {
+  return useQuery({
+    queryKey: ["demo", "tamper-active"],
+    queryFn: () => api.get<TamperActive>(`${DEMO}/tamper/active`),
+  });
+}
+
+/** Tells the engine which hotkeys this console registered, so preflight can check. */
+export function useReportHotkeys() {
+  return useMutation({
+    mutationFn: (combos: string[]) => api.post<{ ok: boolean }>(`${DEMO}/hotkeys`, { combos }),
+  });
+}
+
+export function useDemoTamper() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: (body: { mode: string; event_uid?: string }) => api.post<TamperResult>(`${DEMO}/tamper`, body),
+    onSuccess: () => {
+      client.invalidateQueries({ queryKey: ["evidence"] });
+    },
+  });
+}
+
+export function useDemoUntamper() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: (body?: { event_uid?: string }) =>
+      api.post<{ ok: boolean }>(`${DEMO}/untamper`, body ?? {}),
+    onSuccess: () => {
+      client.invalidateQueries({ queryKey: ["evidence"] });
+    },
+  });
+}
+

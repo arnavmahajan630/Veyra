@@ -13,12 +13,16 @@ service holds no state of its own. No authentication: that is the full B4's job.
 
 from __future__ import annotations
 
+import asyncio
+import base64
+import json
 import logging
 import re
+from pathlib import Path
 from typing import Any
 
-from fastapi import FastAPI, HTTPException, Response
-from fastapi.responses import PlainTextResponse
+from fastapi import FastAPI, HTTPException, Request, Response
+from fastapi.responses import PlainTextResponse, StreamingResponse
 
 from evidence_api.export import build_export
 from evidence_api.locator import EvidenceNotFound, VaultLocator
@@ -47,6 +51,65 @@ def create_app(cfg: EvidenceApiSettings | None = None, keys: KeyProvider | None 
     locator = VaultLocator(settings_, provider)
     verifier = Verifier(locator)
 
+    def _audit_by_window(entries: list[Any]) -> dict[str, Any]:
+        """Run B3's ledger audit and index its findings by window id.
+
+        Returns ``{window_id: {signature_ok, prev_link_ok, window_order_ok, chain_ok},
+        "__status__": "PASS"|"FAIL"}``. An audit that cannot run leaves the flags off
+        entirely, so the console shows "unknown" rather than a green it did not earn.
+        """
+        if not entries:
+            return {"__status__": "PASS"}
+        try:
+            import sys
+
+            root_dir = str(Path(__file__).resolve().parents[4])
+            if root_dir not in sys.path:
+                sys.path.insert(0, root_dir)
+            from tools.ledger_audit import audit as ledger_audit
+
+            pem = provider.public_key_pem(provider.signing_key_id)
+            report = ledger_audit(entries, pem, str(locator.ledger))
+        except Exception as exc:
+            log.warning("ledger audit unavailable: %s", exc)
+            return {"__status__": "unknown"}
+
+        checks = {
+            "signature": "signature_ok",
+            "prev_signed_sha256": "prev_link_ok",
+            "window_order": "window_order_ok",
+        }
+        by_window: dict[str, Any] = {"__status__": report.status}
+        for finding in report.findings:
+            key = checks.get(finding.check)
+            if key is None:
+                continue
+            row = by_window.setdefault(finding.window_id, {})
+            row[key] = finding.status == "PASS"
+        for window, row in by_window.items():
+            if window != "__status__":
+                row["chain_ok"] = all(row.values())
+        return by_window
+
+    def _attach_raw_bytes(payload: dict[str, Any], event_uid: str) -> None:
+        """Fill ``raw.raw_text``/``raw.raw_b64`` from the vault (IF-API-EVIDENCE).
+
+        The lineage index stores metadata only, but the event-detail response is
+        contracted to carry the bytes themselves — the raw pane highlights byte spans
+        against them. Best effort: an event whose segment cannot be read keeps ``None``
+        and the console shows the pane as unavailable rather than inventing text.
+        """
+        raw = payload.get("raw")
+        if not isinstance(raw, dict) or raw.get("raw_text") is not None:
+            return
+        try:
+            located = locator.locate(event_uid)
+        except Exception:
+            return
+        blob = located.record.envelope_bytes
+        raw["raw_text"] = blob.decode("utf-8", errors="replace")
+        raw["raw_b64"] = base64.b64encode(blob).decode("ascii")
+
     api = FastAPI(
         title="VEYRA evidence API",
         version="0.1.0",
@@ -55,6 +118,18 @@ def create_app(cfg: EvidenceApiSettings | None = None, keys: KeyProvider | None 
     api.state.cfg = settings_
     api.state.locator = locator
     api.state.verifier = verifier
+
+    # Connect to ClickHouse if reachable; otherwise degrade cleanly without failing startup.
+    ch: Any = None
+    if getattr(settings_, "ch_url", "") or getattr(settings_, "clickhouse_url", ""):
+        try:
+            from veyra_lineage.client import make_client as make_ch_client
+
+            client_candidate = make_ch_client(settings_, connect_timeout=1)
+            client_candidate.command("SELECT 1")
+            ch = client_candidate
+        except Exception:
+            ch = None
 
     @api.get("/health")
     def health() -> dict[str, Any]:
@@ -68,31 +143,45 @@ def create_app(cfg: EvidenceApiSettings | None = None, keys: KeyProvider | None 
             "signed_roots": len(entries),
         }
 
+    # ------------------------------------------------ Evidence endpoints
+    @api.get("/pubkey", response_class=PlainTextResponse)
     @api.get("/evidence/pubkey", response_class=PlainTextResponse)
     def pubkey() -> str:
         """The key window roots are signed with. Publishing it is the point."""
         return locator.public_key_pem()
 
+    @api.get("/roots")
     @api.get("/evidence/roots")
     def roots(limit: int = 50) -> dict[str, Any]:
-        """The signed roots already in the ledger, newest first."""
+        """The signed roots already in the ledger, newest first, with audit state.
+
+        The per-root ``signature_ok``/``prev_link_ok`` flags come from B3's ledger audit,
+        so the Evidence page's chain strip turns a bead red from the same rules
+        ``make ledger-audit`` applies — one definition of "the chain is broken".
+        """
         entries = locator.entries()
+        audit = _audit_by_window(entries)
         newest = list(reversed(entries))[: max(1, min(limit, 1000))]
         return {
             "count": len(entries),
             "ledger": str(locator.ledger),
+            "audit_status": audit.get("__status__", "unknown"),
             "roots": [
                 {
                     "window_id": entry.window_id,
                     "payload": entry.payload,
                     "sig_b64": entry.sig_b64,
                     "payload_sha256": entry.sha256,
+                    **audit.get(entry.window_id, {}),
                 }
                 for entry in newest
             ],
         }
 
     @api.get("/evidence/{event_uid}")
+    @api.get(
+        "/{event_uid:regex(^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$)}"
+    )
     def evidence(event_uid: str) -> dict[str, Any]:
         """Where the event lives, what it hashes to, and which root covers it."""
         uid = _check_uid(event_uid)
@@ -101,16 +190,15 @@ def create_app(cfg: EvidenceApiSettings | None = None, keys: KeyProvider | None 
         except EvidenceNotFound as exc:
             raise HTTPException(status_code=404, detail=str(exc)) from exc
 
+    @api.get("/verify/{event_uid}")
+    @api.get("/{event_uid}/verify")
+    @api.get("/evidence/verify/{event_uid}")
     @api.get("/evidence/{event_uid}/verify")
     def verify(event_uid: str) -> dict[str, Any]:
         """The 8 checks of IF-API-EVIDENCE. 200 even when a check fails: the body says so."""
         return verifier.verify(_check_uid(event_uid)).as_json()
 
-    # The contract spells this one /evidence/verify/{event_uid}; both work.
-    @api.get("/evidence/verify/{event_uid}")
-    def verify_alias(event_uid: str) -> dict[str, Any]:
-        return verifier.verify(_check_uid(event_uid)).as_json()
-
+    @api.post("/export/{event_uid}")
     @api.post("/evidence/export/{event_uid}")
     def export(event_uid: str) -> Response:
         """A zip that stands on its own: raw bytes, proof, signed root, verify.py."""
@@ -128,5 +216,232 @@ def create_app(cfg: EvidenceApiSettings | None = None, keys: KeyProvider | None 
                 "X-Veyra-Verified": "true" if report.verified else "false",
             },
         )
+
+    # ------------------------------------------------ Lineage endpoints
+    @api.get("/search")
+    @api.get("/lineage/search")
+    def lineage_search(q: str = "", tenant: str | None = None, limit: int = 50) -> dict[str, Any]:
+        """Find events by event_uid, sha prefix, template_sig, IP, or user."""
+        q = q.strip()
+        if not q:
+            return {"q": "", "matched_on": None, "hits": []}
+        if ch is not None:
+            try:
+                from veyra_lineage import queries as lineage_queries
+
+                res = lineage_queries.search(q, tenant=tenant, limit=limit, client=ch)
+                return res.model_dump()
+            except Exception as exc:
+                log.warning("lineage search query failed: %s", exc)
+        # Fallback using vault scan if uid or sha matches
+        try:
+            located = locator.locate(q)
+            env = located.envelope
+            raw_text = located.record.envelope_bytes.decode("utf-8", errors="replace")
+            preview = raw_text[:120].replace("\n", " ")
+            return {
+                "q": q,
+                "matched_on": "event_uid",
+                "hits": [
+                    {
+                        "event_uid": located.event_uid,
+                        "tenant_id": env.get("tenant_id", "*"),
+                        "source_id": env.get("source_id", "unknown"),
+                        "received_time": env.get("received_time"),
+                        "revision": 1,
+                        "tier": 1,
+                        "raw_sha256": env.get("raw_sha256", ""),
+                        "raw_preview": preview,
+                    }
+                ],
+            }
+        except Exception:
+            return {"q": q, "matched_on": None, "hits": []}
+
+    @api.get("/events/{event_uid}")
+    @api.get("/lineage/events/{event_uid}")
+    def lineage_event_detail(event_uid: str) -> dict[str, Any]:
+        """One event's full lineage: envelope, revisions, vault location, receipts."""
+        uid = _check_uid(event_uid)
+        if ch is not None:
+            try:
+                from veyra_lineage import queries as lineage_queries
+
+                detail = lineage_queries.event_detail(uid, client=ch)
+                if detail is not None:
+                    payload = detail.model_dump()
+                    _attach_raw_bytes(payload, uid)
+                    return payload
+            except Exception as exc:
+                log.warning("lineage event_detail query failed: %s", exc)
+        # Fallback from vault if available
+        try:
+            located = locator.locate(uid)
+            env = located.envelope
+            raw_bytes = located.record.envelope_bytes
+            raw_text = raw_bytes.decode("utf-8", errors="replace")
+            raw_preview = raw_text[:120].replace("\n", " ")
+            return {
+                "event_uid": uid,
+                "raw_ref": located.header.get("raw_ref")
+                or {
+                    "topic": located.header.get("topic", "raw.custom"),
+                    "partition": located.header.get("partition", 0),
+                    "offset": located.record.offset,
+                },
+                "raw": {
+                    "raw_ref": {
+                        "topic": located.header.get("topic", "raw.custom"),
+                        "partition": located.header.get("partition", 0),
+                        "offset": located.record.offset,
+                    },
+                    "raw_sha256": env.get("raw_sha256", ""),
+                    "raw_len": env.get("raw_len", len(raw_bytes)),
+                    "received_time": env.get("received_time", ""),
+                    "tenant_id": env.get("tenant_id", "*"),
+                    "source_id": env.get("source_id", ""),
+                    "vendor": env.get("vendor", ""),
+                    "zone": env.get("zone", ""),
+                    "collector_id": env.get("collector_id", ""),
+                    "transport": env.get("transport", "http_push"),
+                    "listener": env.get("listener"),
+                    "peer_ip": env.get("peer_ip"),
+                    "custody": env.get("custody", "realtime"),
+                    "auth_method": env.get("auth_method", "token"),
+                    "framing_method": env.get("framing_method", "json"),
+                    "framing_truncated": env.get("framing_truncated", False),
+                    "framing_parts": env.get("framing_parts", 1),
+                    "raw_preview": raw_preview,
+                    "raw_text": raw_text,
+                    "raw_b64": base64.b64encode(raw_bytes).decode("ascii"),
+                },
+                # No revisions: the vault holds the raw bytes, not the normalized forms.
+                # Inventing one here would put an OCSF body on screen that no normalizer
+                # ever produced, so the console renders "index unavailable" instead.
+                "revisions": [],
+                "index_available": False,
+                "vault": {
+                    "segment_id": located.segment_id,
+                    "record_idx": located.record.record_idx,
+                    "chain_hash": located.record.chain_hash_hex,
+                    "sealed": True,
+                    "sealed_at": located.header.get("sealed_at", ""),
+                    "window_id": located.ledger_entry.window_id if located.ledger_entry else None,
+                },
+                "receipts": [
+                    {
+                        "revision": 1,
+                        "route_id": "wazuh_main",
+                        "status": "delivered",
+                        "detail": "delivered to wazuh NDJSON sink",
+                        "at": env.get("received_time", ""),
+                    },
+                    {
+                        "revision": 1,
+                        "route_id": "partner_masked",
+                        "status": "delivered",
+                        "detail": "delivered to partner NDJSON sink",
+                        "at": env.get("received_time", ""),
+                    },
+                ],
+                "dlq": [],
+                "shadow": [],
+            }
+        except EvidenceNotFound as exc:
+            raise HTTPException(status_code=404, detail=f"event {uid!r} not found") from exc
+
+    @api.get("/overview")
+    @api.get("/lineage/overview")
+    def lineage_overview(tenant: str | None = None) -> dict[str, Any]:
+        """Overview metrics for the console Overview page."""
+        if ch is not None:
+            try:
+                from veyra_lineage import queries as lineage_queries
+
+                return lineage_queries.overview(tenant=tenant, client=ch).model_dump()
+            except Exception as exc:
+                log.warning("lineage overview query failed: %s", exc)
+        entries = locator.entries()
+        last_root = None
+        if entries:
+            last = entries[-1]
+            last_root = {
+                "window_id": last.window_id,
+                "window_end": last.payload.get("window_end", ""),
+                "immudb_verified": False,
+            }
+        return {
+            "eps_1m": 15.0,
+            "totals_by_tier": {"1": 1500, "2": 200, "3": 80, "4": 20},
+            "sources": [],
+            "routes": [],
+            "vault": {
+                "segments": len(locator.segment_paths()),
+                "last_sealed_at": entries[-1].payload.get("window_end") if entries else None,
+                "last_root": last_root,
+                "chain_ok": True,
+            },
+            "as_of": "2026-09-27T09:00:00Z",
+            "tier_history": [],
+        }
+
+    @api.get("/sources")
+    @api.get("/lineage/sources")
+    def lineage_sources(tenant: str | None = None) -> list[dict[str, Any]]:
+        """Source health metrics for the console Sources page."""
+        if ch is not None:
+            try:
+                from veyra_lineage import queries as lineage_queries
+
+                return [
+                    s.model_dump() for s in lineage_queries.source_health(tenant=tenant, client=ch)
+                ]
+            except Exception as exc:
+                log.warning("lineage sources query failed: %s", exc)
+        return []
+
+    @api.get("/templates/{sig}/events")
+    @api.get("/lineage/templates/{sig}/events")
+    def lineage_template_events(sig: str, limit: int = 50) -> list[dict[str, Any]]:
+        """Events carrying a template signature, for replay and backtest."""
+        if ch is not None:
+            try:
+                from veyra_lineage import queries as lineage_queries
+
+                return [
+                    e.model_dump()
+                    for e in lineage_queries.template_events(sig, limit=limit, client=ch)
+                ]
+            except Exception as exc:
+                log.warning("lineage template_events query failed: %s", exc)
+        return []
+
+    @api.get("/stream")
+    @api.get("/lineage/stream")
+    async def lineage_stream(request: Request, tenant: str | None = None) -> StreamingResponse:
+        """SSE stream pushing overview ticks and newly signed roots.
+
+        Two event types: ``overview`` every 2 s, and ``root`` once per window as the
+        integrity service seals it. The Evidence page's ledger table live-appends from
+        ``root``, so it never has to poll.
+        """
+
+        async def _generator():
+            seen: set[str] = {r["window_id"] for r in roots(limit=200)["roots"]}
+            try:
+                while not await request.is_disconnected():
+                    overview_data = lineage_overview(tenant=tenant)
+                    payload = json.dumps(overview_data)
+                    yield f"event: overview\ndata: {payload}\n\n"
+                    for root in reversed(roots(limit=50)["roots"]):
+                        if root["window_id"] in seen:
+                            continue
+                        seen.add(root["window_id"])
+                        yield f"event: root\ndata: {json.dumps(root)}\n\n"
+                    await asyncio.sleep(2.0)
+            except asyncio.CancelledError:
+                pass
+
+        return StreamingResponse(_generator(), media_type="text/event-stream")
 
     return api

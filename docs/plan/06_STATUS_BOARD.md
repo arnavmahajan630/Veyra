@@ -10,14 +10,14 @@ Update your row after every phase (status, one line, report link). Status values
 | A3 Engine core + normalizer service | A | done | v1.3 | 5/5 ACs; 2732 EPS/core tier 1; byte-exact offsets incl. inside JSON; purity + cross-process determinism proven; transactional normalizer survives kill -9 | [A3.md](reports/A3.md) |
 | A4 Tier 3, offsets, robustness | A | done | v1.3 | 5/5 ACs; unregistered sources now tier 3 with observables + byte offsets (goldens moved 4 -> 3); 50k fuzz cases, 0 exceptions; provenance_check enforces both halves; crash-loop journal survives process death | [A4.md](reports/A4.md) |
 | A5 Shadow, replay, revisions | A | done | v1.5 | 4/4 ACs; canary compared in shadow on live traffic without touching output; backtest gains field_coverage; replay.raw fixed (every replay message was being DLQ'd as schema_invalid) and revisions are idempotent under kill -9 | [A5.md](reports/A5.md) |
-| A6 Router + Wazuh + throughput bench | A | todo | v1.4 | | |
-| B1 Lineage indexer + ClickHouse | B | todo | v1.0 | | |
-| B2 Archiver + vault segments | B | todo | v1.0 | | |
-| B3 Integrity: Merkle, signing, immudb | B | todo | v1.0 | | |
-| B4 Evidence API: verify + export | B | todo | v1.0 | | |
-| B5 Tamper lab | B | todo | v1.0 | | |
-| B6 Console pages: Lineage + Evidence | B | todo | v1.0 | | |
-| B7 Demo engine + demo panel | B | todo | v1.0 | | |
+| A6 Router + Wazuh + throughput bench | A | done | v1.5 | Full router with wazuh_main and partner_masked routes, rules 100100-10130, wazuh-logtest verified, bench-throughput | [A6.md](reports/A6.md) |
+| B1 Lineage indexer + ClickHouse | B | done | v1.5 | ClickHouse schema (10 tables + 9 MVs), migrations, indexer with dedup, query library | [B1.md](reports/B1.md) |
+| B2 Archiver + vault segments | B | done | v1.5 | Segments, hash chain, AES-256-GCM, immutability; keys survive a reset | [B2.md](reports/B2.md) |
+| B3 Integrity: Merkle, signing, immudb | B | done | v1.5 | Windows, Merkle tree, Ed25519 signing, prev-hash ledger + audit; immudb anchoring NOT implemented (declared, and reported as such everywhere downstream) | [B3.md](reports/B3.md) |
+| B4 Evidence API: verify + export | B | done | v1.5 | 8-step verify, auditor ZIP with an offline verify.py, pubkey, roots; 33 tests. The vault fallback used to fabricate a revision - fixed in B6 | [B4.md](reports/B4.md) |
+| B5 Tamper lab | B | done | v1.5 | 4 modes x first-failing-step matrix, backup-before-change, untamper, verify report | [B5.md](reports/B5.md) |
+| B6 Console pages: Lineage + Evidence | B | done | v1.5 | 4/5 ACs; real byte offsets plumbed through (the pane had been highlighting hardcoded spans and ticking every field), honest verify reveal, roots live via a new `event: root`, 247 console tests + beat5 Playwright. AC2 is 7 green + 1 grey (immudb prototype) and its <2s cold timing waits for the rehearsal | [B6.md](reports/B6.md) |
+| B7 Demo engine + demo panel | B | done (2 ACs deferred) | v1.5 | AC3 + AC4's preflight half pass; scenario at demo/scenarios/sih_main.yaml with seed + the `Failed password` baseline exclusion, multi-line events, 10 measured preflight checks, honest reset, real expectation evaluators, make demo-{reset,preflight,stage,auto}, compose service. AC1 (<90s) and AC2 (demo-auto x10) need the live stack | [B7.md](reports/B7.md) |
 | C1 Control API foundation | C | done | v1.4 | Merged (PR #2): auth/roles/tenant scoping, sources + keys, compacted `control` publisher, inventory writer, audit, SSE, seed/reset. Contract compiler (C2 task 1) pulled forward and merged with it. AC3–AC5 pass in unit tests; AC1/AC2 live halves wait for CP1 (normalizer, gateway) | [C1.md](reports/C1.md) |
 | C2 Contract registry + compiler + lifecycle | C | in-progress | v1.4 | Merged (PR #3): golden runner, lint, `make contracts-test` (7/7 contracts), lifecycle with four-eyes, backtest, diff, replay jobs. AC1 and AC5 pass; AC3 API half passes; AC2/AC4 pass standalone, live halves need A5 + B (CP3) | [C2.md](reports/C2.md) |
 | C3 Drift worker + library packs | C | in-progress | v1.4 | Merged (PR #3): drift worker (Drain3 0.9.11, persisted state), drift inbox with auto-resolve on promote, 5 library packs (76 goldens, all tier 1), `library_match`. AC2–AC4 pass; AC1 grouping passes, live timing smoke still open | [C3.md](reports/C3.md) |

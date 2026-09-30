@@ -31,11 +31,11 @@ export const NAV: readonly NavItem[] = [
   { to: "/onboard", labelKey: "nav.onboard", icon: CirclePlus, roles: ["admin", "pack_author"] },
   { to: "/contracts", labelKey: "nav.contracts", icon: FileText },
   { to: "/drift", labelKey: "nav.drift", icon: GitBranch },
-  { to: "/lineage", labelKey: "nav.lineage", icon: Spline, phase: "B6" },
-  { to: "/evidence", labelKey: "nav.evidence", icon: ShieldCheck, phase: "B6" },
+  { to: "/lineage", labelKey: "nav.lineage", icon: Spline },
+  { to: "/evidence", labelKey: "nav.evidence", icon: ShieldCheck },
   { to: "/delivery", labelKey: "nav.delivery", icon: Send },
   { to: "/audit", labelKey: "nav.audit", icon: ClipboardList },
-  { to: "/demo", labelKey: "nav.demo", icon: Presentation, demoOnly: true, phase: "B7" },
+  { to: "/demo", labelKey: "nav.demo", icon: Presentation, demoOnly: true },
 ];
 
 export function visibleNav(me: Me): NavItem[] {

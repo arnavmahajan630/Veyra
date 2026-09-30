@@ -194,6 +194,40 @@ def test_verification_passes_every_implemented_step(
     assert body["verified"] is True
 
 
+def test_a_segment_awaiting_its_root_is_pending_not_failed(
+    cfg: EvidenceApiSettings, keys: LocalKeyProvider
+) -> None:
+    """A sealed segment whose window is not signed yet is early, not broken.
+
+    The console greys those two steps and says "sealing in <= N s"; reporting them as
+    plain failures would put a red chain on screen for an event that is perfectly fine.
+    """
+    writer = SegmentWriter(TOPIC, 0, 0, key_provider=keys, vault_dir=cfg.vault_dir, cfg=cfg)
+    env = stamp(
+        PAYLOADS[0],
+        collector_id="edge-dmz-01",
+        transport="syslog_tcp",
+        framing_method="newline",
+        source_id="src_authsrv_01",
+        tenant_id="t_maha_power",
+        vendor="custom",
+        zone="dmz",
+        peer_ip="172.20.0.21",
+    )
+    writer.append(0, env.model_dump_json().encode(), env.raw_sha256, env.event_uid)
+    writer.seal()  # sealed, but no window has been signed
+
+    body = TestClient(create_app(cfg, keys)).get(f"/evidence/{env.event_uid}/verify").json()
+    steps = steps_of(body)
+    # Everything that does not depend on a root still passes.
+    for step_id in ("fetch_raw", "decrypt_segment", "hash_raw", "chain_walk", "segment_digest"):
+        assert steps[step_id]["ok"] is True, f"{step_id}: {steps[step_id]['detail']}"
+    for step_id in ("merkle_inclusion", "root_signature"):
+        assert steps[step_id]["status"] == "pending_seal"
+        assert "sealing in <= 60 s" in steps[step_id]["detail"]
+    assert body["verified"] is False
+
+
 def test_the_contract_spelling_of_verify_also_works(
     client: TestClient, vault: list[Envelope]
 ) -> None:
@@ -349,6 +383,34 @@ def test_roots_lists_the_ledger(client: TestClient) -> None:
     assert len(first["payload_sha256"]) == 64
     # Newest first, so the windows descend.
     assert body["roots"][0]["payload"]["window_start"] > body["roots"][1]["payload"]["window_start"]
+
+
+def test_roots_carry_the_ledger_audit_state(client: TestClient) -> None:
+    """The chain strip colours its beads from these flags, so they must be real."""
+    body = client.get("/evidence/roots").json()
+    assert body["audit_status"] == "PASS"
+    for root in body["roots"]:
+        assert root["signature_ok"] is True
+        assert root["prev_link_ok"] is True
+        assert root["chain_ok"] is True
+
+
+def test_roots_report_a_broken_prev_link(
+    cfg: EvidenceApiSettings, keys: LocalKeyProvider, client: TestClient
+) -> None:
+    """Rewrite one entry's prev hash: the audit must say the chain broke there."""
+    ledger = Path(client.get("/evidence/roots").json()["ledger"])
+    lines = ledger.read_text(encoding="utf-8").splitlines()
+    entry = json.loads(lines[-1])
+    entry["payload"]["prev_signed_sha256"] = "f" * 64
+    lines[-1] = json.dumps(entry, sort_keys=True, separators=(",", ":"))
+    ledger.write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+    body = TestClient(create_app(cfg, keys)).get("/evidence/roots").json()
+    assert body["audit_status"] == "FAIL"
+    broken = body["roots"][0]  # newest first — the one we rewrote
+    assert broken["prev_link_ok"] is False
+    assert broken["chain_ok"] is False
 
 
 def test_roots_is_empty_before_anything_is_signed(
@@ -517,3 +579,53 @@ def test_the_bundled_ed25519_rejects_another_keys_signature(
     signature = stranger.sign(stranger.signing_key_id, payload)
     mine = keys.public_key_pem(keys.signing_key_id)
     assert namespace["ed25519_verify"](mine, payload, signature) is False
+
+
+def test_lineage_search_and_event_detail_endpoints(
+    cfg: EvidenceApiSettings, keys: LocalKeyProvider, vault: list[Envelope]
+) -> None:
+    client = TestClient(create_app(cfg, keys))
+    env = vault[0]
+    # Test search with event_uid
+    res1 = client.get(f"/search?q={env.event_uid}").json()
+    res2 = client.get(f"/lineage/search?q={env.event_uid}").json()
+    assert res1 == res2
+    assert len(res1["hits"]) == 1
+    assert res1["hits"][0]["event_uid"] == env.event_uid
+
+    # Test event detail
+    detail1 = client.get(f"/events/{env.event_uid}").json()
+    detail2 = client.get(f"/lineage/events/{env.event_uid}").json()
+    assert detail1 == detail2
+    assert detail1["event_uid"] == env.event_uid
+    assert detail1["vault"]["segment_id"]
+    # Without ClickHouse the vault can only answer for the raw bytes. It must say so
+    # rather than inventing a normalization that no normalizer ever produced.
+    assert detail1["revisions"] == []
+    assert detail1["index_available"] is False
+    raw = detail1["raw"]
+    assert raw["raw_text"], "the raw pane needs the decoded bytes (IF-API-EVIDENCE)"
+    assert base64.b64decode(raw["raw_b64"]).decode() == raw["raw_text"]
+
+    # Test unknown event detail 404
+    assert client.get("/events/0192a4f0-0000-7000-8000-00000000dead").status_code == 404
+
+
+def test_dual_route_aliases_resolve_identically(
+    cfg: EvidenceApiSettings, keys: LocalKeyProvider, vault: list[Envelope]
+) -> None:
+    client = TestClient(create_app(cfg, keys))
+    env = vault[0]
+    # pubkey
+    assert client.get("/pubkey").text == client.get("/evidence/pubkey").text
+    # roots
+    assert client.get("/roots").json() == client.get("/evidence/roots").json()
+    # verify
+    v1 = client.get(f"/verify/{env.event_uid}").json()
+    v2 = client.get(f"/evidence/verify/{env.event_uid}").json()
+    v3 = client.get(f"/evidence/{env.event_uid}/verify").json()
+    assert v1["event_uid"] == v2["event_uid"] == v3["event_uid"] == env.event_uid
+    # overview
+    assert client.get("/overview").json() == client.get("/lineage/overview").json()
+    # sources
+    assert client.get("/sources").json() == client.get("/lineage/sources").json()

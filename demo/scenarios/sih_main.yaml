@@ -1,0 +1,97 @@
+# The 3-minute demo, reproducible on command (B7; beats in docs/plan/04_DEMO_SCRIPT.md).
+#
+# Every randomness in a run derives from `seed`, so two runs send the same bytes in the
+# same order. `${VEYRA_DEMO_EPS_BASELINE}` is read from the environment at load time.
+scenario: sih_main
+seed: 42
+
+# Background traffic from the two registered NTRO sources, so the Overview is alive before
+# the demo starts.
+baseline:
+  - name: ntro_fw
+    via: syslog_tcp
+    listener: dmz-tcp
+    corpus: acme_ngfw_cef.log
+    eps: ${VEYRA_DEMO_EPS_BASELINE}*0.5
+  - name: ntro_lnx
+    via: syslog_udp
+    listener: core-udp
+    corpus: linux_sshd.log
+    eps: ${VEYRA_DEMO_EPS_BASELINE}*0.5
+    # Keep the brute force out of the baseline: if these lines flow before Beat 3, Wazuh
+    # fires rule 100111 early and "Wazuh catches it now" has nothing left to show.
+    exclude_patterns: ["Failed password"]
+
+stages:
+  1:
+    title: Hook
+    actions: []
+  2:
+    title: Onboard Auth Server
+    actions:
+      # Demo mode pre-fills the onboarding form with T1 and T2 — never T3, which has to
+      # arrive as drift in Beat 4.
+      - prefill_onboarding:
+          samples: [authsrv_t1_ok.log#1, authsrv_t2_session.log#1, authsrv_t1_ok.log#2]
+  3:
+    title: Log storm
+    actions:
+      - send: {via: http_hec_event, key: live, corpus: authsrv_t1_ok.log, count: 20, over_s: 20}
+      - send: {via: http_hec_event, key: live, corpus: authsrv_t2_session.log, count: 10, over_s: 20}
+      - send:
+          via: http_hec_event
+          key: live
+          corpus: authsrv_t3_failed.log
+          count: 8
+          over_s: 20
+          vary: {user: [a.sharma], src_ip: [103.21.4.77]}
+      - send:
+          via: syslog_udp
+          listener: core-udp
+          template: sshd_failed
+          count: 7
+          over_s: 15
+          vary: {src_ip: [45.12.3.9]}
+      - send:
+          via: syslog_tcp
+          listener: dmz-tcp
+          corpus: acme_ngfw_cef.log
+          filter: "act=deny"
+          count: 30
+          over_s: 20
+      # The OT historian carries its own device field (HIST01) and no syslog header, so it
+      # is sent byte-for-byte as the corpus has it — the same bytes the tier-3 goldens and
+      # the S0 parity vectors are computed from. No inventory row claims it, which is what
+      # makes it land as an unregistered tier 3 source.
+      - send:
+          via: syslog_udp
+          listener: core-udp
+          corpus: ot_historian.log
+          count: 12
+          over_s: 20
+    expect:
+      - {within_s: 25, clickhouse: "tier=3 AND source_id='src_authsrv_01'", gte: 8}
+      - {within_s: 30, wazuh_rule: 100111, src_ip: 45.12.3.9}
+  4:
+    title: Drift loop
+    actions:
+      - drift_flush: {}
+      - resend_if_no_drift: {after_s: 10, corpus: authsrv_t3_failed.log, count: 3}
+    expect:
+      - {within_s: 10, drift_open_for: src_authsrv_01}
+  5:
+    title: Traceability
+    actions: []
+  6:
+    title: Close
+    actions: []
+
+# `make demo-auto` drives the real public APIs on this timetable, exactly as a human
+# clicking would.
+auto:
+  - {at: 0, stage: 1}
+  - {at: 15, api: onboarding_flow}
+  - {at: 40, stage: 3}
+  - {at: 85, stage: 4}
+  - {at: 95, api: drift_approve_promote_replay}
+  - {at: 130, api: verify_then_tamper_then_verify}

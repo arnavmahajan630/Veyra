@@ -57,6 +57,10 @@ LABELS = {
 }
 
 NOT_IMPLEMENTED = "not_implemented"
+# The segment is sealed but the Merkle window covering it has not been signed yet. That is
+# an ordinary wait of up to ``merkle_window_seconds``, not a verification failure, so the
+# console shows these steps grey with the time remaining rather than red.
+PENDING_SEAL = "pending_seal"
 
 
 @dataclass
@@ -211,7 +215,7 @@ class Verifier:
                 return False, f"leaf {index} is not under root {root}"
             return True, f"leaf {index} of {len(leaves)} under root {root}"
 
-        add("merkle_inclusion", merkle_inclusion)
+        inclusion_step = add("merkle_inclusion", merkle_inclusion)
 
         # ------------------------------------------------- 7. root_signature
         def root_signature() -> tuple[bool, str]:
@@ -222,7 +226,15 @@ class Verifier:
                 return False, f"Ed25519 verification failed for {entry.window_id}"
             return True, f"{entry.window_id} signed by {entry.payload['key_id']}"
 
-        add("root_signature", root_signature)
+        signature_step = add("root_signature", root_signature)
+
+        # Nothing is wrong with an event whose window has not been signed yet — it is simply
+        # early. Mark the two root-dependent steps so the UI can say "sealing in <= N s".
+        if entry is None:
+            wait_s = int(getattr(self.locator.cfg, "merkle_window_seconds", 60) or 60)
+            for step in (inclusion_step, signature_step):
+                step.status = PENDING_SEAL
+                step.detail = f"{step.detail} (sealing in <= {wait_s} s)"
 
         # ------------------------------------------------ 8. immudb_verified
         report.steps.append(
