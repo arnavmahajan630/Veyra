@@ -1,0 +1,14 @@
+# Keep the build context small: the Python image copies only pyproject/uv.lock, packages/,
+# services/, demo/ and tools/. Runtime state and host-built artefacts never go in.
+data/
+.env.runtime
+.env.local
+**/.venv/
+**/__pycache__/
+**/*.pyc
+**/.pytest_cache/
+**/.ruff_cache/
+**/.mypy_cache/
+console/
+edge/vector/*.toml
+.git/

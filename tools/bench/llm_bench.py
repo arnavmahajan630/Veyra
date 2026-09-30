@@ -163,7 +163,11 @@ def run(models: list[str], machine: str) -> Path:
         "",
         f"{len(cases)} cases from `bench/llm_golden/cases.json`.",
         "",
-        "| Model | Precision | Recall | Provenance % | JSON-valid % | p50 ms | p95 ms | VRAM GiB |",
+        "Verify % is the whole C4 verify (compile, provenance, types) on the drafted contract.",
+        "JSON-valid % is the share of drafts the model produced; the rest fell back to the"
+        " heuristic.",
+        "",
+        "| Model | Precision | Recall | Verify % | JSON-valid % | p50 ms | p95 ms | VRAM GiB |",
         "|---|---|---|---|---|---|---|---|",
     ]
     lines += [

@@ -1,0 +1,25 @@
+# The AI drafter's model server in a container, for machines without a native Ollama.
+# ./veyra.sh adds this file (and docker-compose.gpu.yml when an NVIDIA GPU is usable) and points
+# VEYRA_OLLAMA_URL at http://ollama:11434. D15's native install stays the default for `make up`.
+services:
+  ollama:
+    image: ollama/ollama:0.34.4
+    container_name: veyra-ollama
+    environment:
+      OLLAMA_KEEP_ALIVE: ${VEYRA_LLM_KEEP_ALIVE:-30m}
+      # Reached as ollama:11434 on veyra_net only. No host port on purpose: a native Ollama on
+      # the host often holds 11434 already. Use `docker exec veyra-ollama ollama ...` instead.
+      OLLAMA_HOST: 0.0.0.0:11434
+    volumes:
+      - ollama_models:/root/.ollama
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "ollama list >/dev/null 2>&1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+    networks: [veyra_net]
+
+volumes:
+  ollama_models:
