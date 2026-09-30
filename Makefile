@@ -58,9 +58,19 @@ $(RUNTIME_ENV): $(PROFILE_FILE) $(wildcard .env.local)
 env-print: $(RUNTIME_ENV) ## show the merged runtime env
 	@cat $(RUNTIME_ENV)
 
+# ---------------------------------------------------------------------------- one command
+# ./veyra.sh (or .\veyra.ps1 on Windows) does everything below in order, with no host
+# tools beyond Docker and git. These targets are the same thing from make.
+veyra-up: ## ./veyra.sh up: build, start, smoke-check the whole stack
+	./veyra.sh up
+veyra-demo: ## ./veyra.sh demo: guided end-to-end walkthrough
+	./veyra.sh demo
+veyra-load: ## ./veyra.sh load: Kafka + pipeline throughput test
+	./veyra.sh load
+
 # ---------------------------------------------------------------------------- stack
 up: $(RUNTIME_ENV) edge-render ## build if needed and start the stack
-	mkdir -p data/{kafka,clickhouse,immudb,caddy,vault,keys,state,sinks/wazuh,sinks/partner,vector/dmz,vector/core,llm_cache,wazuh}
+	mkdir -p data/{kafka,clickhouse,immudb,caddy,vault,keys,state,control,sinks/wazuh,sinks/partner,vector/dmz,vector/core,llm_cache,wazuh}
 	@# The route sinks are created here, owned by the invoking user, so both the router
 	@# container (A6) and host tools can append to them.
 	touch data/sinks/wazuh/veyra.ndjson data/sinks/partner/partner.ndjson

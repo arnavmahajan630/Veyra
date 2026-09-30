@@ -3,13 +3,14 @@
 from __future__ import annotations
 
 import json
+import time
 from pathlib import Path
 
 import httpx
 import pytest
 
 from veyra_common.framing import split_lines
-from veyra_contracts.drafting.ollama import DraftFailed, OllamaClient
+from veyra_contracts.drafting.ollama import WARM_TIMEOUT_S, DraftFailed, OllamaClient
 from veyra_contracts.drafting.prompt import messages, prompt_sha
 from veyra_contracts.drafting.request import build
 
@@ -90,6 +91,71 @@ def test_a_timeout_fails_fast() -> None:
     )
     with pytest.raises(DraftFailed, match="timed out"):
         client.draft(prepared())
+
+
+def timed_client(handler, timeout_s: float) -> OllamaClient:  # type: ignore[no-untyped-def]
+    http = httpx.Client(base_url="http://ollama", transport=httpx.MockTransport(handler))
+    return OllamaClient(
+        "http://ollama", "m", num_ctx=4096, timeout_s=timeout_s, keep_alive="30m", client=http
+    )
+
+
+def test_the_retry_only_gets_what_is_left_of_the_timeout() -> None:
+    budgets: list[float] = []
+    replies = ["not json", json.dumps(GOOD)]
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        budgets.append(request.extensions["timeout"]["read"])
+        time.sleep(0.3)
+        return httpx.Response(200, json={"message": {"content": replies.pop(0)}})
+
+    timed_client(handler, timeout_s=2).draft(prepared())
+    assert budgets[0] == pytest.approx(2, abs=0.05)
+    assert budgets[1] == pytest.approx(1.7, abs=0.1)
+
+
+def test_no_retry_once_the_timeout_is_spent() -> None:
+    calls: list[int] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls.append(1)
+        time.sleep(0.25)
+        return httpx.Response(200, json={"message": {"content": "not json"}})
+
+    with pytest.raises(DraftFailed, match="no time left"):
+        timed_client(handler, timeout_s=0.2).draft(prepared())
+    assert len(calls) == 1
+
+
+def test_warming_outlasts_the_draft_timeout() -> None:
+    seen: list[float] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(request.extensions["timeout"]["read"])
+        return httpx.Response(200, json={"response": "ok"})
+
+    http = httpx.Client(
+        base_url="http://ollama", timeout=25, transport=httpx.MockTransport(handler)
+    )
+    OllamaClient(
+        "http://ollama", "m", num_ctx=4096, timeout_s=25, keep_alive="30m", client=http
+    ).warm()
+    assert seen == [WARM_TIMEOUT_S] and WARM_TIMEOUT_S > 25
+
+
+def test_ps_reports_only_this_model() -> None:
+    loaded = [
+        {"name": "qwen2.5:3b", "model": "qwen2.5:3b", "size_vram": 2},
+        {"name": "llama3.2:3b", "model": "llama3.2:3b", "size_vram": 3},
+    ]
+    http = httpx.Client(
+        base_url="http://ollama",
+        transport=httpx.MockTransport(lambda r: httpx.Response(200, json={"models": loaded})),
+    )
+    client = OllamaClient(
+        "http://ollama", "llama3.2:3b", num_ctx=4096, timeout_s=25, keep_alive="30m", client=http
+    )
+    assert [m["size_vram"] for m in client.ps()] == [3]
 
 
 def test_the_prompt_is_small_and_its_hash_is_stable() -> None:
