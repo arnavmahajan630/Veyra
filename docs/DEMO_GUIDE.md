@@ -24,7 +24,7 @@ and it ended with **Ready**. It covers:
 | 6 | Wazuh (workstation) | Sets `vm.max_map_count`, makes certificates once, starts the indexer, manager and dashboard, initialises security once | 3–6 min | ~1 min |
 | 7 | AI drafter model | Starts the chosen model server (GPU if found), downloads its model, loads it. `--drafter ollama` (default): Ollama and the profile's LLM. `--drafter laya`: Ollaya and the Laya decision model. Stage 1 asks which on the first run | 2–10 min (download; under 2 min for Laya) | seconds |
 | 8 | Veyra services | Gateway, normalizer, control API, drift worker, lineage indexer, archiver, integrity, evidence API; waits until each answers | 1–2 min | < 1 min |
-| 9 | Smoke check | Every service answers; all topics exist; admin can sign in; a syslog probe comes out as OCSF tier 1 and reaches the Wazuh sink file | < 1 min | < 1 min |
+| 9 | Smoke check | Every service answers; all topics exist; admin can sign in; a syslog probe comes out as OCSF tier 1 and reaches the Wazuh sink file; evidence is indexed, signed and audits clean; a push event is accepted with a newly issued key | < 1 min | < 1 min |
 | 10 | Ready | Prints URLs and sign-ins | — | — |
 
 Script overrides the demo relies on (in `.env.runtime`, never in your `.env.local`):
@@ -40,7 +40,8 @@ Script overrides the demo relies on (in `.env.runtime`, never in your `.env.loca
 
 Open the console (http://localhost:8080) and the Kafka UI (http://localhost:8085) side by side and
 watch the topics fill as the beats run. The walkthrough pauses after each beat; use `--auto` to run
-straight through, or `--beat N` to repeat one beat.
+straight through, `--beat N` to repeat one beat, or `--no-reset` to keep the current state. Every
+option of the setup script is in [SETUP_ADVANCED.md](SETUP_ADVANCED.md).
 
 | Beat | What it does | What it proves | Problem-statement point |
 |---|---|---|---|

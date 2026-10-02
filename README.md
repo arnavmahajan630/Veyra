@@ -44,13 +44,14 @@ That single command:
 4. builds the Veyra image and the web console;
 5. starts Kafka, ClickHouse, immudb, the edge collectors, Caddy and a Kafka UI, and creates the topics;
 6. starts Wazuh (workstation profile), with certificates and security set up automatically;
-7. asks which AI should draft contracts (see below), starts that model server (on the GPU when Docker can see one) and downloads the model;
+7. starts the AI drafter's model server (you choose which kind, see below), on the GPU when Docker can see one, and downloads the model;
 8. starts every Veyra service;
-9. runs a smoke check: every service answers, and a syslog line comes out the far end as OCSF, delivered to Wazuh's input file;
+9. runs a smoke check: every service answers, a syslog line comes out the far end as OCSF and reaches Wazuh's input file, the evidence chain verifies, and the push gateway accepts a freshly issued key;
 10. prints the URLs and sign-ins.
 
-The first run downloads images and a model, so allow **10 to 25 minutes**. Later runs take about a minute.
-Every stage is safe to re-run.
+The first run downloads images and a model, so allow **10 to 25 minutes**. Later runs take one to
+four minutes. Every stage is safe to re-run. If the smoke check fails, `up` says `FAILED` and exits
+with an error, so a broken stack is never mistaken for a ready one.
 
 Then:
 
@@ -71,27 +72,32 @@ On Windows, replace `./veyra.sh` with `.\veyra.ps1`.
 | Evidence API (OpenAPI) | http://localhost:8100/docs | none |
 | HTTP push, Splunk-HEC compatible | http://localhost:8088 | a per-source API key |
 | Syslog in | UDP/TCP 5514/5515 (DMZ zone), 5524/5525 (core zone) | the source's registered host |
-| Wazuh dashboard (workstation profile) | https://localhost:8443 | `admin` / `admin` |
+| Wazuh dashboard (when Wazuh is on) | https://localhost:8443 | `admin` / `admin` |
 
 ## Commands
 
 | Command | What it does |
 |---|---|
 | `up` (default) | Set up and start everything, then smoke-check it |
-| `demo` | Guided walkthrough; `--auto` runs without pauses, `--beat N` runs one beat |
-| `load` | Stage A: Kafka alone (`--events N`, default 100M). Stage B: the real pipeline (`--pipeline N`, default 1M). `--skip-kafka`, `--skip-pipeline`, `--force` |
+| `demo` | Guided walkthrough of five beats. `--auto` runs without pauses, `--beat N` runs one beat (repeat it for several), `--no-reset` keeps the current state instead of resetting first |
+| `load` | Stage A: Kafka alone (`--events N`, default 100M; `--record-size B`, default 200). Stage B: the real pipeline (`--pipeline N`, default 1M). `--skip-kafka`, `--skip-pipeline`, `--force` |
 | `status` | Container list and a health check |
 | `logs [service]` | Follow logs, e.g. `logs normalizer` |
-| `reset` | Reset the control plane to the seeded demo world |
+| `reset` | Reset the whole demo world to its seeded state: control plane, Kafka, ClickHouse, vault, sinks and drift. The stack keeps running |
 | `down` | Stop everything; data is kept |
 | `wipe` | Stop everything and delete all data (asks first) |
 | `doctor` | Check Docker, resources and ports |
+| `help` | Print every command and option |
+
+Every option, the settings files and worked examples are in
+[`docs/SETUP_ADVANCED.md`](docs/SETUP_ADVANCED.md). On Windows, `.\veyra.ps1 -Via wsl` or
+`-Via toolbox` forces a route (see Windows notes).
 
 Options for `up`:
 
 | Option | Default |
 |---|---|
-| `--profile laptop\|workstation` | Auto: `workstation` when Docker has at least 48 GB RAM and 12 CPUs |
+| `--profile laptop\|workstation\|mac` | Auto: `workstation` when Docker has at least 48 GB RAM and 12 CPUs, otherwise `laptop` |
 | `--wazuh` / `--no-wazuh` | On for workstation, off for laptop |
 | `--drafter ollama\|laya` | Asks on the first run, then remembers. With `--yes` or no terminal: `ollama` |
 | `--laya` | Short for `--drafter laya` |
@@ -115,16 +121,15 @@ person's approval follow either way. Two kinds of model can do it:
 Switch at any time by re-running `up` with the other value: `./veyra.sh up --drafter laya`. The
 numbers are in [`docs/plan/reports/C4.md`](docs/plan/reports/C4.md).
 
-On Windows, `.\veyra.ps1 -Via wsl` or `-Via toolbox` forces a route (see below).
-
 ## Profiles
 
 Sizes, partitions, limits and models all come from `profiles/<name>.env`; nothing is hard-coded.
 
 | Profile | For | Highlights |
 |---|---|---|
-| `laptop` | 16 GB+ RAM | 1 normalizer, 3 partitions per topic, small heaps, Wazuh off, `qwen2.5:3b` |
-| `workstation` | 64 to 128 GB RAM, 16+ cores, NVIDIA GPU | 6 normalizers for load tests, 12 partitions, Wazuh on, `qwen2.5:14b` on the GPU |
+| `laptop` | 16 GB+ RAM | 1 normalizer, 3 partitions per topic, small heaps, Wazuh off, `qwen2.5:3b` with saved drafts |
+| `workstation` | 64 to 128 GB RAM, 16+ cores, NVIDIA GPU | 6 normalizers for load tests, 12 partitions, Wazuh on, `qwen2.5:14b` drafting live on the GPU |
+| `mac` | Apple Silicon, 32 to 64 GB | 2 normalizers, 6 partitions, `qwen2.5:7b`. Never auto-selected: pass `--profile mac` |
 
 Put personal overrides in `.env.local` (git-ignored). It is applied after the profile.
 
@@ -176,7 +181,9 @@ checked them out as CRLF.
 | Wazuh indexer keeps restarting | It needs `vm.max_map_count` at least 262144. `up` offers to set it; on Linux it resets at reboot |
 | Cloning `contracts-repo` fails | It may be private. Sign in to GitHub when git asks, or clone it next to this folder yourself |
 | The first build is slow | Expected: images, the console build and the model download (a few GB) happen once |
-| Docker runs out of memory | Give Docker Desktop more memory (Settings, Resources, or `.wslconfig`). The laptop profile needs about 8 GB; the workstation profile with Wazuh about 40 GB |
+| Docker runs out of memory | Give Docker Desktop more memory (Settings, Resources, or `.wslconfig`). The laptop profile runs in about 8 GB and 12 GB is comfortable; the workstation profile with Wazuh needs about 40 GB |
+| `up` ends with `FAILED` | The smoke check did not pass. `./veyra.sh status` shows each service; `./veyra.sh logs <service>` shows why |
+| A demo beat times out or behaves oddly on a stack that has been up for days | Old events are in the way. `./veyra.sh reset` returns to the seeded state without rebuilding |
 | Something is wrong and you want to start over | `./veyra.sh wipe`, then `./veyra.sh up` |
 | A stage failed | Re-run the same command; every stage is idempotent. `./veyra.sh logs <service>` shows why |
 
@@ -192,8 +199,8 @@ checked them out as CRLF.
 | `edge/` | Vector edge collector configs and the source inventory |
 | `wazuh/` | Wazuh add-ons: where Veyra's output is read and the custom rules |
 | `demo/` | Sample logs and senders |
-| `tools/` | Smoke check, guided demo, load generator, tamper lab, ledger audit, benches |
-| `docs/` | [`DEMO_GUIDE.md`](docs/DEMO_GUIDE.md) (steps and scope), `plan/` (design, contracts, status, reports) |
+| `tools/` | Smoke check, guided demo, load generator, integration checkpoints, tamper lab, ledger audit, benches |
+| `docs/` | [`DEMO_GUIDE.md`](docs/DEMO_GUIDE.md) (steps and scope), [`SETUP_ADVANCED.md`](docs/SETUP_ADVANCED.md) (every option of the setup script), `plan/` (design, contracts, status, reports) |
 | `../contracts-repo` | The Log Contract registry: a separate git repo, cloned beside this one |
 
 For development (unit tests, lint, per-service runs), see the `Makefile` (`make help`) and [`CLAUDE.md`](CLAUDE.md).
