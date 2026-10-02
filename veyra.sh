@@ -40,6 +40,9 @@ trap 'die "stopped at stage $STAGE (line $LINENO). Re-run the same command: ever
 CMD="${1:-up}"
 [[ $# -gt 0 ]] && shift
 PROFILE="" WAZUH="" LLM="" MODEL="" YES=0 GPU="" FASTDATA="" PASSTHRU=()
+# Which model drafts contracts: ollama (an LLM that writes JSON) or laya (a decision model
+# that answers multiple-choice questions). Empty = ask, or reuse the last run's choice.
+DRAFTER="" DRAFTER_FLAG=0 DECISION_MODEL=""
 LOAD_EVENTS=100000000 LOAD_PIPELINE=1000000 LOAD_SIZE=200 LOAD_FORCE=0 LOAD_SKIP_KAFKA=0 LOAD_SKIP_PIPELINE=0
 
 usage() {
@@ -49,6 +52,12 @@ usage() {
 Options for up:
   --profile laptop|workstation   hardware profile (default: auto-detected from Docker's RAM/CPUs)
   --wazuh | --no-wazuh           include the Wazuh SIEM (default: on for workstation, off for laptop)
+  --drafter ollama|laya          which AI drafts contracts (default: asks once, then remembers)
+                                   ollama  an LLM writes the draft: most accurate here, 1-2 s a draft
+                                   laya    a decision model picks from fixed options: about 0.1 s a
+                                           draft and under 1 GB, but it leaves more fields unmapped
+  --laya                         same as --drafter laya
+  --decision-model NAME          decision model to pull with laya (default: laya:en)
   --no-llm                       skip the AI model; drafts use saved answers / rules
   --model NAME                   Ollama model to pull (default: the profile's VEYRA_LLM_MODEL)
   --yes                          do not ask before system changes (vm.max_map_count, wipe)
@@ -68,6 +77,9 @@ while [[ $# -gt 0 ]]; do
     --profile) PROFILE="$2"; shift 2 ;;
     --wazuh) WAZUH=1; shift ;;
     --no-wazuh) WAZUH=0; shift ;;
+    --drafter) DRAFTER="$2"; DRAFTER_FLAG=1; shift 2 ;;
+    --laya) DRAFTER=laya; DRAFTER_FLAG=1; shift ;;
+    --decision-model) DECISION_MODEL="$2"; shift 2 ;;
     --no-llm) LLM=0; shift ;;
     --model) MODEL="$2"; shift 2 ;;
     --yes|-y) YES=1; shift ;;
@@ -94,14 +106,18 @@ human() { awk -v b="$1" 'BEGIN{s="B KB MB GB TB";split(s,u," ");i=1;while(b>=102
 load_state() { [[ -f $STATE_FILE ]] && . "$STATE_FILE"; true; }
 save_state() {
   mkdir -p "$(dirname "$STATE_FILE")"
-  printf 'PROFILE=%s\nWAZUH=%s\nLLM=%s\nGPU=%s\nMODEL=%s\nFASTDATA=%s\n' "$PROFILE" "$WAZUH" "$LLM" "$GPU" "$MODEL" "$FASTDATA" >"$STATE_FILE"
+  printf 'PROFILE=%s\nWAZUH=%s\nLLM=%s\nGPU=%s\nMODEL=%s\nFASTDATA=%s\nDRAFTER=%s\nDECISION_MODEL=%s\n' \
+    "$PROFILE" "$WAZUH" "$LLM" "$GPU" "$MODEL" "$FASTDATA" "$DRAFTER" "$DECISION_MODEL" >"$STATE_FILE"
 }
 
 compose_files() {
   FILES=(-f compose/docker-compose.yml -f compose/docker-compose.ui.yml)
   [[ $WAZUH == 1 ]] && FILES+=(-f compose/docker-compose.wazuh.yml)
-  [[ $LLM == 1 ]] && FILES+=(-f compose/docker-compose.ollama.yml)
-  [[ $LLM == 1 && $GPU == 1 ]] && FILES+=(-f compose/docker-compose.gpu.yml)
+  # One model server, whichever drafts: Ollama for an LLM, Ollaya for a decision model.
+  local server=ollama gpu=gpu
+  [[ ${DRAFTER:-ollama} == laya ]] && { server=decision; gpu=decision-gpu; }
+  [[ $LLM == 1 ]] && FILES+=(-f "compose/docker-compose.$server.yml")
+  [[ $LLM == 1 && $GPU == 1 ]] && FILES+=(-f "compose/docker-compose.$gpu.yml")
   [[ ${FASTDATA:-0} == 1 ]] && FILES+=(-f compose/docker-compose.fastdata.yml)
   PROFILE_ARGS=()
   for p in "${SERVICE_PROFILES[@]}"; do PROFILE_ARGS+=(--profile "$p"); done
@@ -176,6 +192,7 @@ preflight() {
   fi
   [[ -z $LLM ]] && LLM=1
   [[ -z $MODEL ]] && MODEL=$(env_value VEYRA_LLM_MODEL "profiles/$PROFILE.env")
+  choose_drafter
   if [[ $LLM == 1 ]]; then
     # With --gpus the NVIDIA runtime (Linux toolkit or Docker Desktop's WSL2 GPU support)
     # injects nvidia-smi into any glibc image, so a small one is enough for the probe.
@@ -187,7 +204,36 @@ preflight() {
   else
     GPU=0
   fi
-  info "Wazuh: $([[ $WAZUH == 1 ]] && echo on || echo "off (add --wazuh)")   AI model: $([[ $LLM == 1 ]] && echo "$MODEL" || echo "off (rules / saved drafts)")"
+  local drafting="off (rules / saved drafts)"
+  [[ $LLM == 1 && $DRAFTER == ollama ]] && drafting="$MODEL (Ollama LLM)"
+  [[ $LLM == 1 && $DRAFTER == laya ]] && drafting="$DECISION_MODEL (decision model)"
+  info "Wazuh: $([[ $WAZUH == 1 ]] && echo on || echo "off (add --wazuh)")   AI drafter: $drafting"
+}
+
+# Which model drafts: the flag, else what the last run chose, else ask (a terminal, `up`, no
+# --yes), else Ollama.
+choose_drafter() {
+  [[ -z $DECISION_MODEL ]] && DECISION_MODEL=$(env_value DECISION_MODEL "$STATE_FILE")
+  [[ -z $DECISION_MODEL ]] && DECISION_MODEL=laya:en
+  if [[ $LLM != 1 ]]; then DRAFTER=${DRAFTER:-ollama}; return; fi
+  if [[ -z $DRAFTER ]]; then
+    DRAFTER=$(env_value DRAFTER "$STATE_FILE")
+    if [[ -n $DRAFTER ]]; then
+      info "AI drafter: $DRAFTER, as chosen last time (change with --drafter ollama|laya)"
+    elif [[ $CMD == up && $YES != 1 && -t 0 ]]; then
+      printf '\n       %sWhich AI should draft contracts for new log formats?%s\n' "$B" "$N"
+      printf '         %s1%s  Ollama LLM (%s)   most accurate in our tests; 1-2 s a draft; a few GB\n' "$B" "$N" "$MODEL"
+      printf '         %s2%s  Laya decision model   about 0.1 s a draft; under 1 GB; leaves more fields unmapped\n' "$B" "$N"
+      local answer; read -r -p "       Choose 1 or 2 [1]: " answer
+      case "$answer" in 2|laya|Laya) DRAFTER=laya ;; *) DRAFTER=ollama ;; esac
+    else
+      DRAFTER=ollama
+    fi
+  fi
+  case "$DRAFTER" in
+    ollama|laya) ;;
+    *) die "--drafter takes ollama or laya, not '$DRAFTER'" ;;
+  esac
 }
 
 contracts() {
@@ -223,7 +269,18 @@ write_env() {
     echo "VEYRA_SEGMENT_MAX_SECONDS=20"
     echo "VEYRA_VAULT_CHATTR=0"
     [[ -n $MODEL ]] && echo "VEYRA_LLM_MODEL=$MODEL"
-    if [[ $LLM == 1 ]]; then echo "VEYRA_OLLAMA_URL=http://ollama:11434"; else echo "VEYRA_LLM_MODE=cache"; fi
+    if [[ $LLM != 1 ]]; then
+      echo "VEYRA_LLM_MODE=cache"
+    elif [[ $DRAFTER == laya ]]; then
+      echo "VEYRA_LLM_BACKEND=decision"
+      echo "VEYRA_DECISION_URL=http://ollaya:11435"
+      echo "VEYRA_DECISION_MODEL=$DECISION_MODEL"
+      # A decision model drafts in a second or two even on a CPU, so it drafts live on every
+      # profile (the laptop profile keeps LLMs in cache mode because they need a GPU).
+      echo "VEYRA_LLM_MODE=live_then_cache"
+    else
+      echo "VEYRA_OLLAMA_URL=http://ollama:11434"
+    fi
     [[ ${1:-} == nollm ]] && echo "VEYRA_LLM_MODE=cache"
     [[ $WAZUH == 1 ]] || echo "VEYRA_WAZUH_MODE=remote"
     true
@@ -322,6 +379,7 @@ wazuh() {
 llm() {
   stage "AI drafter model"
   if [[ $LLM != 1 ]]; then info "skipped: drafts use saved answers and the rules drafter (cache mode)"; return; fi
+  if [[ $DRAFTER == laya ]]; then decision_model; return; fi
   dc up -d ollama 2>&1 | shown 2
   wait_healthy veyra-ollama 120 || die "the Ollama container did not start. See: $SELF logs ollama"
   if docker exec veyra-ollama ollama list 2>/dev/null | awk 'NR>1 {print $1}' | grep -qx "$MODEL"; then
@@ -334,6 +392,26 @@ llm() {
     fi
   fi
   docker exec veyra-ollama ollama run "$MODEL" "ok" >/dev/null 2>&1 && ok "model loaded $([[ $GPU == 1 ]] && echo 'on the GPU' || echo 'on the CPU')" || warn "the model did not warm up; the first draft may be slow"
+}
+
+# The decision-model server (Ollaya) and its model, in place of Ollama.
+decision_model() {
+  info "decision model server (Ollaya) ..."
+  dc up -d ollaya 2>&1 | shown 2
+  wait_healthy veyra-ollaya 120 || die "the Ollaya container did not start. See: $SELF logs ollaya"
+  if docker exec veyra-ollaya ollaya list 2>/dev/null | awk 'NR>1 {print $1}' | grep -qx "$DECISION_MODEL"; then
+    ok "$DECISION_MODEL already downloaded"
+  else
+    info "downloading $DECISION_MODEL (one time; under 1 GB for laya:en) ..."
+    if docker exec veyra-ollaya ollaya pull "$DECISION_MODEL" 2>&1 | shown 1; then ok "$DECISION_MODEL ready"; else
+      warn "could not download $DECISION_MODEL; drafts will use saved answers / rules (cache mode)"
+      write_env nollm
+      return
+    fi
+  fi
+  # Loads the model through the same client control-api uses, so a wrong URL shows up here.
+  run_tools python -c "from veyra_common.settings import settings; from veyra_contracts.drafting.backends import make_client; make_client(settings).warm()" >/dev/null 2>&1 \
+    && ok "model loaded $([[ $GPU == 1 ]] && echo 'on the GPU' || echo 'on the CPU')" || warn "the model did not warm up; the first draft may be slow"
 }
 
 services() {
@@ -361,6 +439,11 @@ summary() {
        ${B}Syslog in${N}        udp/tcp 5514/5515 (DMZ), 5524/5525 (core)
 EOF
   [[ $WAZUH == 1 ]] && echo "       ${B}Wazuh${N}            https://localhost:8443         admin / admin"
+  if [[ $LLM == 1 && $DRAFTER == laya ]]; then
+    echo "       ${B}AI drafter${N}       $DECISION_MODEL, a decision model (switch: $SELF up --drafter ollama)"
+  elif [[ $LLM == 1 ]]; then
+    echo "       ${B}AI drafter${N}       $MODEL, an Ollama LLM (switch: $SELF up --drafter laya)"
+  fi
   cat <<EOF
 
        Next:  ${B}$SELF demo${N}     guided walkthrough of every feature (≈5 min)

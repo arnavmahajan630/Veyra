@@ -17,6 +17,33 @@ ACTION REQUIRED:
 
 ---
 
+## 2026-10-02 22:10 — S2 + C4 — DECISION + REQUEST  (contracts v1.5, no bump)
+TYPE: DECISION
+What:     `./veyra.sh up` now lets the reviewer choose which AI drafts contracts:
+          `--drafter ollama|laya` (or `--laya`). With a terminal and no flag it asks once and
+          remembers the answer; with `--yes` or no terminal it uses `ollama`. Choosing `laya`
+          starts a decision-model server (Ollaya) in place of Ollama, pulls `laya:en`
+          (`--decision-model NAME` for another), and writes `VEYRA_LLM_BACKEND=decision`,
+          `VEYRA_DECISION_URL`, `VEYRA_DECISION_MODEL` and `VEYRA_LLM_MODE=live_then_cache`.
+          Verified on the laptop through `veyra.ps1`: `up --drafter laya` 19/19 smoke checks,
+          the demo's onboarding beat drafts live through Laya; the CPU image drafts too.
+Why:      The decision backend existed but could only be switched on by hand.
+IDs:      IF-ENV
+Files patched: (none in docs/plan beyond this entry); README.md, docs/DEMO_GUIDE.md
+TYPE: REQUEST
+What:     Shared files changed: two new overlays, `compose/docker-compose.decision.yml` (CPU
+          image `ollaya:0.9.0`) and `compose/docker-compose.decision-gpu.yml` (`0.9.0-cuda` plus
+          the NVIDIA reservation). Nothing in `docker-compose.yml` or the profiles changes for
+          this. Also fixed on this branch: the merge markers f79a39b left in
+          `compose/docker-compose.yml` and in this file (both sides kept), and `veyra.ps1`
+          reading a WSL error message as a distro name.
+ACTION REQUIRED:
+  - [ ] @A @B check the resolved `compose/docker-compose.yml`: `demo-engine` (B7) and the
+        S2 services (B1-B4, `normalizer-2..6`, `tools`) are all there, unchanged.
+  - [ ] @C beat 4 of `veyra.sh demo` times out on a stack that holds old events whose raw
+        bytes have aged out of Kafka: the backtest waits `VEYRA_EVIDENCE_TIMEOUT_S` (5 s) per
+        missing record (control-api `KafkaRawStore`). A fresh stack is not affected.
+
 ## 2026-10-02 20:30 — C4 — CLARIFICATION + REQUEST  (contracts v1.5, no bump)
 TYPE: CLARIFICATION
 What:     The drafter's answers are now limited to fixed lists, and a decision model can draft.
@@ -35,13 +62,9 @@ TYPE: REQUEST
 What:     Four additive settings in the shared `veyra_common/settings.py`, all with defaults that
           keep today's behaviour: `VEYRA_LLM_BACKEND` (`ollama` | `decision`, default `ollama`),
           `VEYRA_DECISION_URL`, `VEYRA_DECISION_MODEL`, `VEYRA_DECISION_MIN_PROBABILITY`. No
-          profile, compose or `veyra.sh` change.
-          Separately: this file still holds unresolved merge markers from f79a39b (below this
-          entry), and so does `compose/docker-compose.yml`, which does not parse with them.
+          profile change. (The `veyra.sh` switch and the compose overlays are the entry above.)
 ACTION REQUIRED:
   - [ ] @A @B nothing to do unless you object to the four settings.
-  - [ ] whoever merged f79a39b: resolve the conflict markers in `compose/docker-compose.yml`
-        and in this file on `main`.
 
 ## 2026-09-30 17:40 — B6 + B7 — CONTRACT-ADDITIVE + CLARIFICATION  (contracts v1.5, no bump)
 TYPE: CONTRACT-ADDITIVE

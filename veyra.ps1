@@ -86,10 +86,15 @@ if (-not (Test-Path (Join-Path $Contracts '.git'))) {
 function Find-WslDistro {
     $wsl = Get-Command wsl.exe -ErrorAction SilentlyContinue
     if (-not $wsl) { return $null }
-    $names = (& wsl.exe -l -q 2>$null) -replace "`0", '' | Where-Object { $_ -and $_ -notmatch '^docker-desktop' }
+    $listed = & wsl.exe -l -q 2>$null
+    # WSL prints its errors on stdout ("A connection attempt failed ..."), so a failed listing
+    # must not be read as distro names.
+    if ($LASTEXITCODE -ne 0) { return $null }
+    $names = $listed -replace "`0", '' | ForEach-Object { $_.Trim() } |
+        Where-Object { $_ -match '^[\w.-]+$' -and $_ -notmatch '^docker-desktop' }
     foreach ($name in $names) {
-        $name = $name.Trim()
-        & wsl.exe -d $name -e sh -c 'command -v docker >/dev/null && docker info >/dev/null 2>&1' 2>$null
+        # Out-Null: anything the probe prints would otherwise become part of this function's result.
+        & wsl.exe -d $name -e sh -c 'command -v docker >/dev/null && docker info >/dev/null 2>&1' *> $null
         if ($LASTEXITCODE -eq 0) { return $name }
     }
     return $null

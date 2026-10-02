@@ -41,8 +41,13 @@ HEALTH = [
     ("console (via Caddy)", "http://caddy:8080/", True),
     ("control-api (via Caddy)", "http://caddy:8080/api/control/healthz", True),
     ("evidence-api (via Caddy)", "http://caddy:8080/api/evidence/roots", True),
-    ("ollama", "http://ollama:11434/api/tags", False),
 ]
+# The model server that drafts, optional either way: a missing one means drafts come from
+# saved answers or the rules drafter. Which one depends on the drafter veyra.sh was told to use.
+if settings.llm_backend == "decision":
+    HEALTH.append((f"ollaya ({settings.decision_model})", "http://ollaya:11435/", False))
+else:
+    HEALTH.append(("ollama", "http://ollama:11434/api/tags", False))
 
 
 def probe_health() -> list[tuple[str, bool, str, bool]]:

@@ -44,7 +44,7 @@ That single command:
 4. builds the Veyra image and the web console;
 5. starts Kafka, ClickHouse, immudb, the edge collectors, Caddy and a Kafka UI, and creates the topics;
 6. starts Wazuh (workstation profile), with certificates and security set up automatically;
-7. starts the AI model server (on the GPU when Docker can see one) and downloads the model;
+7. asks which AI should draft contracts (see below), starts that model server (on the GPU when Docker can see one) and downloads the model;
 8. starts every Veyra service;
 9. runs a smoke check: every service answers, and a syslog line comes out the far end as OCSF, delivered to Wazuh's input file;
 10. prints the URLs and sign-ins.
@@ -93,9 +93,27 @@ Options for `up`:
 |---|---|
 | `--profile laptop\|workstation` | Auto: `workstation` when Docker has at least 48 GB RAM and 12 CPUs |
 | `--wazuh` / `--no-wazuh` | On for workstation, off for laptop |
+| `--drafter ollama\|laya` | Asks on the first run, then remembers. With `--yes` or no terminal: `ollama` |
+| `--laya` | Short for `--drafter laya` |
+| `--decision-model NAME` | `laya:en`. The decision model to pull when the drafter is `laya` |
 | `--no-llm` | The AI model is on. Without it, drafts come from saved answers or the rules drafter |
 | `--model NAME` | The profile's model: `qwen2.5:3b` (laptop), `qwen2.5:14b` (workstation) |
-| `--yes` | Don't ask before system changes |
+| `--yes` | Don't ask before system changes, and don't ask which drafter |
+
+### Choosing the AI drafter
+
+When a new log format shows up, an AI proposes how its values map to fields; checks and a second
+person's approval follow either way. Two kinds of model can do it:
+
+| | `ollama` (default) | `laya` |
+|---|---|---|
+| What it is | An LLM that writes the draft, limited to fixed lists of answers | A decision model that picks from the same lists and gives a probability for each |
+| Accuracy (27 test cases, RTX 4050) | Better: recall 0.45 to 0.59 | Lower: recall 0.33; good at the event type and outcome, leaves more values unmapped |
+| Time per draft | 1 to 2 s on a GPU; too slow on a CPU, so the laptop profile uses saved drafts | About 0.1 s on a GPU and 1 to 2 s on a CPU, so it drafts live on every profile |
+| Download | A few GB | Under 1 GB |
+
+Switch at any time by re-running `up` with the other value: `./veyra.sh up --drafter laya`. The
+numbers are in [`docs/plan/reports/C4.md`](docs/plan/reports/C4.md).
 
 On Windows, `.\veyra.ps1 -Via wsl` or `-Via toolbox` forces a route (see below).
 

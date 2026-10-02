@@ -1,0 +1,30 @@
+# A decision-model server (Ollaya) in a container, for `./veyra.sh up --drafter laya`.
+#
+# The drafter (C4) can ask a decision model multiple-choice questions instead of having an LLM
+# write JSON (VEYRA_LLM_BACKEND=decision). Ollaya serves such models the way Ollama serves LLMs.
+# veyra.sh adds this file in place of docker-compose.ollama.yml when Laya is chosen; this image
+# is the CPU build, and docker-compose.decision-gpu.yml swaps in the GPU one.
+#
+# Models are downloaded once into the volume and run offline after that (the air-gap holds).
+
+services:
+  ollaya:
+    image: ghcr.io/ollaya-dev/ollaya:0.9.0
+    container_name: veyra-ollaya
+    environment:
+      OLLAYA_KEEP_ALIVE: ${VEYRA_LLM_KEEP_ALIVE:-30m}
+      # Reached as ollaya:11435 on veyra_net only. No host port, like the Ollama overlay.
+      OLLAYA_HOST: 0.0.0.0:11435
+    volumes:
+      - ollaya_models:/home/ollaya/.ollaya
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "ollaya", "list"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+    networks: [veyra_net]
+
+volumes:
+  ollaya_models:

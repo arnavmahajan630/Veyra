@@ -22,7 +22,7 @@ and it ended with **Ready**. It covers:
 | 4 | Build | The Veyra Python image, the React console (in a Node 25 container), the edge configs, the evidence keys | 5–10 min | seconds (cached) |
 | 5 | Infrastructure | Kafka, ClickHouse, immudb, the two Vector edges, Caddy, the Kafka UI; waits until healthy; creates every topic | 2–4 min | < 1 min |
 | 6 | Wazuh (workstation) | Sets `vm.max_map_count`, makes certificates once, starts the indexer, manager and dashboard, initialises security once | 3–6 min | ~1 min |
-| 7 | AI model | Starts Ollama (GPU if found), downloads the profile's model, loads it | 2–10 min (download) | seconds |
+| 7 | AI drafter model | Starts the chosen model server (GPU if found), downloads its model, loads it. `--drafter ollama` (default): Ollama and the profile's LLM. `--drafter laya`: Ollaya and the Laya decision model. Stage 1 asks which on the first run | 2–10 min (download; under 2 min for Laya) | seconds |
 | 8 | Veyra services | Gateway, normalizer, control API, drift worker, lineage indexer, archiver, integrity, evidence API; waits until each answers | 1–2 min | < 1 min |
 | 9 | Smoke check | Every service answers; all topics exist; admin can sign in; a syslog probe comes out as OCSF tier 1 and reaches the Wazuh sink file | < 1 min | < 1 min |
 | 10 | Ready | Prints URLs and sign-ins | — | — |
@@ -30,7 +30,8 @@ and it ended with **Ready**. It covers:
 Script overrides the demo relies on (in `.env.runtime`, never in your `.env.local`):
 - `VEYRA_SEGMENT_MAX_SECONDS=20`, so evidence seals within the demo;
 - `VEYRA_DEMO_MODE=1`, which enables the demo user switch and last-key endpoint;
-- `VEYRA_OLLAMA_URL=http://ollama:11434`;
+- `VEYRA_OLLAMA_URL=http://ollama:11434`, with the `ollama` drafter;
+- `VEYRA_LLM_BACKEND=decision`, `VEYRA_DECISION_URL=http://ollaya:11435`, `VEYRA_DECISION_MODEL` and `VEYRA_LLM_MODE=live_then_cache`, with the `laya` drafter;
 - `VEYRA_LLM_MODE=cache`, only when no model is available.
 
 ---
@@ -74,7 +75,7 @@ demo: it says why and moves on.
 | Control plane: tenants, roles, sources, keys, audit | **Built** (C1) | 5 roles, tenant isolation, audit trail, live updates (SSE) | Console; http://localhost:8000/docs |
 | Contract registry and lifecycle | **Built** (C2) | Git-versioned contracts, lint, golden tests, four-eyes, backtest, diff, rollback | Beats 3–4; console Contracts page |
 | Drift detection and library packs | **Built** (C3) | Drain3 clustering of the DLQ; 5 library packs matched automatically | Beat 4; console Drift page |
-| AI drafter | **Built** (C4) | Token-reference drafting with provenance, type and backtest checks; modes live / cache / rules. On an RTX 4050, drafts take 2–6 s, but 3B–7B models get the T3 shape wrong (the checks catch it), so demos default to the rules drafter | `./veyra.sh demo --draft-mode live` |
+| AI drafter | **Built** (C4) | Token-reference drafting with provenance, type and backtest checks; modes live / cache / rules. Answers are limited to fixed lists, so a draft can't name a value or field that isn't offered. Two backends, chosen at `up`: an Ollama LLM (1–2 s a draft on an RTX 4050; llama3.2:3b drafts the T3 shape right, qwen2.5:3b doesn't) or the Laya decision model (about 0.1 s, less accurate on which field a value fills). The checks catch a wrong draft either way, and demos default to the rules drafter | `./veyra.sh demo --draft-mode live`; `./veyra.sh up --drafter laya` |
 | Web console | **Built on sample data** (C5, C6) | Overview, Sources, Onboard, Contracts, Drift, Delivery, Audit, English/Hindi. The pages use made-up data until the evidence side's lineage endpoints exist | http://localhost:8080 |
 | Evidence vault (archiver) | **Prototype** (B2) | Sealed, zstd-compressed, AES-256-GCM segments; hash chain; read-only files. No crash-recovery tests; doesn't publish `vault_index` yet | Beat 5 |
 | Integrity (Merkle + Ed25519) | **Prototype** (B3) | One signed root per minute, chained, in a ledger file. **Not in immudb yet** | Beat 5; `tools/ledger_audit.py` |
@@ -163,6 +164,6 @@ falling back to zero.
 - The console runs on sample data; live panels need B4's lineage routes.
 - The seeded firewall contract (`acme_ngfw_cef`) parses bare CEF. CEF that comes through the syslog edge carries a syslog header, so it lands as tier 3 until the contract gains a syslog envelope layer. The demo therefore sends CEF stamped as the edge would.
 - The seeded `linux_sshd@1` covers only some of the corpus's sshd shapes; the rest are tier 3 (an owner decision is pending on adopting the fuller library pack).
-- The AI drafter's small models are fast but not accurate enough to draft the demo's T3 shape unaided; checks and four-eyes catch it.
+- The AI drafter's small models still get drafts wrong: on the demo's T3 shape, llama3.2:3b is right, qwen2.5:3b (the laptop profile's model) and Laya are not. Checks and four-eyes catch it.
 - Evidence files on a Windows drive are slower. Clone inside WSL for load tests.
 - Everything else, and why: `docs/plan/00_MASTER.md` §7 (declared deviations) and `docs/plan/06_STATUS_BOARD.md`.
