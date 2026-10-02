@@ -372,6 +372,7 @@ To move a prepared machine's images to another machine, use `docker save` and `d
 | Cloning the contracts registry fails | Sign in to GitHub when git asks, or clone it yourself next to this folder, or set `VEYRA_CONTRACTS_URL` |
 | The load test refuses to start | The disk guard. Lower `--events` or `--pipeline`, free some disk, or pass `--force` |
 | A demo beat times out on a stack that has been up for days | `./veyra.sh reset` |
+| Beat 4 fails with "no events to replay", or lineage searches come back empty now and then | ClickHouse is at its memory cap (`./veyra.sh logs evidence-api` shows `MEMORY_LIMIT_EXCEEDED`). Give Docker more memory, raise `VEYRA_MEM_CLICKHOUSE` and `VEYRA_CH_MAX_MEMORY` in `.env.local` (the laptop profile uses `1g` and `800m`), and run `up` again. Seen with Docker at 7 GB |
 | Windows: "$'\r': command not found" | Run through `.\veyra.ps1`, which fixes line endings, rather than calling `veyra.sh` directly from a CRLF checkout |
 | Windows: the launcher picks the wrong route | Force it with `-Via wsl` or `-Via toolbox` |
 | Files under `data/` are owned by root | Something ran as root. `sudo chown -R "$USER" data`, then `up` again |
@@ -384,7 +385,7 @@ On one machine: Windows 11, Docker Desktop with 7 GB and 12 CPUs, an RTX 4050 la
 | | Result |
 |---|---|
 | `up` on the laptop profile, with `--drafter laya` and with `--drafter ollama` | 30 of 30 smoke checks each; switching between them removes the other model server |
-| `demo --auto` | the reset works (53 s). Beats 1 and 2 pass. **Beat 3 fails on the current code**: the demo engine registers its source with a transport name the control API rejects, and beats 4 and 5 depend on beat 3 |
+| `demo --auto` | all five beats, 17 of 17 checks; the reset before it takes 40 to 55 s |
 | `up --wazuh` on the laptop profile | passed on an earlier version of the script |
 | The drafter question | 13 cases through a pseudo-terminal |
 | The CPU-only Ollaya image | drafts; about 0.75 s for three questions |

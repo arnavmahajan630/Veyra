@@ -15,7 +15,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import Any
+from typing import Any, get_args
 
 import httpx
 import pytest
@@ -175,3 +175,30 @@ def test_no_open_drift_item_fails_rather_than_passing_quietly(cfg: Settings) -> 
     stub = StubControl([], drift=[])
     with pytest.raises(FlowError, match="no open drift item"):
         runner(cfg, stub).drift_approve_promote_replay()
+
+
+def test_a_missing_demo_source_is_registered_in_the_control_apis_own_words(
+    cfg: Settings, monkeypatch: Any
+) -> None:
+    """`POST /sources` takes the API's transport names (`http_push`), not the envelope's
+    (`http_hec_event`): the API answers 422 to the latter, which stopped the whole run."""
+    routes = pytest.importorskip("control_api.routes_sources")
+    stub = StubControl(analyze_to_draft(), drift=[])
+    posted: list[dict[str, Any]] = []
+    answer = stub.handle
+
+    def without_the_source(request: httpx.Request) -> httpx.Response:
+        key = f"{request.method} {request.url.path}"
+        if key == "GET /sources":
+            return httpx.Response(200, json=[])
+        if key == "POST /sources":
+            posted.append(json.loads(request.content))
+            return httpx.Response(201, json={"id": "src_authsrv_01"})
+        return answer(request)
+
+    monkeypatch.setattr(stub, "handle", without_the_source)
+    monkeypatch.setattr(AutoRunner, "_onboarding_samples", lambda self: [SAMPLE])
+    runner(cfg, stub).onboarding_flow()
+    assert len(posted) == 1
+    assert posted[0]["transport"] in get_args(routes.SourceTransport)
+    assert posted[0]["transport"] == "http_push"

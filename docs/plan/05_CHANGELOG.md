@@ -39,10 +39,11 @@ What:     Shared files changed: two new overlays, `compose/docker-compose.decisi
           smoke check keeps upstream's new entries plus the drafter-dependent model server.
 ACTION REQUIRED:
   - [ ] @A @B nothing to do unless you object to the two overlays.
-  - [ ] @B `./veyra.sh demo` fails at beat 3 on 43ed88b: `demo_engine/auto.py` posts
-        `"transport": "http_hec_event"` to `POST /sources`, and control-api answers 422. The
-        API takes `http_push` and publishes it as `http_hec_event` (02_CONTRACTS, IF-CONTROL).
-        Beats 4 and 5 depend on beat 3, so they fail too.
+  - [ ] @B a one-word change in your `demo_engine/auto.py`, made here: it registered the demo
+        source with `"transport": "http_hec_event"`, which `POST /sources` answers with 422, so
+        `./veyra.sh demo` stopped at beat 3. The API takes `http_push` and publishes it as
+        `http_hec_event` (02_CONTRACTS, IF-CONTROL). `test_auto.py` now covers the case where
+        the source does not exist yet. With it the guided demo passes 17 of 17.
   - [ ] @C beat 4 of `veyra.sh demo` times out on a stack that holds old events whose raw
         bytes have aged out of Kafka: the backtest waits `VEYRA_EVIDENCE_TIMEOUT_S` (5 s) per
         missing record (control-api `KafkaRawStore`). A fresh stack is not affected.
