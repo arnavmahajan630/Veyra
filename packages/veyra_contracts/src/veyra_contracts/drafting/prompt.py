@@ -16,6 +16,9 @@ Rules:
 - Pick one class and one activity from "allowed_classes".
 - If unsure about a mapping, leave it out. A missing mapping is fine; a wrong one is not.
 - Map each path at most once.
+- "user.name" is the user the event is about. Use "actor.user.name" only for someone acting
+  on another account, such as the caller of sudo.
+- A counter, a retry number or an id with no matching field is left out, never put on a port.
 Answer with JSON only: {"class", "activity", "confidence": "high|medium|low",
 "mappings": [{"ocsf_path", "token"} or {"ocsf_path", "const"}], "rationale"}."""
 

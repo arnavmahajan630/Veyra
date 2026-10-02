@@ -17,6 +17,32 @@ ACTION REQUIRED:
 
 ---
 
+## 2026-10-02 20:30 — C4 — CLARIFICATION + REQUEST  (contracts v1.5, no bump)
+TYPE: CLARIFICATION
+What:     The drafter's answers are now limited to fixed lists, and a decision model can draft.
+          (1) Ollama's `format` schema is built per request: only this request's token ids, each
+          with the fields its value could fill, and enum constants only on enum paths. The
+          IF-LLM-DRAFT response shape is unchanged. (2) A second backend, `DecisionClient`, drafts
+          through a decision-model server (Ollaya, `POST /api/decide`). It is off by default.
+          Measured on the laptop: qwen2.5:3b usable answers 85% → 100%, verify 63% → 81%;
+          llama3.2:3b verify 74% → 81% and T3 exact; `laya:en` 87 ms per draft, 100% usable, but
+          precision 0.44 / recall 0.33, so Ollama stays the default (reports/C4.md).
+Why:      The 2026-09-29 bench failures were answers outside the vocabulary, which a schema can
+          forbid; and drafting is multiple choice, which is what decision models are for.
+IDs:      IF-LLM-DRAFT (shape unchanged), IF-ENV (additive)
+Files patched: reports/C4.md, reports/C4-bench-laptop.md
+TYPE: REQUEST
+What:     Four additive settings in the shared `veyra_common/settings.py`, all with defaults that
+          keep today's behaviour: `VEYRA_LLM_BACKEND` (`ollama` | `decision`, default `ollama`),
+          `VEYRA_DECISION_URL`, `VEYRA_DECISION_MODEL`, `VEYRA_DECISION_MIN_PROBABILITY`. No
+          profile, compose or `veyra.sh` change.
+          Separately: this file still holds unresolved merge markers from f79a39b (below this
+          entry), and so does `compose/docker-compose.yml`, which does not parse with them.
+ACTION REQUIRED:
+  - [ ] @A @B nothing to do unless you object to the four settings.
+  - [ ] whoever merged f79a39b: resolve the conflict markers in `compose/docker-compose.yml`
+        and in this file on `main`.
+
 <<<<<<< HEAD
 ## 2026-09-30 17:40 — B6 + B7 — CONTRACT-ADDITIVE + CLARIFICATION  (contracts v1.5, no bump)
 TYPE: CONTRACT-ADDITIVE

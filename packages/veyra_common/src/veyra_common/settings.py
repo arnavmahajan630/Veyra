@@ -25,6 +25,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 Profile = Literal["laptop", "mac", "workstation"]
 KeyProviderName = Literal["local", "openbao"]
 LlmMode = Literal["live", "cache", "live_then_cache", "heuristic"]
+LlmBackend = Literal["ollama", "decision"]
 WazuhMode = Literal["local", "remote"]
 
 
@@ -184,6 +185,13 @@ class Settings(BaseSettings):
     llm_timeout_s: int = 25
     llm_mode: LlmMode = "live_then_cache"
     ollama_url: str = "http://host.docker.internal:11434"
+    # Which kind of model drafts (C4): "ollama" writes JSON under a schema; "decision" answers
+    # multiple-choice questions through a decision-model server (Ollaya's /api/decide).
+    llm_backend: LlmBackend = "ollama"
+    decision_url: str = "http://host.docker.internal:11435"
+    decision_model: str = "laya:en"
+    # A mapping is kept only when the model gives it at least this probability.
+    decision_min_probability: float = 0.5
     drift_min_cluster: int = 5
     sse_tick_ms: int = 1000
 

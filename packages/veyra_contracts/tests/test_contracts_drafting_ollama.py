@@ -136,6 +136,31 @@ def test_the_wrong_answers_the_bench_saw_do_not_fit(mapping: dict) -> None:
     assert not fits(GOOD | {"mappings": [mapping]})
 
 
+def test_the_schema_caps_the_mappings_so_a_model_cannot_loop() -> None:
+    assert schema()["properties"]["mappings"]["maxItems"] == 4 + 3  # T3's tokens + enum paths
+    assert not fits(GOOD | {"mappings": GOOD["mappings"] * 2})
+
+
+def test_a_mapping_repeated_word_for_word_is_kept_once() -> None:
+    repeated = GOOD | {"mappings": [*GOOD["mappings"], GOOD["mappings"][0], GOOD["mappings"][3]]}
+    seen: list[dict] = []
+    response, _ = client_answering(json.dumps(repeated), seen=seen).draft(prepared())
+    assert len(seen) == 1  # no retry needed
+    assert [m.ocsf_path for m in response.mappings] == [m["ocsf_path"] for m in GOOD["mappings"]]
+
+
+def test_one_path_from_two_different_tokens_is_still_a_conflict() -> None:
+    conflict = GOOD | {
+        "mappings": [
+            {"ocsf_path": "src_endpoint.ip", "token": "k6"},
+            {"ocsf_path": "src_endpoint.ip", "token": "k8"},
+        ]
+    }
+    seen: list[dict] = []
+    client_answering(json.dumps(conflict), json.dumps(GOOD), seen=seen).draft(prepared())
+    assert len(seen) == 2 and "mapped twice" in seen[1]["messages"][-1]["content"]
+
+
 def test_a_class_outside_the_catalogue_does_not_fit() -> None:
     assert not fits(GOOD | {"class": "dns_activity"})
     assert not fits(GOOD | {"extra": 1})

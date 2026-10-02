@@ -31,7 +31,7 @@ LOGOFF_WORDS = frozenset({"logout", "logoff", "closed", "disconnect", "disconnec
 NET_WORDS = frozenset({"traffic", "connection", "deny", "allow", "drop", "accept", "blocked"})
 
 
-def _context(tokens: list[Token], index: int) -> str:
+def context_word(tokens: list[Token], index: int) -> str:
     """The word that introduces token ``index``: its kv key, else the previous word."""
     token = tokens[index]
     if token.key:
@@ -55,7 +55,7 @@ def heuristic(prepared: Prepared) -> DraftResponse:
     for index, token in enumerate(tokens):
         if token.id not in prepared.variable:
             continue
-        context = _context(tokens, index)
+        context = context_word(tokens, index)
         if token.kind == "user":
             assign("user.name", token)
         elif token.kind in ("ip", "ipv6"):

@@ -69,7 +69,11 @@ def request_schema(tokens: Iterable[Token]) -> dict[str, Any]:
     of the fields its value could fill (``options.paths_for``), or an enum path with one of
     its constants. Single-value ``enum`` rather than ``const``, which every grammar-based
     constrainer understands.
+
+    ``maxItems`` is one mapping per token plus one per enum path. Without it a small model
+    can repeat a mapping until the timeout, since the grammar never makes it stop.
     """
+    tokens = list(tokens)
     branches = [
         _mapping(
             {"type": "string", "enum": list(paths_for(token))},
@@ -93,12 +97,29 @@ def request_schema(tokens: Iterable[Token]) -> dict[str, Any]:
             "class": {"type": "string", "enum": list(CLASSES)},
             "activity": {"type": "string", "enum": activities},
             "confidence": {"type": "string", "enum": list(get_args(Confidence))},
-            "mappings": {"type": "array", "items": {"anyOf": branches}},
+            "mappings": {
+                "type": "array",
+                "items": {"anyOf": branches},
+                "maxItems": len(tokens) + len(CONST_PATHS),
+            },
             "rationale": {"type": "string"},
         },
         "required": ["class", "activity", "confidence", "mappings", "rationale"],
         "additionalProperties": False,
     }
+
+
+def without_repeats(response: DraftResponse) -> DraftResponse:
+    """The response with a mapping that is said twice, word for word, kept once.
+
+    Repeating itself is how a constrained small model fills an array; it is not a conflict.
+    The same path with two *different* sources still is, and ``problems()`` reports it.
+    """
+    kept: list[Mapping] = []
+    for mapping in response.mappings:
+        if mapping not in kept:
+            kept.append(mapping)
+    return response.model_copy(update={"mappings": kept})
 
 
 def problems(response: DraftResponse, token_ids: set[str]) -> list[str]:

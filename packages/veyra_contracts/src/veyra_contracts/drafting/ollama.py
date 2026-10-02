@@ -21,7 +21,12 @@ from pydantic import ValidationError
 
 from veyra_contracts.drafting.prompt import messages
 from veyra_contracts.drafting.request import Prepared
-from veyra_contracts.drafting.schema import DraftResponse, problems, request_schema
+from veyra_contracts.drafting.schema import (
+    DraftResponse,
+    problems,
+    request_schema,
+    without_repeats,
+)
 
 TEMPERATURE = 0
 SEED = 7
@@ -73,7 +78,7 @@ class OllamaClient:
     @staticmethod
     def _parse(content: str, token_ids: set[str]) -> tuple[DraftResponse | None, str]:
         try:
-            parsed = DraftResponse.model_validate(json.loads(content))
+            parsed = without_repeats(DraftResponse.model_validate(json.loads(content)))
         except json.JSONDecodeError:
             return None, "the answer is not valid JSON"
         except ValidationError as exc:
