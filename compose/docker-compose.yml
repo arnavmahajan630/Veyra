@@ -246,7 +246,6 @@ services:
     # /flush and /reset for demo-engine and control-api; state in data/state/{drift,drain3}
     ports: ["8206:8206"]
 
-<<<<<<< HEAD
   demo-engine:
     <<: *py
     container_name: veyra-demo-engine
@@ -254,7 +253,22 @@ services:
     command: ["python", "-m", "demo_engine"]
     # Caddy proxies /api/demo/* here and Prometheus scrapes the same port (IF-PORTS).
     ports: ["8300:8300"]
-=======
+    environment:
+      VEYRA_KAFKA_BOOTSTRAP: kafka:9092
+      VEYRA_CLICKHOUSE_URL: http://clickhouse:8123
+      VEYRA_IMMUDB_HOST: immudb
+      VEYRA_DEMO_MODE: "1"
+    volumes:
+      - ../data:/app/data
+      # DEVIATION (00_MASTER §7, demo profile only): the reset restarts the stateful
+      # consumers through the Docker Engine API, so it needs the socket. Nothing else in
+      # VEYRA touches Docker, and this service exists only on a demo machine.
+      - /var/run/docker.sock:/var/run/docker.sock
+    # The demo engine drives the edge listeners and the gateway, so it starts after them.
+    depends_on:
+      kafka:
+        condition: service_healthy
+
   # Track B services. They share data/vault and data/keys (mode 0400 files), so every one of
   # them runs as the invoking user: the archiver writes the KEK, the others must read it.
   lineage-indexer:
@@ -302,24 +316,10 @@ services:
     profiles: ["scale"]
     command: ["python", "-m", "normalizer"]
     user: "${VEYRA_UID:-1000}:${VEYRA_GID:-1000}"
->>>>>>> caee8d7f20de9da536befcdb5ad4dfda026b86b9
     environment:
       VEYRA_KAFKA_BOOTSTRAP: kafka:9092
       VEYRA_CLICKHOUSE_URL: http://clickhouse:8123
       VEYRA_IMMUDB_HOST: immudb
-<<<<<<< HEAD
-      VEYRA_DEMO_MODE: "1"
-    volumes:
-      - ../data:/app/data
-      # DEVIATION (00_MASTER §7, demo profile only): the reset restarts the stateful
-      # consumers through the Docker Engine API, so it needs the socket. Nothing else in
-      # VEYRA touches Docker, and this service exists only on a demo machine.
-      - /var/run/docker.sock:/var/run/docker.sock
-    # The demo engine drives the edge listeners and the gateway, so it starts after them.
-    depends_on:
-      kafka:
-        condition: service_healthy
-=======
       USER: veyra
       VEYRA_INSTANCE: "2"
   normalizer-3:
@@ -378,7 +378,6 @@ services:
       - ../demo:/app/demo:ro
       - ../tools:/app/tools:ro
       - ../profiles:/app/profiles:ro
->>>>>>> caee8d7f20de9da536befcdb5ad4dfda026b86b9
 
 networks:
   veyra_net:

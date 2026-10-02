@@ -43,7 +43,6 @@ ACTION REQUIRED:
   - [ ] whoever merged f79a39b: resolve the conflict markers in `compose/docker-compose.yml`
         and in this file on `main`.
 
-<<<<<<< HEAD
 ## 2026-09-30 17:40 — B6 + B7 — CONTRACT-ADDITIVE + CLARIFICATION  (contracts v1.5, no bump)
 TYPE: CONTRACT-ADDITIVE
 What:     B6 and B7 are done (B7 with two live ACs deferred). Five additive interface changes and
@@ -138,7 +137,7 @@ ACTION REQUIRED:
         module (`services/ingest_gateway/tests` vs `services/control_api/tests`), and
         `tools/tamper.py` resolves under two module names. Neither is B6/B7 code; mypy is clean
         on the files this work touched. Worth fixing before CI is trusted.
-=======
+
 ## 2026-09-30 — S2 — DECISION + REQUEST @A @B  (contracts v1.5, no bump)
 TYPE: DECISION
 What:     One-command setup for reviewers and the workstation demo: `./veyra.sh` (Linux/WSL/macOS)
@@ -196,7 +195,6 @@ ACTION REQUIRED:
         `llm-cache-seed`.
   - [ ] @B B7's `demo-reset`/preflight should call `make llm-warm` if the demo ever uses `live*`: the
         first load after boot is longer than `LLM_TIMEOUT_S`.
->>>>>>> caee8d7f20de9da536befcdb5ad4dfda026b86b9
 
 ## 2026-09-29 16:30 — A5 — CLARIFICATION + REQUEST @B  (contracts v1.5, no bump)
 TYPE: CLARIFICATION
