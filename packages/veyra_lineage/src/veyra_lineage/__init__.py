@@ -1,6 +1,7 @@
-"""Placeholder package created in S0 so the workspace resolves.
+"""ClickHouse lineage index: schema and migrations, row builders, and the query library.
 
-Owner fills this in their own phase; see docs/plan for the phase files.
+Everything the APIs need to read the index lives in :mod:`veyra_lineage.queries`; handlers call
+those and never write SQL themselves.
 """
 
 __version__ = "0.1.0"

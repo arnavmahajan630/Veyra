@@ -123,6 +123,10 @@ services:
     image: timberio/vector:0.58.0-debian
     container_name: veyra-edge-dmz
     command: ["--config", "/etc/vector/vector-dmz.toml", "--watch-config"]
+    # The invoking user, so the demo reset can clear this edge's disk buffer: a buffer written
+    # as root survives the wipe and replays pre-reset events onto the fresh topics. The
+    # listeners are above 1024, so no privilege is needed for them.
+    user: "${VEYRA_UID:-1000}:${VEYRA_GID:-1000}"
     environment:
       VECTOR_LOG: warn
       VEYRA_MAX_EVENT_BYTES: ${VEYRA_MAX_EVENT_BYTES:-65536}
@@ -149,6 +153,10 @@ services:
     image: timberio/vector:0.58.0-debian
     container_name: veyra-edge-core
     command: ["--config", "/etc/vector/vector-core.toml", "--watch-config"]
+    # The invoking user, so the demo reset can clear this edge's disk buffer: a buffer written
+    # as root survives the wipe and replays pre-reset events onto the fresh topics. The
+    # listeners are above 1024, so no privilege is needed for them.
+    user: "${VEYRA_UID:-1000}:${VEYRA_GID:-1000}"
     environment:
       VECTOR_LOG: warn
       VEYRA_MAX_EVENT_BYTES: ${VEYRA_MAX_EVENT_BYTES:-65536}
@@ -232,7 +240,9 @@ services:
       - ../data:/app/data
       # The separate contracts repository sits beside Veyra/. Mounted at /contracts-repo so
       # the default VEYRA_CONTRACTS_REPO=../contracts-repo resolves the same from /app.
-      - ../../contracts-repo:/contracts-repo
+      # VEYRA_CONTRACTS_REPO_DIR (written by veyra.sh) moves it; compose paths are relative
+      # to compose/, hence the ../.. default.
+      - ${VEYRA_CONTRACTS_REPO_DIR:-../../contracts-repo}:/contracts-repo
       - ../edge/vector/inventory:/app/edge/vector/inventory
       - ../edge/vector/reload.stamp:/app/edge/vector/reload.stamp
 
@@ -246,7 +256,6 @@ services:
     # /flush and /reset for demo-engine and control-api; state in data/state/{drift,drain3}
     ports: ["8206:8206"]
 
-<<<<<<< HEAD
   demo-engine:
     <<: *py
     container_name: veyra-demo-engine
@@ -254,7 +263,26 @@ services:
     command: ["python", "-m", "demo_engine"]
     # Caddy proxies /api/demo/* here and Prometheus scrapes the same port (IF-PORTS).
     ports: ["8300:8300"]
-=======
+    # Writes and chmods data/vault segments on tamper/reset, so it runs as the invoking
+    # user; group_add gives it the docker group so reset can restart the consumers.
+    user: "${VEYRA_UID:-1000}:${VEYRA_GID:-1000}"
+    group_add: ["${VEYRA_DOCKER_GID:-999}"]
+    environment:
+      VEYRA_KAFKA_BOOTSTRAP: kafka:9092
+      VEYRA_CLICKHOUSE_URL: http://clickhouse:8123
+      VEYRA_IMMUDB_HOST: immudb
+      VEYRA_DEMO_MODE: "1"
+    volumes:
+      - ../data:/app/data
+      # DEVIATION (00_MASTER §7, demo profile only): the reset restarts the stateful
+      # consumers through the Docker Engine API, so it needs the socket. Nothing else in
+      # VEYRA touches Docker, and this service exists only on a demo machine.
+      - /var/run/docker.sock:/var/run/docker.sock
+    # The demo engine drives the edge listeners and the gateway, so it starts after them.
+    depends_on:
+      kafka:
+        condition: service_healthy
+
   # Track B services. They share data/vault and data/keys (mode 0400 files), so every one of
   # them runs as the invoking user: the archiver writes the KEK, the others must read it.
   lineage-indexer:
@@ -302,24 +330,10 @@ services:
     profiles: ["scale"]
     command: ["python", "-m", "normalizer"]
     user: "${VEYRA_UID:-1000}:${VEYRA_GID:-1000}"
->>>>>>> caee8d7f20de9da536befcdb5ad4dfda026b86b9
     environment:
       VEYRA_KAFKA_BOOTSTRAP: kafka:9092
       VEYRA_CLICKHOUSE_URL: http://clickhouse:8123
       VEYRA_IMMUDB_HOST: immudb
-<<<<<<< HEAD
-      VEYRA_DEMO_MODE: "1"
-    volumes:
-      - ../data:/app/data
-      # DEVIATION (00_MASTER §7, demo profile only): the reset restarts the stateful
-      # consumers through the Docker Engine API, so it needs the socket. Nothing else in
-      # VEYRA touches Docker, and this service exists only on a demo machine.
-      - /var/run/docker.sock:/var/run/docker.sock
-    # The demo engine drives the edge listeners and the gateway, so it starts after them.
-    depends_on:
-      kafka:
-        condition: service_healthy
-=======
       USER: veyra
       VEYRA_INSTANCE: "2"
   normalizer-3:
@@ -378,7 +392,6 @@ services:
       - ../demo:/app/demo:ro
       - ../tools:/app/tools:ro
       - ../profiles:/app/profiles:ro
->>>>>>> caee8d7f20de9da536befcdb5ad4dfda026b86b9
 
 networks:
   veyra_net:

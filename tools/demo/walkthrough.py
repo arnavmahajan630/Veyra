@@ -7,7 +7,10 @@ shows the evidence. A beat that fails reports why and the walkthrough carries on
     python tools/demo/walkthrough.py                 # pause between beats
     python tools/demo/walkthrough.py --auto          # no pauses
     python tools/demo/walkthrough.py --beat 5        # one beat
-    python tools/demo/walkthrough.py --draft-mode live   # let the AI draft (else: heuristic)
+
+Beats 3-5 (onboarding, drift and evidence) drive ``demo_engine.auto.AutoRunner`` directly,
+the same flows ``make demo-auto`` and CP4 use, instead of reimplementing the HTTP
+choreography here — so there is one assertion path, not two that can drift apart.
 """
 
 from __future__ import annotations
@@ -17,7 +20,6 @@ import contextlib
 import json
 import subprocess
 import sys
-import time
 import traceback
 from collections import Counter
 from collections.abc import Callable
@@ -29,6 +31,11 @@ REPO = TOOLS.parent
 sys.path.insert(0, str(TOOLS))
 
 import httpx  # noqa: E402
+from demo_engine.auto import AutoRunner, FlowError  # noqa: E402
+from demo_engine.expectations import Evaluator  # noqa: E402
+from demo_engine.scenario import load_scenario  # noqa: E402
+from demo_engine.senders import TrafficSender  # noqa: E402
+from demo_engine.stages import StageRunner  # noqa: E402
 from veyra_lib import (  # noqa: E402
     Results,
     bold,
@@ -51,6 +58,7 @@ CONTROL = "http://control-api:8000"
 GATEWAY = "http://ingest-gateway:8088"
 EVIDENCE = "http://evidence-api:8100"
 DRIFT = "http://drift-worker:8206"
+DEMO_ENGINE = "http://demo-engine:8300"
 CORPUS = REPO / "demo" / "corpus"
 AUTHSRV = "src_authsrv_01"
 PASSWORD = settings.demo_password
@@ -111,6 +119,28 @@ def step(results: Results, name: str, ok: bool, detail: str = "") -> bool:
     return results.check(name, ok, detail)
 
 
+def run_flow(results: Results, auto: AutoRunner, name: str, label: str) -> str | None:
+    """Drive one of the demo engine's api flows and report it exactly as ``demo-auto`` would.
+
+    This is the one assertion path: the same ``AutoRunner.run_flow`` that ``make demo-auto``
+    and CP4 use, so the walkthrough cannot drift from what the console's hotkeys exercise.
+    """
+    entry: dict[str, Any] = next((e for e in auto.scenario.auto_script if e.get("api") == name), {})
+    try:
+        detail = auto.run_flow(name)
+    except FlowError as exc:
+        step(results, label, False, str(exc)[:200])
+        return None
+    say(detail)
+    ok = step(results, label, True, detail[:160])
+    for clause in entry.get("expect") or []:
+        outcome = auto.evaluator.evaluate(clause)
+        passed = outcome.ok or not outcome.applicable
+        step(results, f"  expect: {outcome.label}", passed, outcome.detail[:160])
+        ok = ok and passed
+    return detail if ok else None
+
+
 # ---------------------------------------------------------------- beat 1
 def beat_ingest(results: Results) -> None:
     headline(
@@ -122,10 +152,11 @@ def beat_ingest(results: Results) -> None:
     try:
         say("Linux server -> core edge over syslog UDP:")
         run_tool(["demo/tools/send_syslog.py", "--file", "linux_sshd.log"])
-        # The seeded firewall contract parses bare CEF (no syslog layer), so its events are
-        # stamped exactly as the edge would and published straight to raw.acme_ngfw.
-        say("vendor firewall (CEF) -> raw.acme_ngfw, stamped as the DMZ edge would:")
-        run_tool(["demo/tools/fake_raw.py", "--file", "acme_ngfw_cef.log", "--eps", "0"])
+        # Over the real DMZ listener, syslog header and all. The seeded contract declares the
+        # syslog layer as `optional`, so the same contract covers both this and bare CEF from
+        # an HTTP push — which is why this no longer has to be published straight to Kafka.
+        say("vendor firewall (CEF) -> DMZ edge over syslog TCP:")
+        run_tool(["demo/tools/send_syslog.py", "--file", "acme_ngfw_cef.log"])
         say("waiting for the normalizer ...")
         found = collect(consumer, lambda t, p: True, timeout=25, want=10_000)
     finally:
@@ -196,51 +227,6 @@ def beat_messy(results: Results) -> None:
 
 
 # ---------------------------------------------------------------- beat 3
-def sse_events(response: httpx.Response) -> list[tuple[str, dict[str, Any]]]:
-    events, name = [], "message"
-    for line in response.iter_lines():
-        if line.startswith("event:"):
-            name = line[6:].strip()
-        elif line.startswith("data:"):
-            try:
-                events.append((name, json.loads(line[5:].strip())))
-            except ValueError:
-                events.append((name, {"raw": line[5:].strip()}))
-    return events
-
-
-def promote_version(results: Results, author: httpx.Client, contract_id: str, version: int) -> bool:
-    """Four-eyes: the author may not approve; approver@veyra approves and promotes."""
-    url = f"{CONTROL}/contracts/{contract_id}/versions/{version}"
-    own = author.post(f"{url}/approve")
-    step(
-        results,
-        f"author approving {contract_id}@{version} is refused (four-eyes)",
-        own.status_code == 403,
-        f"HTTP {own.status_code}",
-    )
-    approver = login("approver@veyra")
-    try:
-        approved = approver.post(f"{url}/approve")
-        step(
-            results,
-            f"approver@veyra approves {contract_id}@{version}",
-            approved.status_code == 200,
-            f"HTTP {approved.status_code}",
-        )
-        promoted = approver.post(f"{url}/promote")
-        ok = promoted.status_code == 200
-        step(
-            results,
-            f"{contract_id}@{version} promoted to active",
-            ok,
-            promoted.json().get("state", promoted.text[:80]) if ok else promoted.text[:120],
-        )
-    finally:
-        approver.close()
-    return ok
-
-
 def push(secret: str, events: list[str]) -> int:
     sent = 0
     with http(timeout=15) as client:
@@ -254,93 +240,38 @@ def push(secret: str, events: list[str]) -> int:
     return sent
 
 
-def beat_onboard(results: Results, draft_mode: str) -> None:
+def beat_onboard(results: Results, auto: AutoRunner) -> None:
     headline(
         3,
         "Onboard a new organisation's source",
         "plug-and-play onboarding with two-person approval, "
         "then push over HTTP with a per-source key",
     )
-    author = login("author@maha")
-    source = {
-        "id": AUTHSRV,
-        "tenant_id": "t_maha_power",
-        "name": "Auth Server",
-        "vendor": "custom",
-        "zone": "dmz",
-        "transport": "http_push",
-    }
-    created = author.post(f"{CONTROL}/sources", json=source)
-    exists = (
-        created.status_code == 409 or author.get(f"{CONTROL}/sources/{AUTHSRV}").status_code == 200
-    )
-    step(
-        results,
-        f"author@maha registers {AUTHSRV}",
-        created.status_code == 201 or exists,
-        f"HTTP {created.status_code}",
-    )
-
-    contract = author.get(f"{CONTROL}/contracts/authsrv")
-    if contract.status_code == 200 and any(
-        v.get("state") == "active" for v in contract.json().get("versions", [])
+    # The whole four-eyes choreography (register, paste samples, draft or match a library
+    # pack, switch user, approve, promote, issue a key) is one call into the same
+    # `AutoRunner.onboarding_flow` that `make demo-auto` and CP4 drive, so there is exactly
+    # one place that implements it.
+    if (
+        run_flow(
+            results,
+            auto,
+            "onboarding_flow",
+            "paste samples -> draft/library match -> four-eyes approve -> promote -> key issued",
+        )
+        is None
     ):
-        say(
-            dim(
-                "authsrv already has an active contract (a previous run); "
-                "skipping the onboarding draft"
-            )
-        )
-    else:
-        samples = (
-            corpus_events("authsrv_t1_ok.log")[:3] + corpus_events("authsrv_t2_session.log")[:3]
-        )
-        say(f"pasting {len(samples)} sample lines (T1 logins + T2 sessions) into onboarding ...")
-        with author.stream(
-            "POST",
-            f"{CONTROL}/onboarding/analyze",
-            json={"source_id": AUTHSRV, "samples": samples, "mode": draft_mode},
-            timeout=180,
-        ) as response:
-            events = sse_events(response)
-        names = [name for name, _ in events]
-        templates = next((d for n, d in events if n == "templates"), None)
-        say(f"analysis events: {', '.join(dict.fromkeys(names))}")
-        if isinstance(templates, (list, dict)):
-            count = len(
-                templates if isinstance(templates, list) else templates.get("templates", [])
-            )
-            say(f"{count} message shapes found")
-        done = next((d for n, d in events if n == "done"), {})
-        draft_id = done.get("draft_id")
-        if not step(
-            results,
-            "onboarding produced a draft contract",
-            bool(draft_id),
-            draft_id or json.dumps(done)[:120],
-        ):
-            return
-        draft = author.get(f"{CONTROL}/drafts/{draft_id}").json()
-        say(
-            f"draft state {draft.get('state')}; "
-            f"verification: {json.dumps(draft.get('verification'))[:160]}"
-        )
-        submitted = author.post(f"{CONTROL}/drafts/{draft_id}/submit")
-        if not step(
-            results,
-            "draft submitted as a new contract version",
-            submitted.status_code == 201,
-            submitted.text[:120] if submitted.status_code != 201 else "",
-        ):
-            return
-        version = submitted.json()
-        STATE["authsrv_v1"] = version["version"]
-        promote_version(results, author, version["contract_id"], version["version"])
+        return
 
-    card = author.post(f"{CONTROL}/sources/{AUTHSRV}/keys", json={})
+    author = login("author@maha")
+    try:
+        card = author.post(
+            f"{CONTROL}/sources/{AUTHSRV}/keys", json={"note": "walkthrough display traffic"}
+        )
+    finally:
+        author.close()
     if not step(
         results,
-        "API key issued for the source",
+        "a second key is issued to push and show live traffic",
         card.status_code == 201,
         card.text[:120] if card.status_code != 201 else card.json()["key_id"],
     ):
@@ -374,7 +305,7 @@ def beat_onboard(results: Results, draft_mode: str) -> None:
 
 
 # ---------------------------------------------------------------- beat 4
-def beat_drift(results: Results, draft_mode: str) -> None:
+def beat_drift(results: Results, auto: AutoRunner) -> None:
     headline(
         4,
         "A new log shape: drift -> draft -> approve -> replay",
@@ -405,85 +336,43 @@ def beat_drift(results: Results, draft_mode: str) -> None:
     )
 
     author = login("author@maha")
+    try:
 
-    def drift_item() -> dict[str, Any] | None:
-        with contextlib.suppress(httpx.HTTPError):  # flush just speeds the worker up
-            http(timeout=5).post(f"{DRIFT}/flush")
-        items = author.get(f"{CONTROL}/drift", params={"source_id": AUTHSRV}).json()
-        return next(
-            (i for i in items if i.get("state") in ("open", "draft_ready", "drafting")), None
-        )
+        def drift_item() -> dict[str, Any] | None:
+            with contextlib.suppress(httpx.HTTPError):  # flush just speeds the worker up
+                http(timeout=5).post(f"{DRIFT}/flush")
+            items = author.get(f"{CONTROL}/drift", params={"source_id": AUTHSRV}).json()
+            return next(
+                (i for i in items if i.get("state") in ("open", "draft_ready", "drafting")), None
+            )
 
-    item = wait_until(drift_item, timeout=60, interval=2, label="waiting for the drift worker")
-    if not step(
-        results,
-        "drift item raised for the new shape",
-        bool(item),
-        f"count {item.get('count')}: {item.get('drain_template', '')[:70]}"
-        if item
-        else "none within 60 s",
-    ):
-        return
-    started = author.post(f"{CONTROL}/drift/{item['drift_id']}/draft", json={"mode": draft_mode})
-    draft_id = started.json().get("draft_id") if started.status_code == 202 else None
-    if not step(
-        results,
-        f"draft started ({draft_mode})",
-        bool(draft_id),
-        draft_id or started.text[:120],
-    ):
-        return
-    draft = wait_until(
-        lambda: (
-            (d := author.get(f"{CONTROL}/drafts/{draft_id}").json()).get("state")
-            in ("ready", "failed")
-            and d
-        ),
-        timeout=120,
-        interval=2,
-        label="drafting",
-    )
-    if not step(
-        results,
-        "draft ready",
-        bool(draft) and draft.get("state") == "ready",
-        (draft or {}).get("detail", "")[:120],
-    ):
-        return
-    verification = draft.get("verification") or {}
-    say(f"verification: {json.dumps(verification)[:200]}")
-    submitted = author.post(f"{CONTROL}/drafts/{draft_id}/submit")
-    if not step(
-        results,
-        "draft submitted as the next contract version",
-        submitted.status_code == 201,
-        submitted.text[:160] if submitted.status_code != 201 else "",
-    ):
-        return
-    version = submitted.json()
-    if not promote_version(results, author, version["contract_id"], version["version"]):
-        return
+        item = wait_until(drift_item, timeout=60, interval=2, label="waiting for the drift worker")
+        if not step(
+            results,
+            "drift item raised for the new shape",
+            bool(item),
+            f"count {item.get('count')}: {item.get('drain_template', '')[:70]}"
+            if item
+            else "none within 60 s",
+        ):
+            return
+    finally:
+        author.close()
 
-    say(
-        "replaying the 8 stored T3 events as revision 2 "
-        "(tools/mock_replay.py; the REST replay needs B4's lineage routes)"
-    )
+    # Draft, four-eyes approve, promote and replay are one call into the same
+    # `AutoRunner.drift_approve_promote_replay` that `make demo-auto` and CP4 drive.
     consumer = tail_consumer(("norm.",))
     try:
-        time.sleep(2)  # let the normalizer pick up the promoted version from `control`
-        run_tool(
-            [
-                "tools/mock_replay.py",
-                "--source",
-                AUTHSRV,
-                "--contains",
-                "FAILED",
-                "--limit",
-                "8",
-                "--revision",
-                "2",
-            ]
-        )
+        if (
+            run_flow(
+                results,
+                auto,
+                "drift_approve_promote_replay",
+                "draft the drifted shape -> four-eyes approve -> promote -> replay the T3 events",
+            )
+            is None
+        ):
+            return
         found = collect(
             consumer, lambda t, p: (p.get("ulpf") or {}).get("revision") == 2, timeout=40, want=8
         )
@@ -509,51 +398,27 @@ def show_report(report: dict[str, Any]) -> None:
         say(f"  {mark} {s['id']:<18} {dim(s.get('detail', '')[:70])}")
 
 
-def beat_evidence(results: Results) -> None:
+def beat_evidence(results: Results, auto: AutoRunner) -> None:
     headline(
         5,
         "Evidence: verify, tamper, detect",
         "stored bytes are provably untouched, and an insider's edit is caught and located",
     )
-    uids = STATE.get("sshd_uids") or []
-    if not uids:
-        consumer = tail_consumer(("raw.",))
-        try:
-            run_tool(["demo/tools/send_syslog.py", "--file", "linux_sshd.log"], show=False)
-            found = collect(
-                consumer, lambda t, p: p.get("source_id") == "src_lnx_core_07", timeout=20, want=1
-            )
-        finally:
-            consumer.close()
-        uids = [p["event_uid"] for _, p in found]
-    if not step(results, "picked an archived sshd event", bool(uids)):
-        return
-    uid = uids[0]
-    say(f"event {uid}")
-    window = settings.merkle_window_seconds
-    report = wait_until(
-        lambda: (r := verify(uid)).get("verified") and r,
-        timeout=settings.segment_max_seconds + 2 * window + 30,
-        interval=3,
-        label="waiting for the segment seal and the signed window root",
-    )
-    if not step(results, "verify passes (immudb step not implemented yet)", bool(report)):
-        show_report(verify(uid))
-        return
-    show_report(report)
-
-    say(bold("an insider with root and the encryption key rewrites the stored bytes ..."))
-    run_tool(["tools/tamper.py", "insider_rewrite", "--event", uid])
-    broken = verify(uid)
-    failed = [s["id"] for s in broken.get("steps", []) if not s["ok"] and not s.get("status")]
-    step(
+    say(bold(f"picking the newest sealed, signed event matching {auto.scenario.tamper_query!r}"))
+    # Pick, verify, tamper as an insider, verify red, untamper, verify green: one call into
+    # the same `AutoRunner.verify_then_tamper_then_verify` that `make demo-auto` and CP4
+    # drive, so Beat 5 cannot silently diverge from what the console's Shift+T exercises.
+    detail = run_flow(
         results,
-        "verify turns red and locates the break",
-        not broken.get("verified") and bool(failed),
-        ", ".join(failed),
+        auto,
+        "verify_then_tamper_then_verify",
+        "verify green -> insider tamper -> verify red, located -> untamper -> verify green",
     )
-    run_tool(["tools/tamper.py", "untamper", "--event", uid], show=False)
-    step(results, "after untamper, verify is green again", bool(verify(uid).get("verified")))
+    if detail is None:
+        return
+    uid = detail.split(":", 1)[0]
+    say(f"event {uid}")
+    show_report(verify(uid))
     audit = run_tool(["tools/ledger_audit.py"])
     step(results, "ledger audit: every signed root and link checks out", audit.returncode == 0)
 
@@ -575,11 +440,6 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--auto", action="store_true", help="no pauses between beats")
     parser.add_argument("--beat", type=int, action="append", choices=sorted(BEATS))
     parser.add_argument(
-        "--draft-mode",
-        default="heuristic",
-        choices=["heuristic", "cache", "live", "live_then_cache"],
-    )
-    parser.add_argument(
         "--no-reset",
         action="store_true",
         help="keep the control plane as is (default: reset it to the seeded demo world first)",
@@ -589,28 +449,67 @@ def main(argv: list[str] | None = None) -> int:
     if not args.no_reset and ({3, 4} & set(beats)):
         # Beats 3-4 onboard src_authsrv_01 and promote its contract; start from the seed world
         # so a second run behaves exactly like the first.
-        reset = http(timeout=120).post(f"{CONTROL}/internal/reset", json={"scenario": "sih_main"})
-        print(dim(f"  control plane reset to the seeded demo world (HTTP {reset.status_code})"))
+        # The demo engine's reset is the whole world (control plane, Kafka, ClickHouse, the
+        # vault, the sinks, the drift state) and it pauses its own baseline traffic first. Fall
+        # back to the control-plane-only reset when the engine is not running.
+        try:
+            started = http(timeout=15).post(f"{DEMO_ENGINE}/reset")
+            started.raise_for_status()
+            status = (
+                wait_until(
+                    lambda: (
+                        (st := http(timeout=15).get(f"{DEMO_ENGINE}/reset/status").json())
+                        and not st.get("running")
+                        and st
+                    ),
+                    timeout=300,
+                    interval=2,
+                    label="resetting",
+                )
+                or {}
+            )
+            print(
+                dim(
+                    f"  reset to the seeded demo world in {status.get('seconds')}s "
+                    f"(ok={status.get('ok')})"
+                )
+            )
+        except Exception as exc:
+            print(dim(f"  demo engine unavailable ({type(exc).__name__}); control plane only"))
+            reset = http(timeout=120).post(
+                f"{CONTROL}/internal/reset", json={"scenario": "sih_main"}
+            )
+            print(dim(f"  control plane reset (HTTP {reset.status_code})"))
 
-    print(
-        bold("\nVeyra guided demo")
-        + dim(f"  (profile {settings.profile}, drafts: {args.draft_mode})")
-    )
+    print(bold("\nVeyra guided demo") + dim(f"  (profile {settings.profile})"))
     print(
         dim(
             "  Open the console at http://localhost:8080 and the Kafka UI at "
             "http://localhost:8085 to watch along."
         )
     )
+
+    # Beats 3-5 drive the same AutoRunner flows `make demo-auto` and CP4 use (B7), so there
+    # is exactly one place that implements onboarding/drift/evidence instead of two.
+    scenario = load_scenario(name=settings.demo_scenario, cfg=settings)
+    sender = TrafficSender(settings)
+    evaluator = Evaluator(settings)
+    stage_runner = StageRunner(scenario, sender, settings, evaluator)
+    auto_runner = AutoRunner(scenario, stage_runner, settings, evaluator)
+
     results = Results()
-    for n in beats:
-        try:
-            fn = BEATS[n]
-            fn(results, args.draft_mode) if n in (3, 4) else fn(results)
-        except Exception as exc:
-            results.report("FAIL", f"beat {n} crashed: {type(exc).__name__}: {exc}")
-            traceback.print_exc(limit=2)
-        pause(args.auto)
+    try:
+        for n in beats:
+            try:
+                fn = BEATS[n]
+                fn(results, auto_runner) if n in (3, 4, 5) else fn(results)
+            except Exception as exc:
+                results.report("FAIL", f"beat {n} crashed: {type(exc).__name__}: {exc}")
+                traceback.print_exc(limit=2)
+            pause(args.auto)
+    finally:
+        sender.close()
+        evaluator.close()
 
     print(bold("\nWhat you just saw vs. what is not built yet"))
     say(
@@ -621,8 +520,12 @@ def main(argv: list[str] | None = None) -> int:
         "            promotion, replay as revision 2, sealed evidence with verify, "
         "tamper detection, ledger audit"
     )
-    say(yellow("not built:  the demo engine, the console's Lineage/Evidence pages,"))
-    say(yellow("            and the immudb step of verify"))
+    say(
+        "also built:  the demo engine (/demo, Shift+1..6) and the console's Lineage and "
+        "Evidence pages — open http://localhost:8080/demo and /evidence to drive them"
+    )
+    say(yellow("declared:   verify's 8th step (immudb anchoring) is not implemented in this"))
+    say(yellow("            build; it reports `not_implemented` and 7 steps decide the verdict"))
     return results.summary()
 
 

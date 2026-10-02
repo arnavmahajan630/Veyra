@@ -394,7 +394,8 @@ def test_reset_reports_a_failed_step_instead_of_claiming_success(
     monkeypatch.setattr(reset, "_clickhouse", boom)
     monkeypatch.setattr(reset, "_immudb", lambda: "db")
     monkeypatch.setattr(reset, "_wazuh", lambda: "wazuh")
-    monkeypatch.setattr(reset, "_restart_consumers", lambda: "restarted")
+    monkeypatch.setattr(reset, "_stop_consumers", lambda: "stopped")
+    monkeypatch.setattr(reset, "_start_consumers", lambda: "started")
     monkeypatch.setattr(reset, "_resume_and_warm", lambda: "warm")
 
     result = reset.execute_reset()
@@ -406,29 +407,45 @@ def test_reset_reports_a_failed_step_instead_of_claiming_success(
     assert [step["name"] for step in result["steps"]][-1].startswith("Resume baseline")
 
 
+RESET_ORDER = (
+    "_stop_consumers",
+    "_control_plane",
+    "_kafka_topics",
+    "_clickhouse",
+    "_vault",
+    "_immudb",
+    "_wazuh",
+    "_start_consumers",
+    "_resume_and_warm",
+)
+
+
 def test_reset_runs_its_steps_in_the_documented_order(cfg: Settings, monkeypatch: Any) -> None:
     order: list[str] = []
     reset = ResetOrchestrator(None, cfg)
-    for name in (
-        "_control_plane",
-        "_kafka_topics",
-        "_clickhouse",
-        "_immudb",
-        "_wazuh",
-        "_restart_consumers",
-        "_resume_and_warm",
-    ):
+    for name in RESET_ORDER:
         monkeypatch.setattr(reset, name, (lambda n: lambda: (order.append(n), n)[1])(name))
     reset.execute_reset()
-    assert order == [
-        "_control_plane",
-        "_kafka_topics",
-        "_clickhouse",
-        "_immudb",
-        "_wazuh",
-        "_restart_consumers",
-        "_resume_and_warm",
-    ]
+    assert order == list(RESET_ORDER)
+
+
+def test_nothing_is_wiped_while_a_consumer_is_still_running(
+    cfg: Settings, monkeypatch: Any
+) -> None:
+    """SIGTERM makes the archiver seal and the indexer flush.
+
+    If a store is wiped while they are up, those final writes land in the fresh vault and
+    index, and the next run starts with the previous run's rows.
+    """
+    order: list[str] = []
+    reset = ResetOrchestrator(None, cfg)
+    for name in RESET_ORDER:
+        monkeypatch.setattr(reset, name, (lambda n: lambda: (order.append(n), n)[1])(name))
+    reset.execute_reset()
+    stopped = order.index("_stop_consumers")
+    started = order.index("_start_consumers")
+    for wipe in ("_kafka_topics", "_clickhouse", "_vault"):
+        assert stopped < order.index(wipe) < started, f"{wipe} ran outside the stopped window"
 
 
 def test_the_vault_wipe_keeps_the_signing_keys(cfg: Settings) -> None:
@@ -551,3 +568,215 @@ def test_a_broken_scenario_fails_at_startup(tmp_path: Path, cfg: Settings) -> No
     broken = write_scenario(tmp_path, {"scenario": "broken", "stages": {9: {"title": "nope"}}})
     with pytest.raises(ScenarioValidationError):
         create_app(broken, cfg=cfg, start_baseline=False)
+
+
+def test_the_wipe_clears_the_tamper_backups_where_the_lab_actually_puts_them(
+    cfg: Settings,
+) -> None:
+    """`tools/tamper.py` backs up to data/tamper_backup, not data/vault/tamper_backup.
+
+    A manifest that survives the wipe makes `/tamper/active` list ghost tampers, and a later
+    `untamper` copies the previous run's segments back into the fresh vault.
+    """
+    backups = Path(cfg.data_dir) / "tamper_backup"
+    backups.mkdir(parents=True)
+    (backups / "manifest.json").write_text("{}", encoding="utf-8")
+    Path(cfg.vault_dir).mkdir(parents=True, exist_ok=True)
+
+    ResetOrchestrator(None, cfg)._vault()
+
+    assert not backups.exists()
+
+
+def test_the_wipe_clears_the_edge_disk_buffers(cfg: Settings) -> None:
+    """Vector's buffers outlive a restart, so an unclear buffer replays pre-reset events."""
+    buffer_dir = Path(cfg.data_dir) / "vector" / "core" / "buffer"
+    buffer_dir.mkdir(parents=True)
+    (buffer_dir / "00000.dat").write_bytes(b"queued")
+    Path(cfg.vault_dir).mkdir(parents=True, exist_ok=True)
+
+    detail = ResetOrchestrator(None, cfg)._vault()
+
+    assert not buffer_dir.exists()
+    assert (Path(cfg.data_dir) / "vector" / "core").is_dir()
+    assert "not cleared" not in detail
+
+
+def test_a_buffer_it_cannot_clear_is_reported_not_swallowed(
+    cfg: Settings, monkeypatch: Any
+) -> None:
+    """A buffer written by a root-owned Vector is not ours to delete; say so.
+
+    Failing the whole wipe for it would make every reset red; deleting nothing and saying
+    nothing would hide a buffer that replays pre-reset events onto the fresh topics.
+    """
+    (Path(cfg.data_dir) / "vector" / "core").mkdir(parents=True)
+    Path(cfg.vault_dir).mkdir(parents=True, exist_ok=True)
+
+    def refuse(path: Any) -> None:
+        raise PermissionError(13, "Permission denied")
+
+    monkeypatch.setattr("demo_engine.reset.shutil.rmtree", refuse)
+
+    detail = ResetOrchestrator(None, cfg)._vault()
+
+    assert "not cleared" in detail and "vector/core" in detail
+
+
+def test_a_beats_sends_run_together_not_one_after_another() -> None:
+    """Beat 3's six sends describe traffic arriving at once.
+
+    Serially they cost the sum of their `over_s` (about 115 s against a 45 s budget) and the
+    brute-force burst lands a minute late.
+    """
+    from demo_engine.stages import _send_groups
+
+    actions: list[dict[str, Any]] = [
+        {"send": {"corpus": "a"}},
+        {"send": {"corpus": "b"}},
+        {"drift_flush": {}},
+        {"send": {"corpus": "c"}},
+    ]
+    groups = _send_groups(actions)
+    assert [len(g) for g in groups] == [2, 1, 1]
+    assert [next(iter(g[0][1])) for g in groups] == ["send", "drift_flush", "send"]
+
+
+def test_an_observing_action_still_sees_everything_before_it() -> None:
+    """`drift_flush` and `resend_if_no_drift` must not overlap the sends they are judging."""
+    from demo_engine.stages import _send_groups
+
+    actions: list[dict[str, Any]] = [
+        {"send": {"corpus": "a"}},
+        {"resend_if_no_drift": {"after_s": 1}},
+    ]
+    assert [len(g) for g in _send_groups(actions)] == [1, 1]
+
+
+def test_each_action_gets_its_own_seeded_rng_so_bytes_do_not_depend_on_thread_order(
+    cfg: Settings, sender: TrafficSender, tmp_path: Path
+) -> None:
+    scenario = load_scenario(path=write_scenario(tmp_path, base_scenario()))
+    runner = StageRunner(scenario, sender, cfg, Evaluator(cfg))
+    first = [runner._rng(3, position).random() for position in range(4)]
+    second = [runner._rng(3, position).random() for position in range(4)]
+    assert first == second
+    assert len(set(first)) == 4, "two actions share a stream, so order would change the bytes"
+
+
+def test_a_stage_that_needs_a_push_key_fails_the_request_not_only_the_status(
+    tmp_path: Path, cfg: Settings, sender: TrafficSender, monkeypatch: Any
+) -> None:
+    """The key was resolved inside the worker thread, so the route answered ok with no key."""
+    from demo_engine.stages import NoLiveKey
+
+    document = base_scenario()
+    document["stages"][3] = {
+        "title": "push",
+        "actions": [{"send": {"via": "http_hec_event", "key": "live", "corpus": "linux_sshd.log"}}],
+    }
+    document["auto"] = [{"at": 0, "stage": 3}]
+    scenario = load_scenario(path=write_scenario(tmp_path, document))
+    runner = StageRunner(scenario, sender, cfg, Evaluator(cfg))
+
+    def no_key() -> str:
+        raise NoLiveKey("no API key has been issued since the last reset")
+
+    monkeypatch.setattr(runner, "live_key", no_key)
+    with pytest.raises(NoLiveKey):
+        runner.run_stage(3)
+    assert runner.get_status()["state"] != "running"
+
+
+def test_a_refused_tamper_is_a_409_with_its_reason_not_a_500(cfg: Settings) -> None:
+    """`tools/tamper.py` raises TamperError, which the route did not catch."""
+    from demo_engine.tamper import TamperBridge, TamperUnavailable
+
+    from tools import tamper as tamper_lib
+
+    bridge = TamperBridge()
+
+    class RefusingLib:
+        MODES = tamper_lib.MODES
+        TamperError = tamper_lib.TamperError
+
+        @staticmethod
+        def tamper(_lab: Any, _mode: str, _uid: str) -> dict[str, Any]:
+            raise tamper_lib.TamperError("not covered by a signed root yet")
+
+    bridge._lib = staticmethod(lambda: RefusingLib)  # type: ignore[method-assign]
+    bridge._lab = object()
+    with pytest.raises(TamperUnavailable, match="signed root"):
+        bridge.tamper("insider_rewrite", "00000000-0000-7000-8000-000000000001")
+
+
+def test_every_api_step_in_the_real_scenario_says_what_it_must_achieve() -> None:
+    """An `api:` flow that merely does not raise is not a beat that worked.
+
+    `onboarding_flow` used to "pass" with a 403 on the key issue, and
+    `drift_approve_promote_replay` with 0 events replayed, because the only signal was whether
+    the flow raised.
+    """
+    scenario = load_scenario(scenario_path("sih_main"), env=ENV)
+    api_steps = [step for step in scenario.auto_script if "api" in step]
+    assert api_steps, "the scenario drives no api flows"
+    for step in api_steps:
+        assert step.get("expect"), f"api step {step['api']} asserts nothing"
+
+
+def test_the_replay_beat_asserts_revision_two_and_the_retroactive_alert() -> None:
+    scenario = load_scenario(scenario_path("sih_main"), env=ENV)
+    step = next(s for s in scenario.auto_script if s.get("api") == "drift_approve_promote_replay")
+    clauses = step["expect"]
+    revision = next(c for c in clauses if "clickhouse" in c)
+    assert "revision=2" in revision["clickhouse"] and revision["gte"] == 8
+    rules = {c["wazuh_rule"] for c in clauses if "wazuh_rule" in c}
+    assert {100130, 100111} <= rules, "the corrected revision and the brute force must both fire"
+
+
+def test_an_api_steps_expectations_decide_whether_it_passed(
+    tmp_path: Path, cfg: Settings, sender: TrafficSender, monkeypatch: Any
+) -> None:
+    from demo_engine.auto import AutoRunner
+
+    document = base_scenario()
+    document["auto"] = [{"at": 0, "api": "onboarding_flow", "expect": [{"drift_open_for": "x"}]}]
+    scenario = load_scenario(path=write_scenario(tmp_path, document))
+    evaluator = Evaluator(cfg)
+    monkeypatch.setattr(evaluator, "drift_open", lambda source_id: (False, "no drift"))
+    runner = AutoRunner(scenario, StageRunner(scenario, sender, cfg, evaluator), cfg, evaluator)
+    monkeypatch.setattr(runner, "run_flow", lambda name: "the flow returned fine")
+
+    report = runner.run_once()
+
+    assert report.ok is False, "a flow that returned but proved nothing must not pass"
+    step = report.steps[0]
+    assert step.detail == "the flow returned fine"
+    assert [o.ok for o in step.outcomes] == [False]
+
+
+def test_a_wazuh_clause_on_a_profile_without_wazuh_is_reported_not_failed(
+    tmp_path: Path,
+) -> None:
+    """The laptop profile runs no Wazuh, so there is no alert to find.
+
+    Failing the beat for that would mean the demo can never pass on the profile it ships with;
+    silently passing it would claim a detection nobody checked. It is reported as inapplicable
+    and counted as neither.
+    """
+    cfg = Settings(_env_file=None, data_dir=tmp_path, metrics_port=0, wazuh_mode="remote")
+    outcome = Evaluator(cfg).evaluate({"wazuh_rule": 100111, "src_ip": "103.21.4.77"})
+    assert outcome.applicable is False
+    assert outcome.ok is False
+    assert "no Wazuh" in outcome.detail
+
+
+def test_a_clause_that_could_be_checked_and_failed_is_still_a_failure(
+    tmp_path: Path, monkeypatch: Any
+) -> None:
+    cfg = Settings(_env_file=None, data_dir=tmp_path, metrics_port=0, wazuh_mode="local")
+    evaluator = Evaluator(cfg)
+    monkeypatch.setattr(evaluator, "wazuh_alert", lambda rule, ip: (False, "0 alerts"))
+    outcome = evaluator.evaluate({"wazuh_rule": 100111, "within_s": 0.1})
+    assert outcome.applicable is True
+    assert outcome.ok is False

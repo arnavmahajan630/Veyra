@@ -1,6 +1,6 @@
 """Seed ClickHouse with a synthetic lineage dataset (B1 task 4).
 
-    python tools/seed_ch.py                       # 1M events into VEYRA_CLICKHOUSE_DB
+    python tools/seed_ch.py                       # 1M events into <VEYRA_CLICKHOUSE_DB>_synthetic
     python tools/seed_ch.py --db veyra_bench --rows 1000000 --reset
     python tools/seed_ch.py --rows 20000 --hours 1   # small, for UI work
 
@@ -308,7 +308,16 @@ def main() -> int:
     parser = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawTextHelpFormatter
     )
-    parser.add_argument("--db", default=settings.clickhouse_db)
+    parser.add_argument(
+        "--db",
+        default=f"{settings.clickhouse_db}_synthetic",
+        help="target database (default: a _synthetic sibling, never the live one)",
+    )
+    parser.add_argument(
+        "--i-mean-the-live-database",
+        action="store_true",
+        help=f"allow --db {settings.clickhouse_db}, the database the stack reads",
+    )
     parser.add_argument("--rows", type=int, default=1_000_000)
     parser.add_argument("--hours", type=float, default=24.0)
     parser.add_argument("--seed", type=int, default=7)
@@ -316,6 +325,16 @@ def main() -> int:
     args = parser.parse_args()
     if not args.db.replace("_", "").isalnum():
         raise SystemExit(f"bad database name: {args.db}")
+    # These rows include window roots with immudb_verified = true. Written into the live
+    # database they make the console claim evidence is anchored in immudb, which this build
+    # does not do — a synthetic number presented as a cryptographic fact.
+    if args.db == settings.clickhouse_db and not args.i_mean_the_live_database:
+        raise SystemExit(
+            f"{args.db} is the database the stack reads, and these rows are synthetic "
+            "(including immudb-verified roots, which this build never produces).\n"
+            f"Seed a scratch database instead: --db {settings.clickhouse_db}_synthetic, "
+            "or pass --i-mean-the-live-database."
+        )
     print(f"seeding {args.rows:,} events over {args.hours} h into {args.db}")
     started = time.monotonic()
     counts = seed(args.db, args.rows, args.hours, args.seed, reset=args.reset)

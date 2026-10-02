@@ -43,10 +43,10 @@ straight through, or `--beat N` to repeat one beat.
 
 | Beat | What it does | What it proves | Problem-statement point |
 |---|---|---|---|
-| **1. Ingest over syslog** | Sends the Linux sshd corpus over real syslog (UDP to the core edge). Sends the vendor firewall's CEF events stamped exactly as the DMZ edge would, straight onto `raw.acme_ngfw` (see Known limits). Shows the normalized counts by source and tier, and one sshd event with its contract, Kafka coordinates and byte offsets. Sshd shapes the seeded contract doesn't cover yet arrive as tier 3 | Devices send ordinary syslog; each line is stamped (id, time, SHA-256) before parsing, queued, and translated to OCSF at tier 1 | Core normalization |
+| **1. Ingest over syslog** | Sends the Linux sshd corpus over real syslog (UDP to the core edge) and the vendor firewall's CEF over real syslog TCP to the DMZ edge, header and all — the seeded contract declares its syslog layer `optional`, so the same contract parses it framed or bare. Shows the normalized counts by source and tier, and one sshd event with its contract, Kafka coordinates and byte offsets. Sshd shapes the seeded contract doesn't cover yet arrive as tier 3 | Devices send ordinary syslog; each line is stamped (id, time, SHA-256) before parsing, queued, and translated to OCSF at tier 1 | Core normalization |
 | **2. Messy and garbage logs** | Sends the OT historian (Hindi field names, no registered source) and binary garbage | Nothing is dropped. The unknown shape is **tier 3**, with IPs and users pulled out and their byte offsets, plus a category hint that never overrides the real class. Garbage is **tier 4** and still delivered | Core normalization; P2 "never drop" |
 | **3. Onboard a new source** | As `author@maha`: registers `src_authsrv_01`, pastes T1/T2 samples into onboarding, gets a draft contract, submits it. The author's own approval is **refused (HTTP 403)**; `approver@veyra` approves and promotes. Then issues a per-source API key and pushes T1/T2 over the HEC endpoint | Plug-and-play onboarding with four-eyes; push ingest with revocable per-source keys; the new contract is live on the normalizer within seconds | (e) plug-and-play onboarding |
-| **4. Drift → draft → replay** | Pushes 8 T3 "FAILED login" events (multi-line, with stack traces). They arrive as **tier 3**, so a brute-force rule can't see them. The drift worker raises a drift item; a draft is made (rules drafter by default, `--draft-mode live` for the AI); it's submitted, approved by the second person, promoted; then the 8 stored events are **replayed as revision 2 at tier 1** | Veyra learns an unseen format safely: the AI can only point at real tokens, checks run, a human approves, and history is corrected after the fact | (e) onboarding; retroactive detection |
+| **4. Drift → draft → replay** | Pushes 8 T3 "FAILED login" events (multi-line, with stack traces). They arrive as **tier 3**, so a brute-force rule can't see them. The drift worker raises a drift item; a draft is made (rules drafter by default, `VEYRA_LLM_MODE=live` for the AI); it's submitted, approved by the second person, promoted; then the 8 stored events are **replayed as revision 2 at tier 1** | Veyra learns an unseen format safely: the AI can only point at real tokens, checks run, a human approves, and history is corrected after the fact | (e) onboarding; retroactive detection |
 | **5. Evidence** | Takes an archived sshd event and waits for its segment to seal and its minute's root to be signed. Runs **verify** (7 of 8 steps pass). An insider with root and the encryption key rewrites the stored bytes: verify turns **red at `merkle_inclusion`**. Untamper → green again. Audits the whole signed ledger | Stored bytes are provably untouched; an edit is detected and located; the ledger is chained and signed | (d) traceability |
 
 The walkthrough prints PASS/FAIL per step and a tally at the end. A failing step doesn't stop the
@@ -74,16 +74,16 @@ demo: it says why and moves on.
 | Control plane: tenants, roles, sources, keys, audit | **Built** (C1) | 5 roles, tenant isolation, audit trail, live updates (SSE) | Console; http://localhost:8000/docs |
 | Contract registry and lifecycle | **Built** (C2) | Git-versioned contracts, lint, golden tests, four-eyes, backtest, diff, rollback | Beats 3–4; console Contracts page |
 | Drift detection and library packs | **Built** (C3) | Drain3 clustering of the DLQ; 5 library packs matched automatically | Beat 4; console Drift page |
-| AI drafter | **Built** (C4) | Token-reference drafting with provenance, type and backtest checks; modes live / cache / rules. On an RTX 4050, drafts take 2–6 s, but 3B–7B models get the T3 shape wrong (the checks catch it), so demos default to the rules drafter | `./veyra.sh demo --draft-mode live` |
-| Web console | **Built on sample data** (C5, C6) | Overview, Sources, Onboard, Contracts, Drift, Delivery, Audit, English/Hindi. The pages use made-up data until the evidence side's lineage endpoints exist | http://localhost:8080 |
-| Evidence vault (archiver) | **Prototype** (B2) | Sealed, zstd-compressed, AES-256-GCM segments; hash chain; read-only files. No crash-recovery tests; doesn't publish `vault_index` yet | Beat 5 |
+| AI drafter | **Built** (C4) | Token-reference drafting with provenance, type and backtest checks; modes live / cache / rules. On an RTX 4050, drafts take 2–6 s, but 3B–7B models get the T3 shape wrong (the checks catch it), so demos default to the rules drafter | `VEYRA_LLM_MODE=live ./veyra.sh demo` |
+| Web console | **Built** (C5, C6, B6) | Overview, Sources, Onboard, Contracts, Drift, Lineage, Evidence, Delivery, Audit, English/Hindi. Every page reads the live control plane and lineage index; what the index does not hold (a route's lag and breaker state) is shown blank rather than filled in | http://localhost:8080 |
+| Evidence vault (archiver) | **Prototype** (B2) | Sealed, zstd-compressed, AES-256-GCM segments; hash chain; `0444` files (not `chattr +i`). Publishes `IF-VAULT-INDEX` at each seal, so the index can find an event without scanning. No crash-recovery tests | Beat 5 |
 | Integrity (Merkle + Ed25519) | **Prototype** (B3) | One signed root per minute, chained, in a ledger file. **Not in immudb yet** | Beat 5; `tools/ledger_audit.py` |
-| Evidence API: verify and export | **Prototype** (B4) | 7 of 8 verify steps (the immudb step is not implemented); proof-pack zip with a standalone `verify.py`. No lineage search routes yet | Beat 5; http://localhost:8100/docs |
+| Evidence API: verify and export | **Prototype** (B4) | 7 of 8 verify steps (the immudb step is declared not implemented); proof-pack zip with a standalone `verify.py`; lineage search, event detail, overview and source health for the console | Beat 5; http://localhost:8100/docs |
 | Tamper lab | **Prototype** (B5) | 4 modes (bit flip, insider rewrite, deleted segment, edited ledger), each caught at the expected step and undoable | Beat 5; `tools/tamper.py` |
 | Lineage index (ClickHouse) | **Prototype** (B1) | Every topic indexed, restart-safe. Its query speed on 1M rows isn't measured yet | `tools/seed_ch.py`; ClickHouse at http://localhost:8123 |
 | Router → Wazuh, masked partner route | **Built** (A6) | Routes are data (filters, masking, formats); offsets commit only after every route flushes; receipts per route; a breaker for remote sinks. Wazuh rules: 100110 auth failure, 100111 brute force, 100120/100121 tier 3/4, 100130 corrected revision. The partner file has `user.name` and IPs HMAC'd and `raw_data` removed | Wazuh dashboard, Discover or Security events (workstation); `data/sinks/partner/partner.ndjson` |
-| Demo engine, reset, hotkeys | **Not built** (B7) | `./veyra.sh demo` and `./veyra.sh reset` cover the demo for now | — |
-| Console Lineage and Evidence pages | **Not built** (B6) | Use the Evidence API docs page or Beat 5 | — |
+| Demo engine, reset, hotkeys | **Built** (B7) | Scenario-driven stages with real expectation checks, a whole-world reset inside a 90 s budget, 10 measured preflight checks, and `Shift+1`..`Shift+6` from any console page. `make demo-{reset,preflight,stage,auto}`, or the `/demo` panel | `make demo-auto`; http://localhost:8080/demo |
+| Console Lineage and Evidence pages | **Built** (B6) | Field hover highlights the real raw bytes, the revision timeline shows 1 → 2, verify shows 7 green and 1 honest grey step, and the signed-root ledger live-appends as windows are signed | Beat 5; http://localhost:8080/lineage |
 | Iceberg lake, Keycloak SSO, Kubernetes, HSM | **Slide only** | Declared deviations (`docs/plan/00_MASTER.md` §7) | — |
 
 ---
@@ -102,7 +102,7 @@ $T python demo/tools/fake_raw.py --eps 50 --seconds 60                   # stead
 $T python tools/tamper.py list                                           # what is tampered right now
 $T python tools/tamper.py verify --event <event_uid>                     # 8-step verify from the CLI
 $T python tools/ledger_audit.py                                          # re-check every signed root
-$T python tools/seed_ch.py --rows 1000000                                # 1M synthetic lineage rows in ClickHouse
+$T python tools/seed_ch.py --rows 1000000 --db veyra_synthetic            # 1M synthetic lineage rows, in a scratch DB
 $T python tools/veyra_check.py                                           # the smoke check again
 ```
 
@@ -159,10 +159,10 @@ falling back to zero.
 ## 6. Known limits
 
 - On the laptop profile Wazuh is off, so the router still writes `data/sinks/wazuh/veyra.ndjson` but nothing reads it. To ship to an existing Wazuh instead, see `wazuh/REMOTE.md`.
-- Verify's 8th step (immudb) and the vault index topic are not implemented in the prototypes.
-- The console runs on sample data; live panels need B4's lineage routes.
-- The seeded firewall contract (`acme_ngfw_cef`) parses bare CEF. CEF that comes through the syslog edge carries a syslog header, so it lands as tier 3 until the contract gains a syslog envelope layer. The demo therefore sends CEF stamped as the edge would.
-- The seeded `linux_sshd@1` covers only some of the corpus's sshd shapes; the rest are tier 3 (an owner decision is pending on adopting the fuller library pack).
+- Verify's 8th step (immudb anchoring) is not implemented. It reports `not_implemented`, is drawn grey rather than green, and the other seven decide the verdict.
+- Sealed segments are `0444`, not `chattr +i`. Root can still edit them — which is the attack the tamper lab demonstrates, and the signed Merkle root is what catches it.
+- A route's delivery lag and circuit-breaker state are not in the lineage index, so the Delivery page shows them blank rather than guessing.
+- The seeded `linux_sshd@1` covers only some of the corpus's sshd shapes; the rest arrive as tier 3. That is deliberate for the demo — it is what shows "never drop" and a live tier mix — and swapping in the fuller library pack is a contract change, not a code change.
 - The AI drafter's small models are fast but not accurate enough to draft the demo's T3 shape unaided; checks and four-eyes catch it.
 - Evidence files on a Windows drive are slower. Clone inside WSL for load tests.
 - Everything else, and why: `docs/plan/00_MASTER.md` §7 (declared deviations) and `docs/plan/06_STATUS_BOARD.md`.

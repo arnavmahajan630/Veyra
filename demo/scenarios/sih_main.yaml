@@ -22,6 +22,11 @@ baseline:
     # fires rule 100111 early and "Wazuh catches it now" has nothing left to show.
     exclude_patterns: ["Failed password"]
 
+# Beat 5 tampers the event this search finds. Named here so the console's tamper panel and
+# `demo-auto` agree, and so a scenario with different data does not need a code change.
+tamper:
+  query: a.sharma
+
 stages:
   1:
     title: Hook
@@ -90,8 +95,24 @@ stages:
 # clicking would.
 auto:
   - {at: 0, stage: 1}
-  - {at: 15, api: onboarding_flow}
+  # Each api step carries what it must have achieved, checked against the live system after the
+  # flow returns. A flow that merely does not raise is not the same as a beat that worked.
+  - at: 15
+    api: onboarding_flow
+    expect:
+      - {within_s: 10, contract_active: authsrv}
   - {at: 40, stage: 3}
   - {at: 85, stage: 4}
-  - {at: 95, api: drift_approve_promote_replay}
-  - {at: 130, api: verify_then_tamper_then_verify}
+  - at: 95
+    api: drift_approve_promote_replay
+    expect:
+      # The 8 stored T3 events come back at revision 2, tier 1, under the new version.
+      - {within_s: 45, clickhouse: "tier=1 AND revision=2 AND source_id='src_authsrv_01'", gte: 8}
+      # Wazuh sees the correction, and the brute force it could not see before now fires.
+      - {within_s: 45, wazuh_rule: 100130}
+      - {within_s: 45, wazuh_rule: 100111, src_ip: 103.21.4.77}
+  - at: 130
+    api: verify_then_tamper_then_verify
+    expect:
+      # The flow tampers and restores; this is the proof the restore really restored.
+      - {within_s: 30, evidence_verifies: a.sharma}

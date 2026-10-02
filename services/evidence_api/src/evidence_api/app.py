@@ -18,12 +18,14 @@ import base64
 import json
 import logging
 import re
+import time
 from pathlib import Path
 from typing import Any
 
 from fastapi import FastAPI, HTTPException, Request, Response
 from fastapi.responses import PlainTextResponse, StreamingResponse
 
+from evidence_api import console
 from evidence_api.export import build_export
 from evidence_api.locator import EvidenceNotFound, VaultLocator
 from evidence_api.settings import EvidenceApiSettings
@@ -31,6 +33,10 @@ from evidence_api.verifier import Verifier
 from veyra_evidence.keys import KeyProvider, get_key_provider
 
 log = logging.getLogger(__name__)
+
+# Memoised ledger audit, keyed by the ledger's tail. Cleared whenever the tail moves, so it
+# holds one entry and can never serve a verdict for a ledger that has since changed.
+_audit_cache: dict[tuple[Any, ...], Any] = {}
 
 # event_uid is a UUIDv7 string (IF-NAMING); reject anything else before touching the vault.
 _UID_RE = re.compile(
@@ -60,6 +66,21 @@ def create_app(cfg: EvidenceApiSettings | None = None, keys: KeyProvider | None 
         """
         if not entries:
             return {"__status__": "PASS"}
+        # The audit re-verifies every signature in the ledger. The SSE stream asks for it
+        # twice every two seconds, so the answer is memoised against the ledger's current
+        # tail: a new signed root changes the key and the audit runs again.
+        try:
+            stat = Path(locator.ledger).stat()
+            fingerprint = (stat.st_size, stat.st_mtime_ns)
+        except OSError:
+            fingerprint = (0, 0)
+        # The fingerprint is the ledger file itself, not just its tail: an edited entry in
+        # the middle must not be answered from a cached PASS. That is exactly what the
+        # `root_rewrite` tamper does.
+        cache_key = (len(entries), entries[-1].sha256, fingerprint)
+        cached = _audit_cache.get(cache_key)
+        if cached is not None:
+            return cached
         try:
             import sys
 
@@ -89,6 +110,8 @@ def create_app(cfg: EvidenceApiSettings | None = None, keys: KeyProvider | None 
         for window, row in by_window.items():
             if window != "__status__":
                 row["chain_ok"] = all(row.values())
+        _audit_cache.clear()
+        _audit_cache[cache_key] = by_window
         return by_window
 
     def _attach_raw_bytes(payload: dict[str, Any], event_uid: str) -> None:
@@ -119,17 +142,31 @@ def create_app(cfg: EvidenceApiSettings | None = None, keys: KeyProvider | None 
     api.state.locator = locator
     api.state.verifier = verifier
 
-    # Connect to ClickHouse if reachable; otherwise degrade cleanly without failing startup.
-    ch: Any = None
-    if getattr(settings_, "ch_url", "") or getattr(settings_, "clickhouse_url", ""):
+    # ClickHouse is probed lazily and retried. Probing once at startup meant an evidence API
+    # that booted before the indexer had migrated stayed on the degraded path forever — every
+    # panel on the console then showed fallback data for the rest of the run.
+    _ch_state: dict[str, Any] = {"client": None, "next_try": 0.0}
+    _CH_RETRY_S = 10.0
+
+    def clickhouse() -> Any:
+        if _ch_state["client"] is not None:
+            return _ch_state["client"]
+        if not (getattr(settings_, "ch_url", "") or getattr(settings_, "clickhouse_url", "")):
+            return None
+        if time.monotonic() < float(_ch_state["next_try"]):
+            return None
+        _ch_state["next_try"] = time.monotonic() + _CH_RETRY_S
         try:
             from veyra_lineage.client import make_client as make_ch_client
 
-            client_candidate = make_ch_client(settings_, connect_timeout=1)
-            client_candidate.command("SELECT 1")
-            ch = client_candidate
-        except Exception:
-            ch = None
+            candidate = make_ch_client(settings_, connect_timeout=1)
+            candidate.command("SELECT 1")
+        except Exception as exc:
+            log.debug("ClickHouse not reachable yet: %s", exc)
+            return None
+        log.info("ClickHouse is reachable; serving lineage from the index")
+        _ch_state["client"] = candidate
+        return candidate
 
     @api.get("/health")
     def health() -> dict[str, Any]:
@@ -225,6 +262,7 @@ def create_app(cfg: EvidenceApiSettings | None = None, keys: KeyProvider | None 
         q = q.strip()
         if not q:
             return {"q": "", "matched_on": None, "hits": []}
+        ch = clickhouse()
         if ch is not None:
             try:
                 from veyra_lineage import queries as lineage_queries
@@ -263,6 +301,7 @@ def create_app(cfg: EvidenceApiSettings | None = None, keys: KeyProvider | None 
     def lineage_event_detail(event_uid: str) -> dict[str, Any]:
         """One event's full lineage: envelope, revisions, vault location, receipts."""
         uid = _check_uid(event_uid)
+        ch = clickhouse()
         if ch is not None:
             try:
                 from veyra_lineage import queries as lineage_queries
@@ -328,74 +367,78 @@ def create_app(cfg: EvidenceApiSettings | None = None, keys: KeyProvider | None 
                     "sealed_at": located.header.get("sealed_at", ""),
                     "window_id": located.ledger_entry.window_id if located.ledger_entry else None,
                 },
-                "receipts": [
-                    {
-                        "revision": 1,
-                        "route_id": "wazuh_main",
-                        "status": "delivered",
-                        "detail": "delivered to wazuh NDJSON sink",
-                        "at": env.get("received_time", ""),
-                    },
-                    {
-                        "revision": 1,
-                        "route_id": "partner_masked",
-                        "status": "delivered",
-                        "detail": "delivered to partner NDJSON sink",
-                        "at": env.get("received_time", ""),
-                    },
-                ],
+                # Delivery receipts live in the index, not the vault. The two "delivered"
+                # rows this used to invent were shown on the Lineage page as real delivery
+                # history for events that may never have been routed at all.
+                "receipts": [],
                 "dlq": [],
                 "shadow": [],
             }
         except EvidenceNotFound as exc:
             raise HTTPException(status_code=404, detail=f"event {uid!r} not found") from exc
 
+    def _chain_ok() -> bool | None:
+        """The ledger audit's verdict, or None when it could not be run."""
+        audit = _audit_by_window(locator.entries())
+        status = audit.get("__status__", "unknown")
+        if status == "unknown":
+            return None
+        return bool(status == "PASS")
+
     @api.get("/overview")
     @api.get("/lineage/overview")
     def lineage_overview(tenant: str | None = None) -> dict[str, Any]:
-        """Overview metrics for the console Overview page."""
+        """Overview metrics for the console Overview page.
+
+        Both paths return the console's shape, built by `evidence_api.console`. They used to
+        return different shapes, and the console only understood the fallback's.
+        """
+        ch = clickhouse()
         if ch is not None:
             try:
                 from veyra_lineage import queries as lineage_queries
 
-                return lineage_queries.overview(tenant=tenant, client=ch).model_dump()
+                model = lineage_queries.overview(tenant=tenant, client=ch)
+                return console.overview_payload(
+                    model,
+                    dimensions=lineage_queries.source_dimensions(tenant=tenant, client=ch),
+                    route_rates=lineage_queries.route_rates(client=ch),
+                    history=lineage_queries.tier_history(tenant=tenant, client=ch),
+                    chain_ok=_chain_ok(),
+                )
             except Exception as exc:
                 log.warning("lineage overview query failed: %s", exc)
+
+        # No index to ask: real zeros plus what the vault itself knows. Never invented counts.
         entries = locator.entries()
         last_root = None
         if entries:
             last = entries[-1]
             last_root = {
                 "window_id": last.window_id,
-                "window_end": last.payload.get("window_end", ""),
+                "window_end": last.payload.get("window_end") or None,
                 "immudb_verified": False,
             }
-        return {
-            "eps_1m": 15.0,
-            "totals_by_tier": {"1": 1500, "2": 200, "3": 80, "4": 20},
-            "sources": [],
-            "routes": [],
-            "vault": {
-                "segments": len(locator.segment_paths()),
-                "last_sealed_at": entries[-1].payload.get("window_end") if entries else None,
-                "last_root": last_root,
-                "chain_ok": True,
-            },
-            "as_of": "2026-09-27T09:00:00Z",
-            "tier_history": [],
-        }
+        return console.empty_overview_payload(
+            segments=len(locator.segment_paths()),
+            last_sealed_at=(entries[-1].payload.get("window_end") or None) if entries else None,
+            last_root=last_root,
+            chain_ok=_chain_ok(),
+        )
 
     @api.get("/sources")
     @api.get("/lineage/sources")
     def lineage_sources(tenant: str | None = None) -> list[dict[str, Any]]:
         """Source health metrics for the console Sources page."""
+        ch = clickhouse()
         if ch is not None:
             try:
                 from veyra_lineage import queries as lineage_queries
 
-                return [
-                    s.model_dump() for s in lineage_queries.source_health(tenant=tenant, client=ch)
-                ]
+                return console.source_health_payload(
+                    lineage_queries.source_health(tenant=tenant, client=ch),
+                    dimensions=lineage_queries.source_dimensions(tenant=tenant, client=ch),
+                )
             except Exception as exc:
                 log.warning("lineage sources query failed: %s", exc)
         return []
@@ -404,6 +447,7 @@ def create_app(cfg: EvidenceApiSettings | None = None, keys: KeyProvider | None 
     @api.get("/lineage/templates/{sig}/events")
     def lineage_template_events(sig: str, limit: int = 50) -> list[dict[str, Any]]:
         """Events carrying a template signature, for replay and backtest."""
+        ch = clickhouse()
         if ch is not None:
             try:
                 from veyra_lineage import queries as lineage_queries
@@ -427,13 +471,18 @@ def create_app(cfg: EvidenceApiSettings | None = None, keys: KeyProvider | None 
         """
 
         async def _generator():
-            seen: set[str] = {r["window_id"] for r in roots(limit=200)["roots"]}
+            # Both of these are synchronous and slow — `overview` runs ClickHouse queries and
+            # `roots` runs the whole ledger audit — so they go to a thread. Called directly
+            # they blocked the event loop for every other request every two seconds.
+            first = await asyncio.to_thread(roots, 200)
+            seen: set[str] = {r["window_id"] for r in first["roots"]}
             try:
                 while not await request.is_disconnected():
-                    overview_data = lineage_overview(tenant=tenant)
+                    overview_data = await asyncio.to_thread(lineage_overview, tenant)
                     payload = json.dumps(overview_data)
                     yield f"event: overview\ndata: {payload}\n\n"
-                    for root in reversed(roots(limit=50)["roots"]):
+                    latest = await asyncio.to_thread(roots, 50)
+                    for root in reversed(latest["roots"]):
                         if root["window_id"] in seen:
                             continue
                         seen.add(root["window_id"])

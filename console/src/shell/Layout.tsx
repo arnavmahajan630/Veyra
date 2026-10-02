@@ -5,9 +5,13 @@ import { Header } from "./Header";
 import { RailNav } from "./RailNav";
 import { visibleNav } from "./nav";
 import { useLiveUpdates } from "./useLiveUpdates";
+import { useStageHotkeys } from "../pages/demo/useStageHotkeys";
 
 export function Layout({ me }: { me: Me }) {
   useLiveUpdates();
+  // The demo's stage hotkeys live here, not on /demo, because the script promises they work
+  // from any page and the presenter is rarely on the demo panel. Inert outside demo mode.
+  useStageHotkeys();
   return (
     <div className="flex h-screen">
       <RailNav items={visibleNav(me)} />

@@ -310,6 +310,7 @@
   "onboard.zone": "ज़ोन",
   "overview.breakerOpen": "ब्रेकर खुला",
   "overview.chainBroken": "शृंखला टूटी",
+  "overview.chainUnknown": "शृंखला जाँची नहीं गई",
   "overview.chainIntact": "शृंखला अखंड",
   "overview.delivery": "वितरण",
   "overview.edge": "एज और गेटवे",

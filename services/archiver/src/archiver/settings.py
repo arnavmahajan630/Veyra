@@ -18,3 +18,7 @@ class ArchiverSettings(ServiceSettings):
     segment_max_records: int = 10_000
     # New raw.<vendor> topics appear when a source is onboarded.
     archive_metadata_refresh_ms: int = 10_000
+    # How long a seal waits for its IF-VAULT-INDEX records to be acknowledged. Short on
+    # purpose: the evidence is already durable, and the index is a lookup shortcut, so a slow
+    # broker must not hold up the next segment.
+    archive_index_publish_timeout_s: float = 5.0

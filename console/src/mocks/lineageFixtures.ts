@@ -322,10 +322,13 @@ export function verifyTampered(uid: string): VerifyReport {
     steps: [
       step("fetch_raw", true, `${byteLength(AUTH_RAW)} bytes read`),
       step("decrypt_segment", true, "auth tag matches: the segment was re-encrypted with the stolen key"),
-      step("hash_raw", false, "SHA-256 of the stored bytes no longer equals the envelope's raw_sha256"),
-      step("chain_walk", false, "the record's chain hash does not recompute"),
-      step("segment_digest", false, "segment seg_raw.custom_1_…14 was altered after it was sealed at 14:05:31"),
-      step("merkle_inclusion", false, "the recomputed leaf is not under root b4c81a29…"),
+      // An insider rewrite re-seals the segment, so every check *inside* it still passes —
+      // including hash_raw, which they recompute. Only the leaf under the signed root does
+      // not match, and that is what `tests/tamper/test_tamper_matrix.py` asserts.
+      step("hash_raw", true, "SHA-256 recomputed by the insider: it matches the rewritten bytes"),
+      step("chain_walk", true, "the record's chain hash recomputes: the insider fixed it too"),
+      step("segment_digest", true, "segment seg_raw.custom_1_…14 is internally consistent after re-sealing"),
+      step("merkle_inclusion", false, "segment seg_raw.custom_1_…14 was altered after it was sealed at 14:05:31: the recomputed leaf is not under root b4c81a29…"),
       step("root_signature", true, "w_1790000060 signed by k_ed25519_1"),
       step("immudb_verified", false, "not implemented in this prototype: the root is in the local ledger only", "not_implemented"),
     ],

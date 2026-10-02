@@ -86,7 +86,8 @@ export interface VaultStatus {
   segments: number;
   last_sealed_at: string | null;
   last_root: { window_id: string; window_end: string; immudb_verified: boolean } | null;
-  chain_ok: boolean;
+  /** null when the ledger audit could not run: unknown, not broken. */
+  chain_ok: boolean | null;
 }
 
 export interface Overview {
@@ -532,6 +533,8 @@ export interface DemoScenario {
   seed?: number;
   baseline?: DemoBaselineStream[];
   stages: Record<string, DemoStageInfo>;
+  /** Search term that finds Beat 5's event; the tamper panel targets whatever it returns. */
+  tamper_query?: string;
 }
 
 export interface ExpectOutcome {

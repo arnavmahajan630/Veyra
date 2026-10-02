@@ -625,7 +625,12 @@ def test_dual_route_aliases_resolve_identically(
     v2 = client.get(f"/evidence/verify/{env.event_uid}").json()
     v3 = client.get(f"/evidence/{env.event_uid}/verify").json()
     assert v1["event_uid"] == v2["event_uid"] == v3["event_uid"] == env.event_uid
-    # overview
-    assert client.get("/overview").json() == client.get("/lineage/overview").json()
+    # overview: `as_of` is the moment of the call, so compare everything else
+    first = client.get("/overview").json()
+    second = client.get("/lineage/overview").json()
+    assert {k: v for k, v in first.items() if k != "as_of"} == {
+        k: v for k, v in second.items() if k != "as_of"
+    }
+    assert first["as_of"] and second["as_of"]
     # sources
     assert client.get("/sources").json() == client.get("/lineage/sources").json()

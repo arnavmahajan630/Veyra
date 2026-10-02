@@ -15,6 +15,7 @@ from typing import cast
 
 from sqlalchemy.engine import Engine
 from sqlmodel import Session as DbSession
+from sqlmodel import select
 
 from control_api.contracts_repo import ensure_repo, head_commit, reset_to_seed
 from control_api.db import init_db, make_engine, reset_db
@@ -23,7 +24,15 @@ from control_api.messages import republish_all
 from control_api.publisher import ControlPublisher, ProducerLike
 from control_api.security import hash_password
 from control_api.seed_docs import load_seed_docs
-from control_api.tables import PLATFORM, Contract, ContractVersion, Source, Tenant, User
+from control_api.tables import (
+    PLATFORM,
+    Contract,
+    ContractVersion,
+    SessionRow,
+    Source,
+    Tenant,
+    User,
+)
 from veyra_common.envelope import rfc3339_ns
 from veyra_common.kafka import make_producer
 from veyra_common.settings import Settings, settings
@@ -135,13 +144,30 @@ def seed(db: DbSession, *, cfg: Settings, now_ns: int, scenario: str = "sih_main
 def reset_state(
     engine: Engine, cfg: Settings, now_ns: int, scenario: str = "sih_main"
 ) -> SeedSummary:
-    """Wipe SQLite, reset contracts-repo to `seed`, reseed. Publishing is the caller's job."""
+    """Wipe SQLite, reset contracts-repo to `seed`, reseed. Publishing is the caller's job.
+
+    Live sessions are carried across the wipe. ``reset_db`` drops every table, sessions
+    included, so a reset used to sign the presenter out: the console's next request after
+    Shift+R got a 401 and bounced to the login page, in the middle of a beat. Sessions are
+    keyed by email and the seeded users keep their emails, so the rows can simply be put back.
+    """
     _check_scenario(scenario)
     ensure_repo(cfg.contracts_repo)
     reset_to_seed(cfg.contracts_repo)
+    with DbSession(engine) as db:
+        live_sessions = [
+            SessionRow(token_sha256=row.token_sha256, email=row.email, expires_at=row.expires_at)
+            for row in db.exec(select(SessionRow)).all()
+        ]
     reset_db(engine)
     with DbSession(engine) as db:
         summary = seed(db, cfg=cfg, now_ns=now_ns, scenario=scenario)
+        emails = {user.email for user in db.exec(select(User)).all()}
+        for session in live_sessions:
+            # A session for a user the seed does not create cannot be restored; that user no
+            # longer exists, so a 401 is the right answer for it.
+            if session.email in emails:
+                db.add(session)
         db.commit()
     return summary
 

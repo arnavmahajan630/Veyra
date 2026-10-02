@@ -125,19 +125,30 @@ def collect(
     timeout: float,
     want: int = 1,
 ) -> list[tuple[str, dict[str, Any]]]:
-    """Records (topic, payload) for which ``match`` is true, until ``want`` or the timeout."""
+    """Records (topic, payload) for which ``match`` is true, until ``want`` or the timeout.
+
+    Batched on purpose. A one-message-per-call ``poll(0.5)`` spends most of its budget on the
+    end-of-partition signals that an assigned-at-the-watermark consumer gets from every
+    partition, so a 60 s window saw only a couple of dozen records out of thousands — which
+    reads as "the normalizer produced nothing" when it produced plenty.
+    """
     found: list[tuple[str, dict[str, Any]]] = []
     deadline = time.monotonic() + timeout
     while time.monotonic() < deadline and len(found) < want:
-        message = consumer.poll(0.5)
-        if message is None or message.error():
-            continue
-        try:
-            payload = json.loads(message.value())
-        except (TypeError, ValueError):
-            continue
-        if isinstance(payload, dict) and match(message.topic(), payload):
-            found.append((message.topic(), payload))
+        for message in consumer.consume(num_messages=500, timeout=0.2):
+            if len(found) >= want:
+                break
+            if message is None or message.error():
+                continue
+            topic, value = message.topic(), message.value()
+            if topic is None or value is None:  # a tombstone, or a built-not-consumed message
+                continue
+            try:
+                payload = json.loads(value)
+            except (TypeError, ValueError):
+                continue
+            if isinstance(payload, dict) and match(topic, payload):
+                found.append((topic, payload))
     return found
 
 

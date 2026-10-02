@@ -934,3 +934,76 @@ def route_stats(
             )
         )
     return out
+
+
+# ---------------------------------------------------------------- console overview extras
+# The console's Overview needs three things the Overview model does not carry: a per-minute
+# tier series, each source's zone and transport, and per-minute route rates. They are their
+# own statements so `overview()` keeps its shape and its latency target.
+
+_SQL_TIER_HISTORY = """
+SELECT toStartOfMinute(minute) AS minute,
+       sum(tier1) AS tier1, sum(tier2) AS tier2, sum(tier3) AS tier3, sum(tier4) AS tier4
+FROM mv_source_minute
+WHERE {tenant_cond}
+  AND minute >= toStartOfMinute(now()) - toIntervalMinute({minutes:UInt32})
+GROUP BY minute
+ORDER BY minute
+""".replace("{tenant_cond}", _TENANT)
+
+_SQL_SOURCE_DIMENSIONS = """
+SELECT source_id,
+       argMax(zone, received_time) AS zone,
+       argMax(transport, received_time) AS transport
+FROM raw_events
+WHERE {tenant_cond} AND received_time >= now() - toIntervalDay(1)
+GROUP BY source_id
+""".replace("{tenant_cond}", _TENANT)
+
+_SQL_ROUTE_RATES = """
+WITH toStartOfMinute(now()) AS this_minute
+SELECT route_id,
+       sum(delivered) AS delivered, sum(failed) AS failed,
+       count(DISTINCT minute) AS minutes
+FROM mv_route_minute
+WHERE minute >= this_minute - toIntervalMinute({minutes:UInt32}) AND minute < this_minute
+GROUP BY route_id
+"""
+
+
+def tier_history(
+    tenant: str | None = None, *, minutes: int = 15, client: Client | None = None
+) -> list[TierTotals]:
+    """Tier counts per minute over the last ``minutes``, oldest first.
+
+    The Overview's tier bar opens full with this rather than filling one sample per SSE tick.
+    """
+    ch = _client(client)
+    params = {"tenant": _tenant(tenant), "minutes": max(1, int(minutes))}
+    rows = _rows(ch, _SQL_TIER_HISTORY, params)
+    return [_tiers(row) for row in rows]
+
+
+def source_dimensions(
+    tenant: str | None = None, *, client: Client | None = None
+) -> dict[str, tuple[str, str]]:
+    """``{source_id: (zone, transport)}`` as last seen on the wire.
+
+    Both come from the envelope the collector stamped, so they describe how the events
+    actually arrived rather than how the inventory says they should.
+    """
+    ch = _client(client)
+    rows = _rows(ch, _SQL_SOURCE_DIMENSIONS, {"tenant": _tenant(tenant)})
+    return {r["source_id"]: (str(r["zone"]), str(r["transport"])) for r in rows}
+
+
+def route_rates(
+    *, minutes: int = 5, client: Client | None = None
+) -> dict[str, tuple[float, float]]:
+    """``{route_id: (delivered_per_min, failed_per_min)}`` over the last complete minutes."""
+    ch = _client(client)
+    out: dict[str, tuple[float, float]] = {}
+    for r in _rows(ch, _SQL_ROUTE_RATES, {"minutes": max(1, int(minutes))}):
+        span = max(1, int(r["minutes"] or 0))
+        out[r["route_id"]] = (int(r["delivered"]) / span, int(r["failed"]) / span)
+    return out

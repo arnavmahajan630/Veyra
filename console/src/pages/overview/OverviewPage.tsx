@@ -154,8 +154,20 @@ export default function OverviewPage() {
             <li>
               <Link to="/evidence" className="hover:underline">
                 <StatusDot
-                  tone={data.vault.chain_ok ? "good" : "bad"}
-                  label={t(data.vault.chain_ok ? "overview.chainIntact" : "overview.chainBroken")}
+                  tone={
+                    data.vault.chain_ok === true
+                      ? "good"
+                      : data.vault.chain_ok === false
+                        ? "bad"
+                        : "idle"
+                  }
+                  label={t(
+                    data.vault.chain_ok === true
+                      ? "overview.chainIntact"
+                      : data.vault.chain_ok === false
+                        ? "overview.chainBroken"
+                        : "overview.chainUnknown",
+                  )}
                 />
               </Link>
             </li>

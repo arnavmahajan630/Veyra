@@ -1,6 +1,6 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { queryKeys } from "../api/queries";
-import type { Overview, ReplayJob } from "../api/types";
+import type { LedgerRoot, LedgerRootsResponse, Overview, ReplayJob } from "../api/types";
 import { useToast } from "../components/Toast";
 import { recordOverview } from "../pages/overview/useTierSeries";
 import { useI18n } from "../i18n/i18n";
@@ -8,6 +8,8 @@ import { useSSE, type EventSourceLike } from "../sse/useSSE";
 import { useTenantScope } from "./tenant";
 
 export const LINEAGE_STREAM = "/api/lineage/stream";
+/** The `limit` values the app asks `/evidence/roots` for; live roots are merged into each. */
+const ROOT_LIMITS = [50] as const;
 export const CONTROL_STREAM = "/api/control/stream";
 
 /** Control events arrive as {type, data} (IF-API-CONTROL GET /stream); return `data`. */
@@ -38,6 +40,26 @@ export function useLiveUpdates(createSource?: (url: string) => EventSourceLike):
       overview: (data) => {
         client.setQueryData<Overview>(queryKeys.overview(scope), data as Overview);
         recordOverview(scope, data as Overview);
+      },
+      // A newly signed root. Handled here rather than in the Evidence page, which used to
+      // open a second EventSource to this same endpoint just for this one event.
+      root: (data) => {
+        const root = data as LedgerRoot;
+        if (!root || typeof root.window_id !== "string") return;
+        for (const limit of ROOT_LIMITS) {
+          client.setQueryData<LedgerRootsResponse>(queryKeys.roots(limit), (prev) =>
+            prev === undefined
+              ? prev
+              : {
+                  ...prev,
+                  count: prev.count + (prev.roots.some((r) => r.window_id === root.window_id) ? 0 : 1),
+                  roots: [root, ...prev.roots.filter((r) => r.window_id !== root.window_id)].slice(
+                    0,
+                    limit,
+                  ),
+                },
+          );
+        }
       },
     },
     createSource,

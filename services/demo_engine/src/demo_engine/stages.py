@@ -11,6 +11,7 @@ import logging
 import random
 import threading
 import time
+from concurrent.futures import ThreadPoolExecutor
 from typing import Any
 
 import httpx
@@ -86,6 +87,11 @@ class StageRunner:
         """Start a stage. Returns False if it is already running (idempotence)."""
         if number not in self.scenario.stages:
             raise KeyError(f"stage {number} is not defined in scenario {self.scenario.name}")
+        # Resolve the push key here, not inside the worker thread. Raised in the thread it
+        # never reaches the caller, so `POST /stage/3` used to answer {"ok": true} with no key
+        # and the failure showed up only in /stage/status.
+        if live_key is None and self._needs_live_key(number):
+            live_key = self.live_key()
         with self._lock:
             if self._states.get(number) == "running":
                 log.info("stage %d is already running; ignoring the repeat trigger", number)
@@ -103,20 +109,24 @@ class StageRunner:
         ).start()
         return True
 
+    def _needs_live_key(self, number: int) -> bool:
+        for action in self.scenario.stages[number].actions:
+            kind = next(iter(action))
+            cfg = next(iter(action.values())) or {}
+            # `resend_if_no_drift` pushes over HEC too, so it needs the key either way.
+            if kind == "resend_if_no_drift" or (kind == "send" and cfg.get("key") == "live"):
+                return True
+        return False
+
     # ------------------------------------------------------------------ execution
     def _execute(self, number: int, live_key: str | None) -> None:
         stage = self.scenario.stages[number]
         log.info("stage %d (%s) starting", number, stage.title)
-        # Seeded per stage, so one stage's randomness does not depend on what ran before.
-        rng = random.Random(self.scenario.seed * 100 + number)
         failed_reason: str | None = None
 
         try:
-            for position, action in enumerate(stage.actions):
-                kind, cfg = next(iter(action.items()))
-                self._run_action(
-                    kind, cfg or {}, live_key, rng, f"stage {number} action {position}"
-                )
+            for group in _send_groups(stage.actions):
+                self._run_group(number, group, live_key)
         except Exception as exc:
             failed_reason = f"{type(exc).__name__}: {exc}"
             log.error("stage %d action failed: %s", number, failed_reason)
@@ -126,16 +136,61 @@ class StageRunner:
             self._results[number] = outcomes
             if failed_reason:
                 self._errors[number] = failed_reason
-            self._states[number] = (
-                "failed" if failed_reason or not all(o.ok for o in outcomes) else "done"
-            )
+            unmet = [o for o in outcomes if not o.ok and o.applicable]
+            self._states[number] = "failed" if failed_reason or unmet else "done"
         log.info(
             "stage %d finished: %s (%s)",
             number,
             self._states[number],
-            ", ".join(f"{o.label}={'ok' if o.ok else 'FAIL'}" for o in outcomes)
+            ", ".join(
+                f"{o.label}={'ok' if o.ok else ('n/a' if not o.applicable else 'FAIL')}"
+                for o in outcomes
+            )
             or "no expectations",
         )
+
+    def _run_group(
+        self, number: int, group: list[tuple[int, dict[str, Any]]], live_key: str | None
+    ) -> None:
+        """Run one group of actions: a run of `send`s together, anything else on its own.
+
+        The sends of a beat describe traffic arriving *at the same time* from several sources.
+        Running them one after another made Beat 3 take the sum of its `over_s` values — about
+        115 s against a 45 s budget — and pushed the brute-force burst that fires rule 100111
+        a minute into the beat.
+
+        Each action gets its own seeded RNG, derived from the stage and the action's position,
+        so the bytes on the wire do not depend on the order the threads happen to run in.
+        """
+        if len(group) == 1:
+            position, action = group[0]
+            kind, cfg = next(iter(action.items()))
+            self._run_action(
+                kind,
+                cfg or {},
+                live_key,
+                self._rng(number, position),
+                f"stage {number} action {position}",
+            )
+            return
+
+        def run(entry: tuple[int, dict[str, Any]]) -> None:
+            position, action = entry
+            kind, cfg = next(iter(action.items()))
+            self._run_action(
+                kind,
+                cfg or {},
+                live_key,
+                self._rng(number, position),
+                f"stage {number} action {position}",
+            )
+
+        with ThreadPoolExecutor(max_workers=len(group)) as pool:
+            # list() so the first exception is raised here, as the sequential loop did.
+            list(pool.map(run, group))
+
+    def _rng(self, number: int, position: int) -> random.Random:
+        return random.Random(self.scenario.seed * 1000 + number * 10 + position)
 
     def _run_action(
         self,
@@ -191,3 +246,19 @@ class StageRunner:
             live_key=live_key or self.live_key(),
             rng=rng,
         )
+
+
+def _send_groups(actions: list[dict[str, Any]]) -> list[list[tuple[int, dict[str, Any]]]]:
+    """Split a stage's actions into runs of consecutive `send`s, keeping the original order.
+
+    Only `send` is concurrent. `drift_flush` and `resend_if_no_drift` observe the system, so
+    they must still see everything before them.
+    """
+    groups: list[list[tuple[int, dict[str, Any]]]] = []
+    for position, action in enumerate(actions):
+        kind = next(iter(action))
+        if kind == "send" and groups and next(iter(groups[-1][-1][1])) == "send":
+            groups[-1].append((position, action))
+        else:
+            groups.append([(position, action)])
+    return groups

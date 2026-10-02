@@ -17,16 +17,19 @@ SHELL := /bin/bash
         contracts-repo-init contracts-test \
         edge-render edge-check edge-test \
         e2e-smoke llm-warm llm-cache-seed \
-        bench-llm bench-throughput demo-reset demo-preflight demo-stage demo-auto doctor env-print
+        bench-llm bench-throughput demo-reset demo-preflight demo-stage demo-auto doctor env-print \
+        cp1 cp2 cp3 cp4 veyra-up veyra-demo veyra-load
 
 PROFILE      ?= laptop
 WAZUH        ?= local
-SERVICES     ?=
+# Every phase's service profile, so `make up` starts the same stack ./veyra.sh does.
+# Narrow it to debug one phase: make up SERVICES="a3 c1".
+SERVICES     ?= a2 a3 a6 c1 c3 b1 b2 b3 b4 b7
 PROFILE_FILE := profiles/$(PROFILE).env
 RUNTIME_ENV  := .env.runtime
 # The Log Contract registry is its own repository, checked out next to this one.
 CONTRACTS_REPO ?= ../contracts-repo
-COMPOSE_BASE := -f compose/docker-compose.yml
+COMPOSE_BASE := -f compose/docker-compose.yml -f compose/docker-compose.ui.yml
 UV           := uv
 
 ifeq ($(WAZUH),local)
@@ -41,7 +44,7 @@ DC := docker compose --env-file $(RUNTIME_ENV) $(COMPOSE_FILES) $(COMPOSE_PROFIL
 # ---------------------------------------------------------------------------- help
 help: ## show this help
 	@echo "VEYRA make targets (PROFILE=$(PROFILE), WAZUH=$(WAZUH))"
-	@grep -hE '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) \
+	@grep -hE '^[a-zA-Z0-9_-]+:.*?## .*$$' $(MAKEFILE_LIST) \
 		| awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-18s\033[0m %s\n", $$1, $$2}'
 
 # Merge profile -> .env.local -> current shell into one file compose can read.
@@ -52,6 +55,8 @@ $(RUNTIME_ENV): $(PROFILE_FILE) $(wildcard .env.local)
 	   grep -vE '^\s*(#|$$)' $(PROFILE_FILE); \
 	   echo "VEYRA_UID=$(shell id -u)"; \
 	   echo "VEYRA_GID=$(shell id -g)"; \
+	   echo "VEYRA_DOCKER_GID=$(shell stat -c %g /var/run/docker.sock 2>/dev/null || echo 999)"; \
+	   echo "VEYRA_DEMO_MODE=1"; \
 	   test -f .env.local && grep -vE '^\s*(#|$$)' .env.local || true; } > $@
 	@echo "wrote $@ (profile $(PROFILE))"
 
@@ -75,7 +80,7 @@ up: $(RUNTIME_ENV) edge-render ## build if needed and start the stack
 	@# container (A6) and host tools can append to them.
 	touch data/sinks/wazuh/veyra.ndjson data/sinks/partner/partner.ndjson
 	$(DC) up -d --remove-orphans
-	@echo "console: http://localhost:8080   wazuh: https://localhost:8443"
+	@echo "console: http://localhost:$$(grep -E '^VEYRA_CONSOLE_PORT=' $(RUNTIME_ENV) | cut -d= -f2 | grep . || echo 8080)   wazuh: https://localhost:8443"
 
 build: $(RUNTIME_ENV) ## build the python service image
 	$(DC) build
@@ -210,9 +215,27 @@ console-contrast: ## WCAG AA check of the design tokens (C5)
 console-e2e: ## Playwright smoke against the mock console (C5)
 	cd console && npx playwright test
 
-# ---------------------------------------------------------------------------- stubs owned by later phases
-e2e-smoke: ## end-to-end smoke test (CP1, tools/checkpoints/cp1.py)
-	@echo "TODO (CP1): tools/checkpoints/cp1.py — syslog line -> Wazuh, segment sealed, CH rows"
+# ---------------------------------------------------------------------------- checkpoints
+# The S1 integration checkpoints (docs/plan/shared/S1_integration_checkpoints.md). Each script
+# only observes: it sends input through the public paths and checks the outputs, and prints
+# PASS/WARN/FAIL per numbered criterion. They run in the `tools` container, because that is
+# where the service names resolve and the corpus and vault are mounted.
+CP = docker compose --env-file $(RUNTIME_ENV) $(COMPOSE_FILES) --profile tools run --rm \
+	-e PYTHONPATH=/app:/app/tools tools python
+
+cp1: $(RUNTIME_ENV) ## CP1 first light: syslog -> norm -> Wazuh sink, sealed segment, CH rows
+	$(CP) tools/checkpoints/cp1.py $(ARGS)
+
+cp2: $(RUNTIME_ENV) ## CP2 messy + evidence: tier 3 with offsets, verify, signed roots
+	$(CP) tools/checkpoints/cp2.py $(ARGS)
+
+cp3: $(RUNTIME_ENV) ## CP3 loop closed: onboard, drift, four-eyes, promote, replay, tamper
+	$(CP) tools/checkpoints/cp3.py $(ARGS)
+
+cp4: $(RUNTIME_ENV) ## CP4 demo freeze: reset budget, scripted run, RUNS=10, headroom, fallback
+	$(CP) -e RUNS=$(or $(RUNS),1) tools/checkpoints/cp4.py $(ARGS)
+
+e2e-smoke: cp1 ## end-to-end smoke test (CP1)
 
 llm-warm: ## preload the LLM into memory and keep it resident (C4)
 	$(UV) run --env-file $(RUNTIME_ENV) python tools/bench/llm_bench.py warm

@@ -9,6 +9,14 @@
 :8080 {
 	encode gzip zstd
 
+	# control-api's /internal/* routes have no auth by design ("reachable only on the docker
+	# network"), but this proxy put them on the browser's origin: any tab could POST
+	# /api/control/internal/reset and wipe the control plane. Blocked here, before the proxy;
+	# the demo engine still reaches them container-to-container.
+	handle /api/control/internal/* {
+		respond "not found" 404
+	}
+
 	# Control plane (C1): tenants, sources, keys, contracts, drift, replay, SSE.
 	handle_path /api/control/* {
 		reverse_proxy control-api:8000

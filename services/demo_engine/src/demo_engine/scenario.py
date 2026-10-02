@@ -27,7 +27,20 @@ TRANSPORTS = frozenset({"syslog_udp", "syslog_tcp", "http_hec_event"})
 ACTION_KINDS = frozenset({"send", "drift_flush", "resend_if_no_drift", "prefill_onboarding"})
 # Every `expect` key an evaluator knows. An unknown one must fail at load, because at run
 # time an unrecognised expectation silently "passes" and hides a broken stage.
-EXPECT_KEYS = frozenset({"within_s", "clickhouse", "gte", "wazuh_rule", "src_ip", "drift_open_for"})
+EXPECT_KEYS = frozenset(
+    {
+        "within_s",
+        "clickhouse",
+        "gte",
+        "wazuh_rule",
+        "src_ip",
+        "drift_open_for",
+        # A contract version is active in the control plane: `contract_active: authsrv@2`.
+        "contract_active",
+        # An event matching this search term verifies end to end: `evidence_verifies: a.sharma`.
+        "evidence_verifies",
+    }
+)
 
 _ENV_EXPR = re.compile(r"\$\{([A-Za-z_][A-Za-z0-9_]*)\}(?:\s*\*\s*([0-9.]+))?")
 
@@ -90,6 +103,9 @@ class Scenario:
     baseline: list[BaselineStream]
     stages: dict[int, Stage]
     auto_script: list[dict[str, Any]]
+    # The search term that finds Beat 5's event. The console's tamper panel and the auto
+    # flow both read it from here, instead of each hardcoding the demo's user name.
+    tamper_query: str = "a.sharma"
 
     @property
     def baseline_actions(self) -> list[dict[str, Any]]:
@@ -272,7 +288,24 @@ def load_scenario(
             raise ScenarioValidationError(
                 f"{target}: auto[{position}] triggers stage {step['stage']}, which is not defined"
             )
+        # An `api:` step may carry its own expectations. A stage's belong to the stage; an api
+        # flow had nowhere to put them, so what it proved was only ever its own exception.
+        for index, clause in enumerate(step.get("expect") or []):
+            if not isinstance(clause, dict):
+                raise ScenarioValidationError(
+                    f"{target}: auto[{position}] expect {index} must be a mapping"
+                )
+            _check_expect(clause, f"{target}: auto[{position}] expect {index}")
+
+    tamper = data.get("tamper") or {}
+    if not isinstance(tamper, dict):
+        raise ScenarioValidationError(f"{target}: tamper must be a mapping")
 
     return Scenario(
-        name=scenario_name, seed=seed, baseline=baseline, stages=stages, auto_script=auto_script
+        name=scenario_name,
+        seed=seed,
+        baseline=baseline,
+        stages=stages,
+        auto_script=auto_script,
+        tamper_query=str(tamper.get("query") or "a.sharma"),
     )

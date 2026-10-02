@@ -1,51 +1,23 @@
-// The signed-root ledger, seeded from /evidence/roots and live-appended from the
-// `root` SSE event the evidence API emits as each window is signed.
+// The signed-root ledger, seeded from /evidence/roots and kept live by the shell.
+//
+// The shell's `useLiveUpdates` owns the one lineage SSE connection and merges each `root`
+// event into this query's cache, so the table just reads the cache. It used to open a second
+// EventSource to the same endpoint — on a different URL, because this one carried no tenant —
+// which meant two streams per viewer for one event type.
 //
 // The signature / prev-link columns read the ledger-audit flags the API attaches. When the
 // audit could not run the flags are absent and the cell says "unknown" — this table never
 // draws a tick it did not get from the server.
 
 import { AlertTriangle, CheckCircle2, Clock, HelpCircle, ShieldCheck } from "lucide-react";
-import { useEffect, useState } from "react";
 import { useEvidenceRoots } from "../../api/queries";
 import type { LedgerRoot } from "../../api/types";
 import { useI18n } from "../../i18n/i18n";
-import { useSSE, type EventSourceLike } from "../../sse/useSSE";
 
-function isLedgerRoot(value: unknown): value is LedgerRoot {
-  return (
-    !!value &&
-    typeof value === "object" &&
-    typeof (value as LedgerRoot).window_id === "string" &&
-    typeof (value as LedgerRoot).payload === "object"
-  );
-}
-
-export interface LedgerTableProps {
-  /** Injected in tests, the way `useLiveUpdates` takes one; the app uses EventSource. */
-  createSource?: (url: string) => EventSourceLike;
-}
-
-export function LedgerTable({ createSource }: LedgerTableProps = {}) {
+export function LedgerTable() {
   const { t } = useI18n();
-  const { data: initialData, isLoading } = useEvidenceRoots(50);
-  const [roots, setRoots] = useState<LedgerRoot[]>([]);
-
-  useEffect(() => {
-    if (initialData?.roots) setRoots(initialData.roots);
-  }, [initialData]);
-
-  // The handler map is keyed by SSE event name; the server emits `overview` and `root`.
-  useSSE(
-    "/api/lineage/stream",
-    {
-      root: (data: unknown) => {
-        if (!isLedgerRoot(data)) return;
-        setRoots((prev) => [data, ...prev.filter((r) => r.window_id !== data.window_id)]);
-      },
-    },
-    createSource,
-  );
+  const { data, isLoading } = useEvidenceRoots(50);
+  const roots: LedgerRoot[] = data?.roots ?? [];
 
   if (isLoading && roots.length === 0) {
     return (

@@ -17,7 +17,88 @@ ACTION REQUIRED:
 
 ---
 
-<<<<<<< HEAD
+## 2026-10-02 — S1 + S2 — CONTRACT-ADDITIVE + CLARIFICATION  (contracts v1.5, no bump)
+TYPE: CONTRACT-ADDITIVE
+What:     The integration pass before the first full bring-up. `main` could not start at all —
+          merge `f79a39b` committed conflict markers into `compose/docker-compose.yml` — and once
+          it could, several paths were wired to things that never ran. Additive interface changes:
+          `IF-VAULT-INDEX` is now **produced** (the archiver, at each seal); `IF-CONTRACT-YAML`
+          envelope layers accept `optional: true`; `IF-API-DEMO` `GET /scenario` carries
+          `tamper_query`, and a scenario's `auto[]` steps accept their own `expect:` clauses with
+          two new kinds, `contract_active` and `evidence_verifies`; the console's `VaultStatus
+          .chain_ok` is now nullable (unknown is not the same as broken).
+Why:      Every track reported done while CP1-CP4 were never run, so the gaps were in the seams:
+          the demo engine was never started, `demo-auto`'s flows were written from route
+          signatures and had four always-fail bugs, the evidence API answered two different
+          shapes and the console only understood the fake one, and the reset wiped stores while
+          the consumers that flush into them were still running.
+IDs:      IF-VAULT-INDEX, IF-CONTRACT-YAML, IF-API-DEMO, IF-API-EVIDENCE, IF-PORTS
+Files patched: 06_STATUS_BOARD.md, 04_DEMO_SCRIPT.md (Beat 5 narration now matches the real
+          tamper matrix), reports/B2.md, reports/B5.md, docs/DEMO_GUIDE.md, docs/tamper_matrix.md,
+          README.md
+ACTION REQUIRED:
+  - [ ] @A `make cp1` and `make cp2` on the workstation profile, and record the runs.
+  - [ ] @B `make llm-cache-seed` (data/llm_cache is empty, so `live_then_cache` has nothing to
+        fall back to and CP4 criterion 5 cannot pass), then `make cp4 RUNS=10`.
+  - [ ] @C walk every console page against the live stack: the Overview's numbers now come from
+        ClickHouse through one adapter, not from the hardcoded fallback.
+
+### What changed, by area
+
+**Blockers.** Resolved the committed merge conflict in `compose/docker-compose.yml`, keeping both
+sides (demo-engine *and* the Track B services, the scale replicas and `tools`); the same markers
+in this file. Added `b7` to `veyra.sh`'s `SERVICE_PROFILES`, so the demo engine is actually
+started and `/api/demo/*` stops answering 502. Gave it `user:` plus the docker group, which it
+needs to chmod sealed segments and restart the consumers. `./veyra.sh up` now **fails** when the
+smoke check fails instead of printing Ready regardless.
+
+**demo-auto.** Four bugs that could never pass: the drift expectation called `GET /drift` with no
+session (401 forever), the analyze reader called `.get` on the `templates` frame which is a list,
+the source key was issued while switched to the approver (403), and the drift item was read as
+`item["id"]` where `DriftOut` says `drift_id`. Added `test_auto.py`, which drives the flows
+against a stub control API.
+
+**Reset.** Stops the stateful consumers *before* wiping, because SIGTERM makes the archiver seal
+and the indexer flush — those writes were landing in the freshly wiped vault and index. Clears the
+tamper backups where the lab actually puts them (`data/tamper_backup`, not under the vault), and
+the edge disk buffers. `make demo-reset` drives the running engine, so the baseline it produces is
+paused for the wipe. Restarts in parallel, and the verify pre-warm asks for a real event instead
+of searching for the empty string and burning its whole budget.
+
+**Timing.** A beat's `send` actions run concurrently: stage 3's `over_s` values summed to ~115 s
+against a 45 s budget, and the burst that fires rule 100111 arrived a minute in. `demo-auto` now
+fails a run that starts a step late or overruns `VEYRA_DEMO_AUTO_BUDGET_S`, so AC1 can fail.
+
+**The console wire.** `GET /lineage/overview` and `/lineage/sources` go through one adapter
+(`evidence_api.console`) on both paths, so the indexed and degraded answers cannot have different
+shapes again — the console was written against the fallback's shape and blanked the Overview the
+moment ClickHouse had rows. The fallback's invented numbers (15 EPS, 1500/200/80/20) and the two
+fabricated delivery receipts are gone. ClickHouse is probed lazily and retried rather than once at
+startup. A contract test compares the adapter's output with the console's own TypeScript
+interfaces.
+
+**Evidence.** The archiver publishes `IF-VAULT-INDEX`, so `segments` and `vault_locations` fill and
+the vault panel has something true to show. The tamper lab refuses an event whose window is not
+signed yet, because tampering it shows nothing and then gets signed in permanently. `04_DEMO_SCRIPT`
+Beat 5, `reports/B5.md`, the console mock and the Playwright spec all said `hash_raw` fails under an
+insider rewrite; it does not — only `merkle_inclusion` does, and that single red step is the point.
+
+**CEF over syslog.** `envelope: [{syslog: {optional: true}}, {cef: {}}]`, plus a syslog peeler that
+no longer eats `CEF:` as an RFC3164 tag. Syslog-framed CEF is tier 1 with byte-accurate offsets
+(three new goldens), so the demo sends it over the DMZ listener instead of publishing it straight
+onto `raw.acme_ngfw`.
+
+**Verification.** `tools/checkpoints/cp1.py` to `cp4.py` exist and are wired to `make cp1`..`cp4`
+(`make e2e-smoke` was a `TODO` echo). The smoke check grew the whole Track B half — lineage rows,
+a sealed segment, a signed root — plus a HEC push with a real key and the DMZ listener. `make
+typecheck` was green because mypy stopped on a duplicate `conftest` before checking anything; it
+now checks 190 files and they pass.
+
+**Safety.** Caddy answers 404 for `/api/control/internal/*`, which was reachable from any browser
+tab and included `POST /internal/reset`. A reset no longer signs the presenter out mid-beat. The
+control SSE hub filters by tenant. `tools/seed_ch.py` refuses the live database by default — it
+writes roots with `immudb_verified = true`, which this build never produces.
+
 ## 2026-09-30 17:40 — B6 + B7 — CONTRACT-ADDITIVE + CLARIFICATION  (contracts v1.5, no bump)
 TYPE: CONTRACT-ADDITIVE
 What:     B6 and B7 are done (B7 with two live ACs deferred). Five additive interface changes and
@@ -112,7 +193,7 @@ ACTION REQUIRED:
         module (`services/ingest_gateway/tests` vs `services/control_api/tests`), and
         `tools/tamper.py` resolves under two module names. Neither is B6/B7 code; mypy is clean
         on the files this work touched. Worth fixing before CI is trusted.
-=======
+
 ## 2026-09-30 — S2 — DECISION + REQUEST @A @B  (contracts v1.5, no bump)
 TYPE: DECISION
 What:     One-command setup for reviewers and the workstation demo: `./veyra.sh` (Linux/WSL/macOS)
@@ -170,7 +251,6 @@ ACTION REQUIRED:
         `llm-cache-seed`.
   - [ ] @B B7's `demo-reset`/preflight should call `make llm-warm` if the demo ever uses `live*`: the
         first load after boot is longer than `LLM_TIMEOUT_S`.
->>>>>>> caee8d7f20de9da536befcdb5ad4dfda026b86b9
 
 ## 2026-09-29 16:30 — A5 — CLARIFICATION + REQUEST @B  (contracts v1.5, no bump)
 TYPE: CLARIFICATION

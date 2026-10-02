@@ -15,11 +15,13 @@ router = APIRouter(tags=["stream"])
 @router.get("/stream")
 async def stream(
     request: Request,
-    _principal: Principal = Depends(current_principal),
+    principal: Principal = Depends(current_principal),
     ctx: AppContext = Depends(get_ctx),
 ) -> StreamingResponse:
+    # A tenant-pinned user gets only their tenant's events; a platform user gets everything.
+    tenant = None if principal.is_platform else principal.tenant_id
     return StreamingResponse(
-        sse_stream(ctx.hub, ctx.cfg.sse_heartbeat_s, request.is_disconnected),
+        sse_stream(ctx.hub, ctx.cfg.sse_heartbeat_s, request.is_disconnected, tenant),
         media_type="text/event-stream",
         headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
     )

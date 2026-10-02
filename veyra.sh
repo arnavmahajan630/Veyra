@@ -19,7 +19,7 @@ CONTRACTS_URL="${VEYRA_CONTRACTS_URL:-https://github.com/arnavmahajan630/contrac
 OLLAMA_IMAGE="ollama/ollama:0.34.4"
 KAFKA_IMAGE="apache/kafka:4.1.2"
 NODE_IMAGE="node:25-bookworm-slim"
-SERVICE_PROFILES=(a2 a3 a6 c1 c3 b1 b2 b3 b4)
+SERVICE_PROFILES=(a2 a3 a6 c1 c3 b1 b2 b3 b4 b7)
 
 # ---------------------------------------------------------------- output
 if [[ -t 1 ]]; then
@@ -59,7 +59,7 @@ Options for load:
   --record-size B   Stage A record size in bytes                          (default 200)
   --skip-kafka | --skip-pipeline | --force (ignore the disk-space guard)
 
-Options for demo:   --auto  --beat N  --draft-mode heuristic|cache|live
+Options for demo:   --auto  --beat N  --no-reset
 EOF
 }
 
@@ -202,9 +202,12 @@ contracts() {
 }
 
 write_env() {
-  local uid gid console_port=8080
+  local uid gid docker_gid console_port=8080
   uid=$(id -u); gid=$(id -g)
   [[ ${VEYRA_TOOLBOX:-0} == 1 || $uid == 0 ]] && { uid=1000; gid=1000; }
+  # The demo engine restarts the stateful consumers over the Docker socket, so it needs the
+  # socket's group. Anything else would have to run as root.
+  docker_gid=$(stat -c %g /var/run/docker.sock 2>/dev/null || echo 999)
   if ! docker ps --format '{{.Names}}' | grep -qx veyra-caddy; then
     if (exec 3<>/dev/tcp/127.0.0.1/8080) 2>/dev/null; then console_port=8081; warn "port 8080 is busy; the console will be on 8081"; fi
   elif [[ -f .env.runtime ]]; then
@@ -218,7 +221,11 @@ write_env() {
     echo "# --- veyra.sh overrides"
     echo "VEYRA_UID=$uid"
     echo "VEYRA_GID=$gid"
+    echo "VEYRA_DOCKER_GID=$docker_gid"
     echo "VEYRA_CONSOLE_PORT=$console_port"
+    # Only when the operator moved the registry: compose's default is ../../contracts-repo,
+    # relative to compose/, which is the sibling checkout.
+    if [[ -n ${VEYRA_CONTRACTS_REPO_DIR:-} ]]; then echo "VEYRA_CONTRACTS_REPO_DIR=$CONTRACTS_REPO"; fi
     echo "VEYRA_DEMO_MODE=1"
     echo "VEYRA_SEGMENT_MAX_SECONDS=20"
     echo "VEYRA_VAULT_CHATTR=0"
@@ -346,7 +353,12 @@ services() {
 
 smoke() {
   stage "Smoke check"
-  run_tools python tools/veyra_check.py || warn "some checks failed; see above. $SELF logs <service> shows why."
+  if run_tools python tools/veyra_check.py; then
+    SMOKE_OK=1
+  else
+    SMOKE_OK=0
+    warn "some checks failed; see above. $SELF logs <service> shows why."
+  fi
 }
 
 summary() {
@@ -375,6 +387,13 @@ cmd_up() {
   printf '%sVeyra%s  one-command setup   %s(%s)%s\n' "$B" "$N" "$D" "$REPO" "$N"
   preflight; contracts; environment; build; infrastructure; wazuh; llm; services; smoke; summary
   printf '\n       %sdone in %d min %d s%s\n' "$D" $(((SECONDS - started) / 60)) $(((SECONDS - started) % 60)) "$N"
+  # The stack is only "up" when the smoke check says so: a silent pass here is how a broken
+  # stack gets taken into a rehearsal.
+  if [[ ${SMOKE_OK:-0} != 1 ]]; then
+    printf '\n       %sFAILED%s  the smoke check did not pass; this stack is not demo-ready.\n' "$R" "$N"
+    printf '       %sRun %s status%s for a per-service view, %s logs <service>%s for the reason.\n' "$D" "$SELF" "$N" "$SELF" "$N"
+    return 1
+  fi
 }
 
 need_up() {
@@ -393,8 +412,10 @@ cmd_logs() { need_up; dc logs -f --tail 200 "${PASSTHRU[@]}"; }
 cmd_down() { need_up; dc --profile scale --profile tools down --remove-orphans; ok "stopped (data kept; $SELF up starts it again)"; }
 cmd_reset() {
   need_up
-  run_tools python -c "import httpx; r = httpx.post('http://control-api:8000/internal/reset', json={'scenario': 'sih_main'}, timeout=120); print(r.status_code, r.text[:300])"
-  ok "control plane reset to the seeded demo world (sources, contracts, keys, drift)"
+  # The demo engine's reset is the whole world: control plane, Kafka, ClickHouse, the vault,
+  # the sinks and the drift state, inside VEYRA_DEMO_RESET_BUDGET_S.
+  run_tools python -m demo_engine.cli --in-container reset || exit $?
+  ok "reset to the seeded demo world (control plane, Kafka, ClickHouse, vault, sinks, drift)"
 }
 cmd_wipe() {
   load_state; compose_files 2>/dev/null || true

@@ -46,13 +46,16 @@ T3 arrives 8 times in 20 s from `103.21.4.77`, with the stack-trace continuation
 - One 1920×1080 display.
 - Browser window 1 (80% of the time): the VEYRA console at `http://localhost:8080`.
 - Browser window 2: the Wazuh dashboard, pre-opened on Discover filtered to `rule.groups: veyra`, time range "last 15 minutes", auto-refresh 5 s. Switch with Alt+Tab.
-- The demo panel is a hidden route `/demo`. Hotkeys work from any console page:
+- The demo panel is a hidden route `/demo`.
 
-| Hotkey | Action |
-|---|---|
-| `Shift+1..6` | Trigger stage |
-| `Shift+T` | Insider tamper on the currently open event |
-| `Shift+R` | Reset (confirmation required) |
+| Hotkey | Action | Where it works |
+|---|---|---|
+| `Shift+1..6` | Trigger stage | any console page (registered by the shell) |
+| `Shift+T` | Insider tamper on the open event, then re-verify | an event's Lineage page, which is where "the open event" means something |
+| `Shift+R` | Reset, with a confirmation | the `/demo` panel, because the confirmation dialog lives there |
+
+A stage that is already running ignores a repeat press, and a press within 1.5 s of the last
+one is treated as one fumbled keystroke rather than two triggers.
 
 - Browser zoom 110%. Dark theme off unless the projector is known to be good.
 
@@ -103,9 +106,9 @@ T3 arrives 8 times in 20 s from `103.21.4.77`, with the stack-trace continuation
 - **Do:** Click one replayed event (from the drift view "View events", or Lineage search `a.sharma`).
   1. **Lineage view:** raw on the left, normalized OCSF on the right, and the revision timeline "rev 1 tier 3 → rev 2 tier 1 (authsrv@2)".
   2. Hover `src_endpoint.ip`. The exact bytes `103.21.4.77` highlight in the raw.
-  3. **Verify.** Eight steps animate green, from hash through chain walk, segment digest, Merkle inclusion and signature to immudb.
+  3. **Verify.** Seven steps animate green, from hash through chain walk, segment digest, Merkle inclusion and signature. The eighth, the immudb anchor, stays grey: it is declared not implemented in this build (B3) — say so if asked.
   4. `Shift+T` (insider rewrite: the attacker has root and the data keys, and changes the IP in the stored raw).
-  5. **Verify** again. It turns red at "Matches ingest-time hash" and "Merkle inclusion", and the panel reads "Segment seg_… altered after sealing; root w_… signature valid; evidence chain broken here".
+  5. **Verify** again. It turns red at **"Merkle inclusion"** only — every check *inside* the segment still passes, because the insider fixed them all, and the signature over the root still verifies. The panel reads "Segment seg_… altered after sealing; root w_… signature valid; evidence chain broken here". That one red step is the whole point: a design that checksums a file against itself cannot see this.
 - **Say:** *"Every normalized field points to its exact source bytes. Verification walks the hash chain to a signed root. Now an insider with root *and* the encryption keys rewrites the attacker's IP in storage. They can re-encrypt, but they can't re-sign history. VEYRA shows exactly where it broke."*
 - **Fallback:** if verify is slow (over 3 s), the steps show a spinner. Keep talking; verify must finish in under 2 s on the laptop (B4 acceptance).
 

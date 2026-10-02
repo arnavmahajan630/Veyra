@@ -45,10 +45,16 @@ test("Beat 5: a field's bytes highlight and the evidence verifies", async ({ pag
   expect(Date.now() - started).toBeLessThan(10_000); // mock timing; the live bound is 2 s
 
   // AC3: an insider rewrite turns the chain red and locates the change in time…
+  // It fails at merkle_inclusion and nowhere else: the insider holds the KEK, so they
+  // re-encrypt and recompute every hash inside the segment. The one thing they cannot do is
+  // re-sign the root. (tests/tamper/test_tamper_matrix.py pins this.)
   await page.keyboard.press("Shift+T");
-  await expect(page.locator('[data-step="hash_raw"]')).toHaveAttribute("data-state", "failed", {
-    timeout: 15_000,
-  });
+  await expect(page.locator('[data-step="merkle_inclusion"]')).toHaveAttribute(
+    "data-state",
+    "failed",
+    { timeout: 15_000 },
+  );
+  await expect(page.locator('[data-step="hash_raw"]')).toHaveAttribute("data-state", "ok");
   await expect(page.getByTestId("verify-failure-summary")).toContainText(
     /altered after it was sealed/,
   );
@@ -57,9 +63,11 @@ test("Beat 5: a field's bytes highlight and the evidence verifies", async ({ pag
 
   // …and untampering restores it.
   await page.getByRole("button", { name: "Untamper" }).click();
-  await expect(page.locator('[data-step="hash_raw"]')).toHaveAttribute("data-state", "ok", {
-    timeout: 15_000,
-  });
+  await expect(page.locator('[data-step="merkle_inclusion"]')).toHaveAttribute(
+    "data-state",
+    "ok",
+    { timeout: 15_000 },
+  );
 });
 
 // AC5: the whole path works from the keyboard, and focus is always visible.

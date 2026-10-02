@@ -13,8 +13,16 @@ work, never loss) is the one P2 asks for.
 The chain resumes from the newest sealed segment's ``last_chain_hash`` for that partition,
 so the hash chain survives restarts.
 
-Prototype scope: no Kafka transactions, no IF-VAULT-INDEX publishing, no chattr, no crash
-injection, no chain-epoch anomaly recovery. Those are the rest of B2 and B3.
+At each seal the archiver publishes IF-VAULT-INDEX to the ``vault_index`` topic: one
+``segment`` record plus one ``event`` record per archived envelope. The lineage indexer turns
+those into the ``segments`` and ``vault_locations`` tables, which is what lets the evidence
+API find an event by index instead of scanning every segment in the vault, and what fills the
+console's vault panel. Publishing happens *after* the file is durable and *before* the offset
+commit, so the worst case is a re-published record (the index collapses duplicates on
+``(event_uid, revision)`` / ``segment_id``), never a segment with no index entry.
+
+Prototype scope: no Kafka transactions, no chattr, no crash injection, no chain-epoch anomaly
+recovery. Those are the rest of B2 and B3.
 """
 
 from __future__ import annotations
@@ -29,8 +37,9 @@ from confluent_kafka import Consumer, KafkaError, Message, TopicPartition
 from prometheus_client import Counter, Gauge, Histogram
 
 from archiver.settings import ArchiverSettings
-from veyra_common.kafka import make_consumer
-from veyra_common.topics import RAW_PATTERN
+from veyra_common.kafka import make_consumer, make_producer
+from veyra_common.models.records import VaultIndexEvent, VaultIndexSegment
+from veyra_common.topics import RAW_PATTERN, TOPIC_VAULT_INDEX
 from veyra_evidence.keys import KeyProvider, get_key_provider
 from veyra_evidence.segment import SealedSegment, SegmentWriter, latest_header
 
@@ -42,6 +51,10 @@ SEGMENTS_SEALED = Counter(
 BYTES_TOTAL = Counter("veyra_vault_bytes_total", "Plaintext bytes archived")
 RECORDS_TOTAL = Counter("veyra_vault_records_total", "Envelopes archived")
 SKIPPED = Counter("veyra_vault_skipped_total", "Records not archived", ["reason"])
+INDEX_PUBLISHED = Counter(
+    "veyra_vault_index_published_total", "IF-VAULT-INDEX records produced", ["kind"]
+)
+INDEX_FAILED = Counter("veyra_vault_index_failed_total", "IF-VAULT-INDEX publishes that failed")
 OPEN_AGE = Gauge(
     "veyra_vault_open_segment_age_seconds", "Age of the open segment", ["topic", "partition"]
 )
@@ -56,12 +69,20 @@ TopicPart = tuple[str, int]
 
 class Archiver:
     def __init__(
-        self, cfg: ArchiverSettings, consumer: Consumer, keys: KeyProvider | None = None
+        self,
+        cfg: ArchiverSettings,
+        consumer: Consumer,
+        keys: KeyProvider | None = None,
+        producer: Any | None = None,
     ) -> None:
         self.cfg = cfg
         self.consumer = consumer
         self.keys = keys or get_key_provider(cfg)
+        # None means "do not publish the vault index", which is what the unit tests use.
+        self.producer = producer
         self._writers: dict[TopicPart, SegmentWriter] = {}
+        # Per open segment: what each appended envelope needs for its vault_index record.
+        self._appended: dict[TopicPart, list[tuple[str, int, int, str]]] = {}
         # Chain head per partition, carried across segments.
         self._heads: dict[TopicPart, bytes] = {}
         self._stop = False
@@ -86,7 +107,7 @@ class Archiver:
             cfg=cfg,
             **{"topic.metadata.refresh.interval.ms": cfg.archive_metadata_refresh_ms},
         )
-        archiver = cls(cfg, consumer, keys)
+        archiver = cls(cfg, consumer, keys, producer=make_producer(cfg=cfg))
         consumer.subscribe(
             list(subscription or [RAW_PATTERN]),
             on_assign=archiver._on_assign,
@@ -155,7 +176,8 @@ class Archiver:
         writer = self._writers.get(key)
         if writer is None:
             writer = self._open(key, offset)
-        writer.append(offset, value, raw_sha256, event_uid)
+        record_idx, chain_hash_hex = writer.append(offset, value, raw_sha256, event_uid)
+        self._appended.setdefault(key, []).append((event_uid, record_idx, offset, chain_hash_hex))
         self.records += 1
         RECORDS_TOTAL.inc()
         BYTES_TOTAL.inc(len(value))
@@ -208,6 +230,9 @@ class Archiver:
         self._heads[key] = bytes.fromhex(sealed.header["last_chain_hash_hex"])
         self.segments += 1
         self.sealed.append(sealed)
+        # Before the commit: a crash between the two re-reads the partition and re-publishes,
+        # which the index collapses. A commit first could leave a segment with no index rows.
+        self._publish_index(key, sealed)
         if commit:
             # Only now: the evidence is on disk.
             self.consumer.commit(
@@ -215,6 +240,61 @@ class Archiver:
                 asynchronous=False,
             )
         return sealed
+
+    def _publish_index(self, key: TopicPart, sealed: SealedSegment) -> None:
+        """Publish IF-VAULT-INDEX for one sealed segment: one segment row, one row per event.
+
+        Best effort by design: the evidence is already on disk, and the index is a lookup
+        shortcut. A broker that will not take these must not stop the vault, so a failure is
+        logged and counted rather than raised — the evidence API falls back to scanning.
+        """
+        appended = self._appended.pop(key, [])
+        if self.producer is None:
+            return
+        topic, partition = key
+        sealed_at = str(sealed.header["sealed_at"])
+        records: list[VaultIndexSegment | VaultIndexEvent] = [
+            VaultIndexSegment(
+                segment_id=sealed.segment_id,
+                raw_topic=topic,
+                partition=partition,
+                first_offset=sealed.first_offset,
+                last_offset=sealed.last_offset,
+                record_count=sealed.record_count,
+                prev_chain_hash_hex=str(sealed.header["prev_chain_hash_hex"]),
+                last_chain_hash_hex=str(sealed.header["last_chain_hash_hex"]),
+                segment_digest_hex=sealed.digest_hex,
+                sealed_at=sealed_at,
+            )
+        ]
+        records += [
+            VaultIndexEvent(
+                event_uid=event_uid,
+                raw_topic=topic,
+                partition=partition,
+                offset=offset,
+                segment_id=sealed.segment_id,
+                record_idx=record_idx,
+                chain_hash_hex=chain_hash_hex,
+                sealed_at=sealed_at,
+            )
+            for event_uid, record_idx, offset, chain_hash_hex in appended
+        ]
+        try:
+            for record in records:
+                self.producer.produce(
+                    TOPIC_VAULT_INDEX,
+                    value=record.model_dump_json().encode("utf-8"),
+                    key=sealed.segment_id.encode("utf-8"),
+                )
+                INDEX_PUBLISHED.labels(record.kind).inc()
+            self.producer.flush(self.cfg.archive_index_publish_timeout_s)
+        except Exception:
+            INDEX_FAILED.inc()
+            log.exception(
+                "could not publish the vault index",
+                extra={"segment_id": sealed.segment_id, "records": len(records)},
+            )
 
     # ---------------------------------------------------------------- rebalance
     def _on_assign(self, _consumer: Consumer, partitions: list[TopicPartition]) -> None:

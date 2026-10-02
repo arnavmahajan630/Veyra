@@ -7,6 +7,7 @@ import { signInAs } from "../../mocks/handlers";
 import { renderWithProviders } from "../../test/render";
 import { server } from "../../test/server";
 import DemoPage from "./DemoPage";
+import { useStageHotkeys } from "./useStageHotkeys";
 
 let uninstall: (() => void) | undefined;
 beforeEach(() => {
@@ -18,6 +19,12 @@ afterEach(() => uninstall?.());
 function renderPanel(email = "admin@veyra") {
   signInAs(email);
   return renderWithProviders(<DemoPage />, { route: "/demo" });
+}
+
+/** Stands in for the shell, which is where the stage hotkeys are registered. */
+function HotkeyHarness() {
+  useStageHotkeys();
+  return <p data-testid="harness">no demo panel here</p>;
 }
 
 function stageButton(n: number) {
@@ -62,7 +69,10 @@ describe("DemoPage", () => {
     expect(await screen.findByText(/no API key has been issued/)).toBeInTheDocument();
   });
 
-  it("runs a stage from its hotkey, and a double press does not double-send", async () => {
+  it("runs a stage from its hotkey anywhere in the app, and a double press does not double-send", async () => {
+    // The stage hotkeys are registered by the shell, not by this page: the script promises
+    // they work from any console page, and the presenter is rarely on /demo. The harness
+    // stands in for the shell and renders no demo panel at all.
     let posts = 0;
     server.use(
       http.post("/api/demo/stage/:id", ({ params }) => {
@@ -70,8 +80,9 @@ describe("DemoPage", () => {
         return HttpResponse.json({ ok: true, stage: Number(params.id) });
       }),
     );
-    renderPanel();
-    await screen.findByText(/3\. Log storm/);
+    signInAs("admin@veyra");
+    renderWithProviders(<HotkeyHarness />, { route: "/" });
+    await screen.findByTestId("harness");
     await userEvent.keyboard("{Shift>}3{/Shift}");
     await userEvent.keyboard("{Shift>}3{/Shift}");
     await waitFor(() => expect(posts).toBeGreaterThan(0));
