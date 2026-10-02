@@ -21,6 +21,7 @@ import shutil
 import threading
 import time
 from collections.abc import Callable
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -33,6 +34,9 @@ from veyra_common.settings import Settings
 log = logging.getLogger(__name__)
 
 # Containers that hold consumer-group state or in-memory caches and must come back clean.
+# Stopped before the wipe and started after it. Stopping first matters: SIGTERM makes the
+# archiver seal its open segments and the indexer flush its buffer, so leaving them running
+# writes pre-reset records straight into the freshly wiped vault and index.
 STATEFUL_CONSUMERS = (
     "veyra-normalizer",
     "veyra-archiver",
@@ -40,9 +44,19 @@ STATEFUL_CONSUMERS = (
     "veyra-lineage-indexer",
     "veyra-router",
     "veyra-drift-worker",
+    # Caches per-source API keys from `control`, which the reseed reissues.
+    "veyra-ingest-gateway",
+    # Vector's disk buffers survive a restart, so an edge left running can replay a pre-reset
+    # batch after the wipe. They are stopped, their buffers are cleared, then they come back.
+    "veyra-edge-core",
+    "veyra-edge-dmz",
 )
+# Buffer directories cleared while the edges are down (relative to data/).
+EDGE_BUFFERS = ("vector/dmz", "vector/core")
 
 WAZUH_SAVED_OBJECTS = Path("wazuh/dashboard/saved_objects.ndjson")
+# Must match tools/tamper.py's BACKUP_DIR, which is relative to data/, not to the vault.
+TAMPER_BACKUP_DIR = "tamper_backup"
 # Mounted into the demo-engine container in the demo profile only (declared as a deviation
 # in 00_MASTER §7).
 DOCKER_SOCKET = "/var/run/docker.sock"
@@ -115,15 +129,18 @@ class ResetOrchestrator:
         with self._lock:
             self.state = ResetState(running=True, started_at=started)
 
+        # The order is the point. Everything that holds unflushed state is stopped before
+        # anything is wiped, and nothing starts again until every store is empty.
         steps: list[tuple[str, Callable[[], str]]] = [
             ("Pause baseline traffic", self._pause_baseline),
+            ("Stop the stateful consumers", self._stop_consumers),
             ("Reseed control plane, contracts and inventory", self._control_plane),
             ("Recreate Kafka topics", self._kafka_topics),
             ("Truncate the lineage index", self._clickhouse),
             ("Wipe vault segments, ledger and tamper backups", self._vault),
             ("Re-create the immudb database", self._immudb),
             ("Clear Wazuh indices, sinks and saved objects", self._wazuh),
-            ("Restart the stateful consumers", self._restart_consumers),
+            ("Start the stateful consumers", self._start_consumers),
             ("Resume baseline and pre-warm", self._resume_and_warm),
         ]
 
@@ -246,9 +263,26 @@ class ResetOrchestrator:
         for path in vault_dir.glob("*.seg"):
             path.unlink()
             removed += 1
-        for directory in (vault_dir / "roots", vault_dir / "tamper_backup"):
+        # `tools/tamper.py` keeps its backups at data/tamper_backup, NOT under the vault. A
+        # manifest that survives a reset makes /tamper/active list ghosts, and a later
+        # `untamper` copies the previous run's segments back into the wiped vault.
+        data_dir = Path(self.cfg.data_dir)
+        for directory in (vault_dir / "roots", data_dir / TAMPER_BACKUP_DIR):
             if directory.is_dir():
                 shutil.rmtree(directory)
+        # Best effort, and said out loud when it is not possible: an edge whose buffer was
+        # written by a root-owned Vector (before the compose `user:` line) cannot be cleared
+        # from here. The vault itself is not best effort — a failure there fails the step.
+        skipped: list[str] = []
+        for name in EDGE_BUFFERS:
+            buffer_dir = data_dir / name
+            if not buffer_dir.is_dir():
+                continue
+            try:
+                shutil.rmtree(buffer_dir)
+                buffer_dir.mkdir(parents=True, exist_ok=True)
+            except OSError as exc:
+                skipped.append(f"{name} ({exc.strerror})")
         # The integrity service's chain head and inflight journals live under data/state.
         state_dir = Path(self.cfg.state_dir)
         for pattern in ("integrity*", "archiver*", "*_inflight", "drift"):
@@ -257,7 +291,13 @@ class ResetOrchestrator:
         keys_dir = Path(self.cfg.keys_dir)
         if not keys_dir.is_dir():
             log.warning("keys dir %s does not exist; the key provider will create it", keys_dir)
-        return f"{removed} segment(s) removed; keys kept at {keys_dir}"
+        detail = f"{removed} segment(s) removed; keys kept at {keys_dir}"
+        if skipped:
+            detail += (
+                f"; edge buffer(s) not cleared: {', '.join(skipped)} — they may replay "
+                "pre-reset events once. `./veyra.sh wipe` clears them."
+            )
+        return detail
 
     def _immudb(self) -> str:
         """Name a fresh database and create it, so no anchor from a past run is visible."""
@@ -276,7 +316,9 @@ class ResetOrchestrator:
             # immudb anchoring is a prototype in this build; say so instead of pretending.
             created = "python client not installed (immudb anchoring is a prototype)"
         (state_dir / "immudb_db").write_text(name, encoding="utf-8")
-        return f"{name}: {created}"
+        # Nothing anchors to immudb in this build (B3), and nothing reads this file yet, so
+        # say that rather than letting the step read like a working anchor reset.
+        return f"{name}: {created}; nothing anchors to it yet (verify step 8 is declared)"
 
     def _wazuh(self) -> str:
         """Drop today's alert/archive indices, blank the sinks, re-import saved objects."""
@@ -328,32 +370,48 @@ class ResetOrchestrator:
             )
         return "dashboard saved objects imported"
 
-    def _restart_consumers(self) -> str:
-        """Restart the stateful consumers over the mounted Docker socket.
+    def _stop_consumers(self) -> str:
+        return self._docker_action("stop", params={"t": 10})
+
+    def _start_consumers(self) -> str:
+        return self._docker_action("start")
+
+    def _docker_action(self, action: str, params: dict[str, Any] | None = None) -> str:
+        """Run one Docker action across every stateful consumer, in parallel.
 
         The engine talks to the Docker Engine API directly rather than through the SDK: the
         repository has its own top-level ``docker/`` directory, which shadows the SDK's
         import name depending on the working directory, and one HTTP call per container
         needs no extra dependency. The socket is mounted in the demo profile only.
+
+        In parallel because nine containers x a 10 s stop timeout does not fit a 90 s reset.
         """
         transport = httpx.HTTPTransport(uds=DOCKER_SOCKET)
-        restarted: list[str] = []
+        done: list[str] = []
         missing: list[str] = []
         failed: list[str] = []
+
         with httpx.Client(transport=transport, base_url="http://docker", timeout=60.0) as client:
-            for name in STATEFUL_CONSUMERS:
-                response = client.post(f"/v1.44/containers/{name}/restart", params={"t": 10})
-                if response.status_code == 404:
-                    missing.append(name)
-                elif response.status_code >= 400:
-                    failed.append(f"{name} ({response.status_code})")
-                else:
-                    restarted.append(name)
+
+            def act(name: str) -> tuple[str, int]:
+                response = client.post(f"/v1.44/containers/{name}/{action}", params=params)
+                return name, response.status_code
+
+            with ThreadPoolExecutor(max_workers=len(STATEFUL_CONSUMERS)) as pool:
+                for name, status in pool.map(act, STATEFUL_CONSUMERS):
+                    if status == 404:
+                        missing.append(name)
+                    elif status == 304:  # already in the requested state
+                        done.append(name)
+                    elif status >= 400:
+                        failed.append(f"{name} ({status})")
+                    else:
+                        done.append(name)
         if failed:
-            raise RuntimeError(f"could not restart: {', '.join(failed)}")
-        detail = f"restarted {len(restarted)}"
+            raise RuntimeError(f"could not {action}: {', '.join(failed)}")
+        detail = f"{action}ped {len(done)}" if action == "stop" else f"{action}ed {len(done)}"
         if missing:
-            detail += f"; not running: {', '.join(missing)}"
+            detail += f"; not present: {', '.join(missing)}"
         return detail
 
     def _resume_and_warm(self) -> str:
@@ -395,14 +453,29 @@ class ResetOrchestrator:
         deadline = time.monotonic() + wait
         evidence = self.cfg.evidence_api_url.rstrip("/")
         while time.monotonic() < deadline:
-            try:
-                response = httpx.get(f"{evidence}/lineage/search?q=&limit=1", timeout=5.0)
-                hits = response.json().get("hits") if response.status_code == 200 else None
-                if hits:
-                    uid = hits[0]["event_uid"]
+            uid = self._newest_indexed_event()
+            if uid:
+                with contextlib.suppress(Exception):
                     httpx.get(f"{evidence}/evidence/verify/{uid}", timeout=15.0)
                     return f"verify pre-warmed on {uid}"
-            except Exception:
-                pass
             time.sleep(1.0)
         return f"verify pre-warm found no sealed event within {wait:.0f}s"
+
+    def _newest_indexed_event(self) -> str | None:
+        """The newest event_uid in the lineage index.
+
+        ``/lineage/search`` needs a term — it answers an empty ``q`` with no hits, which is
+        why the pre-warm used to spend its whole budget and then report "no sealed event".
+        """
+        query = (
+            f"SELECT event_uid FROM {self.cfg.clickhouse_db}.norm_lineage "
+            "ORDER BY received_time DESC LIMIT 1"
+        )
+        try:
+            response = httpx.post(self.cfg.clickhouse_url, content=query, timeout=5.0)
+            if response.status_code != 200:
+                return None
+            uid = response.text.strip()
+            return uid or None
+        except Exception:
+            return None

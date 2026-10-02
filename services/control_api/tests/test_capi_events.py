@@ -47,3 +47,37 @@ async def test_sse_stream_emits_events_and_heartbeats_then_unsubscribes() -> Non
     assert await asyncio.wait_for(anext(stream), 1) == b": heartbeat\n\n"
     await stream.aclose()
     assert hub.subscriber_count == 0
+
+
+async def test_a_tenant_pinned_subscriber_does_not_see_another_tenants_events() -> None:
+    """The hub used to fan every event out to every subscriber."""
+    hub = EventHub(queue_max=8)
+    hub.bind(asyncio.get_running_loop())
+    maha = hub.subscribe("t_maha_power")
+    platform = hub.subscribe(None)
+
+    hub.publish("drift", {"drift_id": "d1", "tenant_id": "t_ntro_core"})
+    hub.publish("drift", {"drift_id": "d2", "tenant_id": "t_maha_power"})
+    await asyncio.sleep(0)
+
+    assert [event["data"]["drift_id"] for event in _drain(maha)] == ["d2"]
+    assert [event["data"]["drift_id"] for event in _drain(platform)] == ["d1", "d2"]
+
+
+async def test_an_event_with_no_tenant_still_reaches_everyone() -> None:
+    """A reset announcement is platform-wide news, not one tenant's."""
+    hub = EventHub(queue_max=8)
+    hub.bind(asyncio.get_running_loop())
+    maha = hub.subscribe("t_maha_power")
+
+    hub.publish("source", {"event": "reset", "scenario": "sih_main"})
+    await asyncio.sleep(0)
+
+    assert [event["data"]["event"] for event in _drain(maha)] == ["reset"]
+
+
+def _drain(queue: asyncio.Queue[dict]) -> list[dict]:
+    out = []
+    while not queue.empty():
+        out.append(queue.get_nowait())
+    return out

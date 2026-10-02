@@ -310,6 +310,7 @@
   "onboard.zone": "Zone",
   "overview.breakerOpen": "Breaker open",
   "overview.chainBroken": "Chain broken",
+  "overview.chainUnknown": "Chain not audited",
   "overview.chainIntact": "Chain intact",
   "overview.delivery": "Delivery",
   "overview.edge": "Edge and gateway",

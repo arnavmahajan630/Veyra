@@ -76,6 +76,20 @@ describe("OverviewPage", () => {
     expect(await screen.findByText("/sources?source=src_fw_dmz_01")).toBeInTheDocument();
   });
 
+  it("says the chain is not audited rather than broken when the verdict is unknown", async () => {
+    // The server sends null when the ledger audit could not run. Treating that as false
+    // painted "Chain broken" in red on an intact ledger, right at the start of the demo.
+    server.use(
+      http.get("/api/lineage/overview", () => {
+        const base = overviewAt(0);
+        return HttpResponse.json({ ...base, vault: { ...base.vault, chain_ok: null } });
+      }),
+    );
+    renderPage();
+    expect(await screen.findByRole("link", { name: "Chain not audited" })).toBeInTheDocument();
+    expect(screen.queryByText("Chain broken")).not.toBeInTheDocument();
+  });
+
   it("invites onboarding when there are no sources", async () => {
     server.use(
       http.get("/api/lineage/overview", () => HttpResponse.json({ ...overviewAt(0), sources: [] })),

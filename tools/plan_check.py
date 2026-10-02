@@ -91,9 +91,12 @@ def main() -> int:
 
     print(f"plan-check: contracts v{current[0]}.{current[1]} ({len(files)} plan files)")
 
+    # `ahead` and `stale` are filtered on `version is not None`; spell it for the checker.
     for f in ahead:
+        assert f.version is not None
         print(f"  AHEAD   {f.rel}: v{f.version[0]}.{f.version[1]} > 02_CONTRACTS.md")
     for f in stale:
+        assert f.version is not None
         print(f"  STALE   {f.rel}: v{f.version[0]}.{f.version[1]}")
     for f in missing:
         print(f"  NOHDR   {f.rel}: no 'contracts: vX.Y' header")

@@ -11,7 +11,11 @@ from __future__ import annotations
 import argparse
 import logging
 import sys
+import time
 from collections.abc import Sequence
+from typing import Any
+
+import httpx
 
 from demo_engine.auto import AutoRunner
 from demo_engine.expectations import Evaluator
@@ -21,6 +25,8 @@ from demo_engine.scenario import load_scenario
 from demo_engine.senders import TrafficSender
 from demo_engine.stages import StageRunner
 from veyra_common.settings import Settings
+
+log = logging.getLogger(__name__)
 
 # From the host, every service is reachable on localhost through its published port.
 HOST_OVERRIDES = {
@@ -36,6 +42,7 @@ HOST_OVERRIDES = {
     "wazuh_manager_url": "https://localhost:55000",
     "wazuh_dashboard_url": "https://localhost:8443",
     "ollama_url": "http://localhost:11434",
+    "demo_engine_url": "http://localhost:8300",
 }
 
 
@@ -78,7 +85,17 @@ def main(argv: Sequence[str] | None = None) -> int:
 
 def _reset(cfg: Settings, scenario_name: str | None) -> int:
     scenario = load_scenario(name=scenario_name or cfg.demo_scenario, cfg=cfg)
-    result = ResetOrchestrator(None, cfg, scenario.name).execute_reset()
+    result = _reset_via_engine(cfg, scenario.name)
+    if result is None:
+        # No engine to drive: run the steps here, and say what that costs. The baseline loop
+        # lives inside the engine, so a local reset cannot pause it, and traffic landing
+        # mid-wipe leaves rows in the index with no vault segment behind them.
+        print(
+            "the demo engine is not reachable; running the reset locally.\n"
+            "  baseline traffic (if any) will NOT be paused, so this reset is not the one the"
+            " demo uses."
+        )
+        result = ResetOrchestrator(None, cfg, scenario.name).execute_reset()
     print(
         f"\nreset {'OK' if result['ok'] else 'FAILED'} in {result['seconds']}s "
         f"(budget {cfg.demo_reset_budget_s}s)"
@@ -89,6 +106,44 @@ def _reset(cfg: Settings, scenario_name: str | None) -> int:
     if result["over_budget"]:
         print(f"\nover the {cfg.demo_reset_budget_s}s budget (B7 AC1)")
     return 0 if result["ok"] and not result["over_budget"] else 1
+
+
+def _reset_via_engine(cfg: Settings, scenario_name: str) -> dict[str, Any] | None:
+    """Ask the running engine to reset itself, and wait. None when it is not reachable.
+
+    This is the path the console's Shift+R takes, so the CLI and the hotkey do the same
+    thing — including step 1, which pauses the baseline the engine is producing.
+    """
+    base = cfg.demo_engine_url.rstrip("/")
+    try:
+        started = httpx.post(f"{base}/reset", timeout=10.0)
+        started.raise_for_status()
+    except Exception as exc:
+        log.debug("demo engine not reachable at %s: %s", base, exc)
+        return None
+
+    deadline = time.monotonic() + cfg.demo_reset_budget_s * 3
+    while time.monotonic() < deadline:
+        try:
+            status = httpx.get(f"{base}/reset/status", timeout=10.0).json()
+        except Exception as exc:
+            return {
+                "ok": False,
+                "seconds": 0,
+                "over_budget": False,
+                "steps": [
+                    {"ok": False, "ms": 0, "name": "reset/status", "detail": f"{exc}"},
+                ],
+            }
+        if not status.get("running"):
+            return status
+        time.sleep(1.0)
+    return {
+        "ok": False,
+        "seconds": round(cfg.demo_reset_budget_s * 3, 1),
+        "over_budget": True,
+        "steps": [{"ok": False, "ms": 0, "name": "reset", "detail": "never finished"}],
+    }
 
 
 def _preflight(cfg: Settings) -> int:

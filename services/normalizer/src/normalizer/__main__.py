@@ -84,7 +84,8 @@ class NormalizerSettings(ServiceSettings):
 
 def build_outputs(engine: Engine, message: Message, cfg: NormalizerSettings) -> list[OutputRecord]:
     """Normalize one Kafka message into the records its transaction should produce."""
-    raw_value = message.value()
+    # A tombstone has no value; it cannot be an envelope, so _parse's failure path handles it.
+    raw_value = message.value() or b""
     started = monotonic_us()
 
     try:
@@ -244,7 +245,7 @@ def _event_uid_of(message: Message) -> str:
     import json
 
     try:
-        payload = json.loads(message.value())
+        payload = json.loads(message.value() or b"")
         uid = payload.get("event_uid")
     except Exception:
         return "00000000-0000-7000-8000-000000000000"

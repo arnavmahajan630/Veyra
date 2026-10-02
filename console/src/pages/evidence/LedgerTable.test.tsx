@@ -6,6 +6,7 @@ import { ROOTS, rootFixture } from "../../mocks/lineageFixtures";
 import { signInAs } from "../../mocks/handlers";
 import { renderWithProviders } from "../../test/render";
 import { server } from "../../test/server";
+import { LINEAGE_STREAM, useLiveUpdates } from "../../shell/useLiveUpdates";
 import { LedgerTable } from "./LedgerTable";
 
 /** A fake EventSource so a jsdom test can push SSE events on demand. */
@@ -44,26 +45,32 @@ describe("LedgerTable", () => {
     expect(screen.getByText("w_1790000000")).toBeInTheDocument();
   });
 
-  it("appends a newly signed root from the SSE stream", async () => {
+  it("appends a newly signed root from the shell's one lineage stream", async () => {
+    // The table no longer opens its own EventSource. The shell owns the single lineage
+    // stream and merges `root` into this query's cache, so the harness is the shell.
     signInAs("admin@veyra");
     const sources: FakeSource[] = [];
-    renderWithProviders(
-      <LedgerTable
-        createSource={(url) => {
-          const source = new FakeSource(url);
-          sources.push(source);
-          return source;
-        }}
-      />,
-    );
+    const createSource = (url: string) => {
+      const source = new FakeSource(url);
+      sources.push(source);
+      return source;
+    };
+
+    function Shell() {
+      useLiveUpdates(createSource);
+      return <LedgerTable />;
+    }
+
+    renderWithProviders(<Shell />);
     await screen.findByText("w_1790000060");
+
+    const lineage = sources.filter((s) => s.url.startsWith(LINEAGE_STREAM));
+    expect(lineage, "exactly one lineage stream, not one per component").toHaveLength(1);
 
     // The evidence API announces each seal as `event: root`; the table must not need a
     // refetch to show it.
     const fresh = rootFixture("w_1790000120", 1790000120, 5, "c".repeat(64));
-    // The component builds its own EventSource, so drive the one it made.
-    expect(sources, "the table should have opened the lineage stream").toHaveLength(1);
-    sources[0]!.emit("root", fresh);
+    lineage[0]!.emit("root", fresh);
     await waitFor(() => expect(screen.getByText("w_1790000120")).toBeInTheDocument());
   });
 

@@ -52,7 +52,6 @@ def test_reset_returns_to_the_seed_quickly(client, login, ctx, producer, cfg) ->
     body = response.json()
     assert body["ok"] is True and body["seconds"] < 10
     assert (body["tenants"], body["users"], body["sources"], body["contracts"]) == (2, 3, 2, 2)
-    login("admin@veyra")  # reset wiped sessions
     assert [s["id"] for s in client.get("/sources").json()] == ["src_fw_dmz_01", "src_lnx_core_07"]
     assert ctx.last_key.get() is None
     assert len(cfg.inventory_file.read_text(encoding="utf-8").splitlines()) == 3
@@ -60,6 +59,19 @@ def test_reset_returns_to_the_seed_quickly(client, login, ctx, producer, cfg) ->
         k for t, k, _ in producer.messages if t == "control" and k == "source:src_fw_dmz_01"
     ]
     assert len(republished) >= 2  # first boot + reset
+
+
+def test_a_reset_does_not_sign_the_presenter_out(client, login, ctx, producer, cfg) -> None:
+    """`reset_db` drops every table, sessions included.
+
+    The console invalidates its queries when the reset succeeds, so a dropped session meant a
+    401 and a bounce to the login page in the middle of Beat 1.
+    """
+    login("admin@veyra")
+    assert client.post("/internal/reset", json={"scenario": "sih_main"}).status_code == 200
+    me = client.get("/auth/me")
+    assert me.status_code == 200, "the pre-reset session cookie must still authenticate"
+    assert me.json()["user"]["email"] == "admin@veyra"
 
 
 def test_reset_rejects_unknown_scenarios(client) -> None:

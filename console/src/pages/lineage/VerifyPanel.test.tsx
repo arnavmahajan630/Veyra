@@ -109,13 +109,16 @@ describe("VerifyPanel", () => {
     expect(screen.queryByTestId("verify-failure-summary")).not.toBeInTheDocument();
   });
 
-  it("turns red at the tampered steps and breaks the thread there", async () => {
+  it("turns red at the tampered step and breaks the thread there", async () => {
     signInAs("admin@veyra");
     server.use(http.get("/api/evidence/:uid/verify", () => HttpResponse.json(verifyTampered(AUTH_UID))));
     await verifyAll();
     const seen = states();
-    expect(seen["hash_raw"]).toBe("failed");
     expect(seen["merkle_inclusion"]).toBe("failed");
+    // Every check inside the segment still passes: the insider holds the KEK, so they
+    // re-encrypt and recompute each one. Only the leaf under the signed root gives them away.
+    expect(seen["hash_raw"]).toBe("ok");
+    expect(seen["segment_digest"]).toBe("ok");
     // The root itself is still sound — that contrast is the point of the beat.
     expect(seen["root_signature"]).toBe("ok");
     const summary = await screen.findByTestId("verify-failure-summary");
@@ -129,25 +132,25 @@ describe("VerifyPanel", () => {
 
   it("tampers and re-verifies on Shift+T in demo mode", async () => {
     await verifyAll();
-    expect(states()["hash_raw"]).toBe("ok");
+    expect(states()["merkle_inclusion"]).toBe("ok");
     await userEvent.keyboard("{Shift>}T{/Shift}");
     // The mock remembers the tamper, so the next verify answers red.
-    await waitFor(() => expect(states()["hash_raw"]).toBe("failed"), { timeout: 4000 });
+    await waitFor(() => expect(states()["merkle_inclusion"]).toBe("failed"), { timeout: 4000 });
   });
 
   it("goes green again after Untamper", async () => {
     await verifyAll();
     await userEvent.keyboard("{Shift>}T{/Shift}");
-    await waitFor(() => expect(states()["hash_raw"]).toBe("failed"), { timeout: 4000 });
+    await waitFor(() => expect(states()["merkle_inclusion"]).toBe("failed"), { timeout: 4000 });
     await userEvent.click(screen.getByRole("button", { name: /untamper/i }));
-    await waitFor(() => expect(states()["hash_raw"]).toBe("ok"), { timeout: 4000 });
+    await waitFor(() => expect(states()["merkle_inclusion"]).toBe("ok"), { timeout: 4000 });
   });
 
   it("does not register Shift+T outside demo mode", async () => {
     await verifyAll(AUTH_UID, false);
     await userEvent.keyboard("{Shift>}T{/Shift}");
     await new Promise((resolve) => setTimeout(resolve, 200));
-    expect(states()["hash_raw"]).toBe("ok");
+    expect(states()["merkle_inclusion"]).toBe("ok");
     expect(screen.queryByRole("button", { name: /untamper/i })).not.toBeInTheDocument();
   });
 

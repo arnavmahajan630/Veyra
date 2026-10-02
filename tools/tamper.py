@@ -195,7 +195,7 @@ def segment_delete(lab: Lab, located: Located) -> str:
 def root_rewrite(lab: Lab, located: Located) -> str:
     """Rewrite the signed root in the ledger. Without the private key it cannot be re-signed."""
     entry = located.ledger_entry
-    if entry is None:
+    if entry is None:  # `tamper()` already refuses these; kept so the mode stands alone
         raise TamperError(
             f"event {located.event_uid} is not covered by a signed root yet; "
             "run the integrity service first"
@@ -232,6 +232,18 @@ def tamper(lab: Lab, mode: str, event_uid: str) -> dict[str, Any]:
         located = lab.locator.locate(event_uid)
     except EvidenceNotFound as exc:
         raise TamperError(str(exc)) from exc
+    # Refuse an event whose window has not been signed yet. Two reasons, and both of them
+    # bite on stage: verify's Merkle and signature steps are `pending_seal` rather than
+    # failed, so nothing turns red and the demo's point is lost; and worse, the integrity
+    # service may then sign the *tampered* segment's digest into the root, after which
+    # untamper restores bytes that no longer match the signed leaf — verify stays red for
+    # the rest of the run.
+    if located.ledger_entry is None:
+        raise TamperError(
+            f"event {event_uid} is not covered by a signed root yet; it would not show as "
+            "tampered, and signing it afterwards would break it permanently. Wait for its "
+            "window to be signed (see /evidence/roots) and try again."
+        )
     detail = TAMPER_FUNCS[mode](lab, located)
     report = lab.verifier.verify(event_uid)
     return {

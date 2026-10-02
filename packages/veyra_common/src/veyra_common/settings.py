@@ -91,8 +91,6 @@ class Settings(BaseSettings):
     immudb_grpc_port: int = 3322
     immudb_user: str = "immudb"
     immudb_password: str = "immudb"
-    # gRPC endpoint, for the demo reset's fresh-database step.
-    immudb_host: str = "immudb"
 
     # Retention per IF-TOPICS (days). `control` is compacted and never expires.
     retention_raw_days: int = 3
@@ -173,12 +171,20 @@ class Settings(BaseSettings):
     demo_scenario: str = "sih_main"
     # `make demo-reset` must finish inside this budget on the laptop profile (B7 AC1).
     demo_reset_budget_s: int = 90
+    # A whole `make demo-auto` run must finish inside this, and no step may start more than
+    # the tolerance behind its scripted `at:`. Without these, AC1 (the 3-minute demo) cannot
+    # fail, because a late run still reports every step green.
+    demo_auto_budget_s: int = 180
+    demo_auto_step_tolerance_s: float = 10.0
     # Where the demo engine sends traffic. Defaults are the compose service names; the CLI
     # on the host overrides them with localhost.
     demo_edge_dmz_host: str = "edge-dmz"
     demo_edge_core_host: str = "edge-core"
     demo_gateway_url: str = "http://ingest-gateway:8088"
     demo_engine_port: int = 8300
+    # Where the CLI reaches the running engine, so `make demo-reset` drives the same reset the
+    # console's Shift+R does — including pausing the baseline the engine itself produces.
+    demo_engine_url: str = "http://demo-engine:8300"
     bench_target_eps: int = 2000
     llm_model: str = "qwen2.5:3b"
     llm_num_ctx: int = 4096

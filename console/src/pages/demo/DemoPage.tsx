@@ -38,6 +38,7 @@ import { ConfirmDialog } from "../../components/ConfirmDialog";
 import { useHotkey } from "../../hotkeys/useHotkey";
 import { useI18n } from "../../i18n/i18n";
 import { useTenantScope } from "../../shell/tenant";
+import { STAGE_COOLDOWN_MS } from "./useStageHotkeys";
 
 /** The beats of 04_DEMO_SCRIPT, so the timer can say where a rehearsal is. */
 const BEATS: { stage: number; title: string; startsAt: number; endsAt: number }[] = [
@@ -51,12 +52,6 @@ const BEATS: { stage: number; title: string; startsAt: number; endsAt: number }[
 
 const DEMO_HOTKEYS = ["Shift+1", "Shift+2", "Shift+3", "Shift+4", "Shift+5", "Shift+6", "Shift+T", "Shift+R"];
 
-/**
- * A hotkey pressed twice in quick succession is one intent, not two (B7 AC3). The engine is
- * idempotent while a stage runs, but a stage that finishes fast would otherwise re-run on
- * the second tap of a fumbled keypress.
- */
-const STAGE_COOLDOWN_MS = 1_500;
 
 function mmss(seconds: number): string {
   const m = Math.floor(seconds / 60);
@@ -115,15 +110,7 @@ export default function DemoPage() {
     triggerStage.mutate(number);
   };
 
-  for (const number of [1, 2, 3, 4, 5, 6]) {
-    // One registration per stage; `when` keeps them inert outside demo mode.
-    useHotkey({
-      combo: `Shift+${number}`,
-      description: t("demo.hotkey.stage", { n: String(number) }) || `Run demo stage ${number}`,
-      when: () => demoMode,
-      handler: () => runStage(number),
-    });
-  }
+  // Shift+1..6 are registered by the shell, so they work from any page (04_DEMO_SCRIPT §3).
 
   useHotkey({
     combo: "Shift+R",
@@ -165,6 +152,7 @@ export default function DemoPage() {
       />
 
       <TamperPanel
+        query={scenario?.tamper_query ?? "a.sharma"}
         modes={tamperState?.modes ?? []}
         active={tamperState?.active ?? []}
         onTamper={(mode, eventUid) => tamper.mutate({ mode, event_uid: eventUid })}
@@ -483,6 +471,7 @@ function TamperPanel({
   onUntamper,
   busy,
   result,
+  query,
 }: {
   modes: string[];
   active: { mode: string; event_uid: string; at: string }[];
@@ -490,11 +479,13 @@ function TamperPanel({
   onUntamper: (eventUid?: string) => void;
   busy: boolean;
   result?: { target?: string; detail?: string; failed_steps?: string[] };
+  query: string;
 }) {
   const { t } = useI18n();
   const { scope } = useTenantScope();
-  // Default to the last replayed event, which is what the presenter is looking at.
-  const { data: results } = useLineageSearch("a.sharma", scope);
+  // Default to the last replayed event, which is what the presenter is looking at. The term
+  // comes from the scenario, so a different data set needs no code change.
+  const { data: results } = useLineageSearch(query, scope);
   const [eventUid, setEventUid] = useState("");
   const hits = results?.hits ?? [];
   const target = eventUid || active[0]?.event_uid || hits[0]?.event_uid || "";

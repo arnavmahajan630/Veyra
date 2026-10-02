@@ -100,6 +100,13 @@ def detect_syslog(region: Region) -> str | None:
     return None
 
 
+# A structured payload whose name happens to look like an RFC3164 tag: `CEF:0|...` and
+# `LEEF:1.0|...`. Without this, `CEF` is read as the program name and `0|Acme|NGFW|...` as the
+# message, so the next layer is handed a body with its own header already eaten — which is why
+# syslog-framed CEF could not be parsed by a CEF contract at all.
+_RE_PAYLOAD_TAG = re2.compile(r"^(?:CEF|LEEF):\d")
+
+
 def peel_syslog(region: Region, variant: str = "auto") -> LayerResult:
     """Expose ``syslog.*`` fields and hand the message body to the next layer."""
     candidates: list[tuple[str, Any]] = []
@@ -135,10 +142,19 @@ def peel_syslog(region: Region, variant: str = "auto") -> LayerResult:
                 fields.append(PeeledField("syslog.severity", pri % 8, None, f"{name}:derived"))
 
         body_span = named_span(match, pattern, "body")
+        app_span = named_span(match, pattern, "app") if "app" in pattern.groupindex else None
+        # `CEF:0|...` is a payload, not a tag plus a message. Give the whole thing back as the
+        # body and drop the tag field, so the CEF layer sees the header it needs.
+        if app_span is not None and body_span is not None:
+            app_value = match.group(pattern.groupindex["app"]) or ""
+            if _RE_PAYLOAD_TAG.match(f"{app_value}:{match.group(pattern.groupindex['body'])}"):
+                body_span = (app_span[0], body_span[1])
+                fields = [f for f in fields if f.path not in ("syslog.app", "syslog.pid")]
+
         body = None
         if body_span is not None:
             body = Region(
-                text=match.group(pattern.groupindex["body"]),
+                text=region.text[body_span[0] : body_span[1]],
                 span=(body_span[0] + region.start, body_span[1] + region.start),
             )
         return LayerResult(fields=fields, body=body, text_field=body)
@@ -486,6 +502,12 @@ def run_layers(
     Each spec is a single-key dict, e.g. ``{"syslog": {"variant": "auto"}}``. A layer that
     fails to apply stops the cascade and its reason is reported — the caller decides the tier
     (a failed peel with a contract present is tier 2, not a crash).
+
+    A layer may declare ``optional: true``, which means "peel this if it is there". The
+    cascade then continues on the same region instead of stopping, and the layer is left out
+    of ``layers`` so the parse path still says what was actually peeled. One source really
+    does arrive both ways: a firewall's CEF carries a syslog header over the syslog listener
+    and none when the vendor pushes it, and both are the same format with the same contract.
     """
     outcome = PeelOutcome()
     region = Region(text=text, span=(0, len(text)))
@@ -519,6 +541,9 @@ def run_layers(
             break
 
         if result.error:
+            if options.get("optional"):
+                # Not present on this line. Leave the region alone and try the next layer.
+                continue
             outcome.error = f"{name}: {result.error}"
             break
 

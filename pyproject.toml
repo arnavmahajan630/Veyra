@@ -61,4 +61,11 @@ python_version = "3.12"
 ignore_missing_imports = true
 check_untyped_defs = true
 warn_unused_ignores = false
-exclude = "(docs/plan|console)"
+# Test trees are excluded because several services each have their own `tests/conftest.py`
+# with no package marker; mypy saw them as one duplicate module and stopped before checking
+# anything at all — `make typecheck` was green because it never ran.
+exclude = "(docs/plan|console|/tests/)"
+# `tools/` is imported both as `tools.tamper` (by the evidence API) and as `tamper` (by the
+# scripts' own sys.path), so mypy needs the package root spelled out.
+explicit_package_bases = true
+mypy_path = "."

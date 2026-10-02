@@ -100,6 +100,9 @@ def create_app(
         return {
             "scenario": scenario.name,
             "seed": scenario.seed,
+            # The console's tamper panel picks Beat 5's event with this, rather than
+            # hardcoding the demo's user name.
+            "tamper_query": scenario.tamper_query,
             "baseline": [
                 {"name": s.name, "via": s.via, "corpus": s.corpus, "eps": s.eps}
                 for s in scenario.baseline

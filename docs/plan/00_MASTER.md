@@ -127,13 +127,15 @@ Say these honestly if a judge asks.
 2. **JSON envelope on the wire, not Protobuf.** Raw bytes are base64 inside JSON. A `.proto` is defined in contracts for production.
 3. **Single Kafka broker.** Durability settings are kept (acks=all, idempotence, transactions); RF3 is a profile change.
 4. **Merkle window is 60 s**, not hourly, so roots appear during a 3-minute demo. Configurable.
-5. **Vault is a local filesystem with read-only and immutable flags**, not S3 Object Lock. Production target: Ceph RGW Object Lock (COMPLIANCE). The segment format is storage-agnostic.
+5. **Vault is a local filesystem with read-only files**, not S3 Object Lock. Sealed segments are mode `0444` and `chattr +i` is **not** applied, so root can still edit them — which is exactly the attack the tamper lab demonstrates, and the signed Merkle root outside the vault is the control that catches it. Production target: Ceph RGW Object Lock (COMPLIANCE). The segment format is storage-agnostic.
 6. **Local key provider by default.** OpenBao transit is an optional profile. HSM is slide only.
 7. **No Iceberg lake, no Keycloak, no RKE2, no Harbor.** Slide only.
 8. **Tier 2/3 fallback and template signatures** go beyond v1 (v1 only raw-wraps). These are additions that fill v1 gaps, not deviations.
 9. **Multi-tenancy is lite:** tenant ID on every record, tenant-scoped console views, per-source keys. There is no per-tenant topic or storage isolation.
 10. **Demo engine mounts the Docker socket** (demo profile only), to restart services during reset. It is never present in a production profile. It calls the Docker Engine API over the socket directly rather than through the SDK, because this repo's own `docker/` directory shadows the SDK's import name.
 11. **immudb anchoring is not implemented.** The signed-root ledger is a local hash-chained, Ed25519-signed `ledger.ndjson`, audited by `tools/ledger_audit.py`; the immudb container runs but no root is anchored in it. The eighth verification step reports `status: not_implemented` and the console renders it as a neutral grey node — never green. Production target: anchor each root in immudb (or any external notary) so a whole-ledger replacement is also detectable.
+
+12. **The evidence API has no authentication.** `/lineage/*` and `/evidence/*` are open on the demo origin: anyone who can reach the console can verify or export any tenant's event, and the `?tenant=` parameter narrows a query rather than enforcing anything. The control API does scope properly (session cookie, role, tenant), and Caddy answers 404 for `/api/control/internal/*` so the control plane cannot be reset from a browser tab. Production target: the same session and tenant pinning on the evidence routes, with the proof-pack export carrying its own signed grant.
 
 ## 8. Decision log
 

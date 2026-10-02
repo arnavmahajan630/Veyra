@@ -12,7 +12,7 @@ Update your row after every phase (status, one line, report link). Status values
 | A5 Shadow, replay, revisions | A | done | v1.5 | 4/4 ACs; canary compared in shadow on live traffic without touching output; backtest gains field_coverage; replay.raw fixed (every replay message was being DLQ'd as schema_invalid) and revisions are idempotent under kill -9 | [A5.md](reports/A5.md) |
 | A6 Router + Wazuh + throughput bench | A | done | v1.5 | Full router with wazuh_main and partner_masked routes, rules 100100-10130, wazuh-logtest verified, bench-throughput | [A6.md](reports/A6.md) |
 | B1 Lineage indexer + ClickHouse | B | done | v1.5 | ClickHouse schema (10 tables + 9 MVs), migrations, indexer with dedup, query library | [B1.md](reports/B1.md) |
-| B2 Archiver + vault segments | B | done | v1.5 | Segments, hash chain, AES-256-GCM, immutability; keys survive a reset | [B2.md](reports/B2.md) |
+| B2 Archiver + vault segments | B | done | v1.5 | Segments, hash chain, AES-256-GCM, `0444` (not `chattr +i`), `IF-VAULT-INDEX` published at each seal; keys survive a reset | [B2.md](reports/B2.md) |
 | B3 Integrity: Merkle, signing, immudb | B | done | v1.5 | Windows, Merkle tree, Ed25519 signing, prev-hash ledger + audit; immudb anchoring NOT implemented (declared, and reported as such everywhere downstream) | [B3.md](reports/B3.md) |
 | B4 Evidence API: verify + export | B | done | v1.5 | 8-step verify, auditor ZIP with an offline verify.py, pubkey, roots; 33 tests. The vault fallback used to fabricate a revision - fixed in B6 | [B4.md](reports/B4.md) |
 | B5 Tamper lab | B | done | v1.5 | 4 modes x first-failing-step matrix, backup-before-change, untamper, verify report | [B5.md](reports/B5.md) |

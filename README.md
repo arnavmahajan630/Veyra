@@ -78,7 +78,7 @@ On Windows, replace `./veyra.sh` with `.\veyra.ps1`.
 | Command | What it does |
 |---|---|
 | `up` (default) | Set up and start everything, then smoke-check it |
-| `demo` | Guided walkthrough; `--auto` runs without pauses, `--beat N` runs one beat, `--draft-mode live` lets the AI draft |
+| `demo` | Guided walkthrough; `--auto` runs without pauses, `--beat N` runs one beat |
 | `load` | Stage A: Kafka alone (`--events N`, default 100M). Stage B: the real pipeline (`--pipeline N`, default 1M). `--skip-kafka`, `--skip-pipeline`, `--force` |
 | `status` | Container list and a health check |
 | `logs [service]` | Follow logs, e.g. `logs normalizer` |
@@ -143,10 +143,13 @@ plain-English and technical explanations, read the **Veyra, explained** doc and
 [`docs/DEMO_GUIDE.md`](docs/DEMO_GUIDE.md). The design and decision log live in
 [`docs/plan/`](docs/plan/README.md).
 
-**What is built today** (30 Sep 2026):
+**What is built today** (2 Oct 2026):
 - Ingestion, normalization (tiers 1 to 4, byte offsets, shadow and replay), the router to Wazuh and a masked partner feed, the control plane, drift and the AI drafter are built.
-- The evidence side runs as working prototypes: verify checks 7 of its 8 steps, and the tamper lab works.
-- **The demo engine and the console's Lineage and Evidence pages are not built yet.**
+- The whole console is built and reads live data: Overview, Sources, Onboard, Contracts, Drift, Lineage, Evidence, Delivery, Audit, and the hidden demo panel at `/demo`.
+- The evidence side runs as working prototypes: the archiver, the Merkle and Ed25519 integrity service, the evidence API and the tamper lab. **Verify checks 7 of its 8 steps** — the eighth anchors the signed root in immudb and is declared not implemented; it reports itself as such everywhere rather than showing a tick it has not earned.
+- The demo engine drives the whole 3-minute script (`make demo-reset`, `demo-preflight`, `demo-stage N=3`, `demo-auto`), and the `Shift+1`..`Shift+6` hotkeys work from any console page.
+- Sealed segments are mode `0444` and hash-chained, but not `chattr +i`: the vault resists an accidental edit, and a signed Merkle root outside it is what catches a deliberate one.
+- `make cp1` to `make cp4` run the integration checkpoints that gate the demo; `docs/plan/06_STATUS_BOARD.md` records each run.
 
 [`docs/DEMO_GUIDE.md`](docs/DEMO_GUIDE.md) has the full scope matrix.
 

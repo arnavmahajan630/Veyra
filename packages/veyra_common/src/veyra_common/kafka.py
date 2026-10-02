@@ -23,6 +23,21 @@ from confluent_kafka import Consumer, KafkaError, KafkaException, Message, Produ
 from veyra_common.inflight import BatchId, InflightJournal
 from veyra_common.settings import Settings, settings
 
+
+def _coords(msg: Message) -> tuple[str, int, int]:
+    """``(topic, partition, offset)`` of a polled message.
+
+    confluent types all three as optional, because they are unset on a message the client
+    *builds*. A message that came back from ``poll`` always has them, and a batch whose
+    coordinates were unknown could not be committed at all — so this asserts rather than
+    inventing a default offset.
+    """
+    topic, partition, offset = msg.topic(), msg.partition(), msg.offset()
+    if topic is None or partition is None or offset is None:
+        raise KafkaException(f"consumed message without coordinates: {msg!r}")
+    return topic, partition, offset
+
+
 log = logging.getLogger(__name__)
 
 
@@ -132,11 +147,13 @@ def read_compacted(
             msg = consumer.poll(0.2)
             if msg is None:
                 continue
-            if msg.error():
-                if msg.error().code() == KafkaError._PARTITION_EOF:
+            err = msg.error()
+            if err is not None:
+                if err.code() == KafkaError._PARTITION_EOF:
                     continue
-                raise KafkaException(msg.error())
-            key = msg.key().decode("utf-8") if msg.key() else ""
+                raise KafkaException(err)
+            raw_key = msg.key()
+            key = raw_key.decode("utf-8") if raw_key else ""
             state[key] = msg.value()
             last_data = time.monotonic()
     finally:
@@ -207,10 +224,11 @@ class TxnProcessor:
             msg = self.consumer.poll(0.05)
             if msg is None:
                 continue
-            if msg.error():
-                if msg.error().code() == KafkaError._PARTITION_EOF:
+            err = msg.error()
+            if err is not None:
+                if err.code() == KafkaError._PARTITION_EOF:
                     continue
-                log.error("consume error", extra={"error": str(msg.error())})
+                log.error("consume error", extra={"error": str(err)})
                 continue
             batch.append(msg)
         return batch
@@ -220,8 +238,8 @@ class TxnProcessor:
         """Stable identity of a batch: the offset range held per partition."""
         bounds: dict[tuple[str, int], tuple[int, int]] = {}
         for msg in batch:
-            key = (msg.topic(), msg.partition())
-            offset = msg.offset()
+            topic, partition, offset = _coords(msg)
+            key = (topic, partition)
             low, high = bounds.get(key, (offset, offset))
             bounds[key] = (min(low, offset), max(high, offset))
         return tuple(
@@ -232,8 +250,9 @@ class TxnProcessor:
     def _positions(self, batch: list[Message]) -> list[TopicPartition]:
         highest: dict[tuple[str, int], int] = {}
         for msg in batch:
-            key = (msg.topic(), msg.partition())
-            highest[key] = max(highest.get(key, -1), msg.offset())
+            topic, partition, offset = _coords(msg)
+            key = (topic, partition)
+            highest[key] = max(highest.get(key, -1), offset)
         return [TopicPartition(t, p, off + 1) for (t, p), off in highest.items()]
 
     def process_batch(self, batch: list[Message]) -> None:
@@ -241,9 +260,10 @@ class TxnProcessor:
         self.producer.begin_transaction()
         try:
             for out in self.fn(batch):
-                self.producer.produce(
-                    out.topic, value=out.value, key=out.key, headers=out.headers or None
-                )
+                # confluent types `headers` as a mapping or a list of (str, str|bytes|None);
+                # ours is always a list of (str, bytes), which is that type.
+                headers: Any = out.headers or None
+                self.producer.produce(out.topic, value=out.value, key=out.key, headers=headers)
             self.producer.send_offsets_to_transaction(
                 self._positions(batch), self.consumer.consumer_group_metadata()
             )

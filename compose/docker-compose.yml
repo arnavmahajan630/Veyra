@@ -123,6 +123,10 @@ services:
     image: timberio/vector:0.58.0-debian
     container_name: veyra-edge-dmz
     command: ["--config", "/etc/vector/vector-dmz.toml", "--watch-config"]
+    # The invoking user, so the demo reset can clear this edge's disk buffer: a buffer written
+    # as root survives the wipe and replays pre-reset events onto the fresh topics. The
+    # listeners are above 1024, so no privilege is needed for them.
+    user: "${VEYRA_UID:-1000}:${VEYRA_GID:-1000}"
     environment:
       VECTOR_LOG: warn
       VEYRA_MAX_EVENT_BYTES: ${VEYRA_MAX_EVENT_BYTES:-65536}
@@ -149,6 +153,10 @@ services:
     image: timberio/vector:0.58.0-debian
     container_name: veyra-edge-core
     command: ["--config", "/etc/vector/vector-core.toml", "--watch-config"]
+    # The invoking user, so the demo reset can clear this edge's disk buffer: a buffer written
+    # as root survives the wipe and replays pre-reset events onto the fresh topics. The
+    # listeners are above 1024, so no privilege is needed for them.
+    user: "${VEYRA_UID:-1000}:${VEYRA_GID:-1000}"
     environment:
       VECTOR_LOG: warn
       VEYRA_MAX_EVENT_BYTES: ${VEYRA_MAX_EVENT_BYTES:-65536}
@@ -232,7 +240,9 @@ services:
       - ../data:/app/data
       # The separate contracts repository sits beside Veyra/. Mounted at /contracts-repo so
       # the default VEYRA_CONTRACTS_REPO=../contracts-repo resolves the same from /app.
-      - ../../contracts-repo:/contracts-repo
+      # VEYRA_CONTRACTS_REPO_DIR (written by veyra.sh) moves it; compose paths are relative
+      # to compose/, hence the ../.. default.
+      - ${VEYRA_CONTRACTS_REPO_DIR:-../../contracts-repo}:/contracts-repo
       - ../edge/vector/inventory:/app/edge/vector/inventory
       - ../edge/vector/reload.stamp:/app/edge/vector/reload.stamp
 
@@ -253,6 +263,10 @@ services:
     command: ["python", "-m", "demo_engine"]
     # Caddy proxies /api/demo/* here and Prometheus scrapes the same port (IF-PORTS).
     ports: ["8300:8300"]
+    # Writes and chmods data/vault segments on tamper/reset, so it runs as the invoking
+    # user; group_add gives it the docker group so reset can restart the consumers.
+    user: "${VEYRA_UID:-1000}:${VEYRA_GID:-1000}"
+    group_add: ["${VEYRA_DOCKER_GID:-999}"]
     environment:
       VEYRA_KAFKA_BOOTSTRAP: kafka:9092
       VEYRA_CLICKHOUSE_URL: http://clickhouse:8123
