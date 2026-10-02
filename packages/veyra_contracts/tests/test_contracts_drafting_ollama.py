@@ -1,4 +1,4 @@
-"""The Ollama client (C4): schema-constrained chat, one retry, closed-vocabulary checks."""
+"""The Ollama client (C4): chat constrained to this request's answers, one retry, checks."""
 
 from __future__ import annotations
 
@@ -8,11 +8,13 @@ from pathlib import Path
 
 import httpx
 import pytest
+from jsonschema import Draft202012Validator
 
 from veyra_common.framing import split_lines
 from veyra_contracts.drafting.ollama import WARM_TIMEOUT_S, DraftFailed, OllamaClient
 from veyra_contracts.drafting.prompt import messages, prompt_sha
 from veyra_contracts.drafting.request import build
+from veyra_contracts.drafting.schema import request_schema
 
 CORPUS = Path(__file__).resolve().parents[3] / "demo" / "corpus"
 GOOD = {
@@ -64,8 +66,79 @@ def test_a_valid_answer_is_used_as_is() -> None:
     assert call["model"] == "qwen2.5:3b" and call["stream"] is False
     assert call["options"] == {"temperature": 0, "seed": 7, "num_ctx": 4096}
     assert call["keep_alive"] == "30m"
-    assert call["format"]["properties"]["class"]["type"] == "string"
+    assert call["format"] == schema()
     assert json.loads(raw) == GOOD
+
+
+def schema() -> dict:
+    p = prepared()
+    return request_schema(t for t in p.tokens if t.id in p.variable)
+
+
+def fits(answer: dict) -> bool:
+    return Draft202012Validator(schema()).is_valid(answer)
+
+
+def branches() -> list[dict]:
+    return schema()["properties"]["mappings"]["items"]["anyOf"]
+
+
+def test_the_schema_names_exactly_this_requests_tokens() -> None:
+    by_token = {
+        b["properties"]["token"]["enum"][0]: b["properties"]["ocsf_path"]["enum"]
+        for b in branches()
+        if "token" in b["properties"]
+    }
+    assert set(by_token) == {"k2", "k6", "k8", "k10"}  # T3's variable tokens
+    assert by_token["k6"] == ["device.ip", "dst_endpoint.ip", "src_endpoint.ip"]
+    assert "user.name" in by_token["k2"] and "src_endpoint.ip" not in by_token["k2"]
+    assert "src_endpoint.port" in by_token["k10"] and "user.name" not in by_token["k10"]
+
+
+def test_the_schema_offers_constants_only_for_enum_paths() -> None:
+    consts = {
+        b["properties"]["ocsf_path"]["enum"][0]: b["properties"]["const"]["enum"]
+        for b in branches()
+        if "const" in b["properties"]
+    }
+    assert consts == {
+        "disposition_id": [1, 2],
+        "severity_id": [0, 1, 2, 3, 4, 5, 6],
+        "status_id": [0, 1, 2, 99],
+    }
+
+
+def test_the_schema_lists_the_classes_and_activities() -> None:
+    props = schema()["properties"]
+    assert "authentication" in props["class"]["enum"] and "logon" in props["activity"]["enum"]
+    assert props["confidence"]["enum"] == ["high", "medium", "low"]
+
+
+def test_the_reviewed_t3_answer_fits_the_schema() -> None:
+    Draft202012Validator.check_schema(schema())
+    assert fits(GOOD)
+
+
+@pytest.mark.parametrize(
+    "mapping",
+    [
+        {"ocsf_path": "user.name", "token": "src_endpoint.ip"},  # a field name as the token
+        {"ocsf_path": "src_endpoint.port", "token": "k8"},  # the relay address as a port
+        {"ocsf_path": "user.name", "token": "k99"},  # an id that was not offered
+        {"ocsf_path": "user.name", "token": "k6"},  # an address as the user
+        {"ocsf_path": "status_id", "const": 7},  # not one of the enum's values
+        {"ocsf_path": "action_id", "const": 2},  # a constant on a path with no enum
+        {"ocsf_path": "status_id", "token": "k10"},  # a token on an enum path
+        {"ocsf_path": "made.up", "token": "k2"},
+    ],
+)
+def test_the_wrong_answers_the_bench_saw_do_not_fit(mapping: dict) -> None:
+    assert not fits(GOOD | {"mappings": [mapping]})
+
+
+def test_a_class_outside_the_catalogue_does_not_fit() -> None:
+    assert not fits(GOOD | {"class": "dns_activity"})
+    assert not fits(GOOD | {"extra": 1})
 
 
 def test_an_invalid_answer_is_retried_once_with_the_complaint() -> None:
