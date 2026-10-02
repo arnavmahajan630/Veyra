@@ -2,7 +2,11 @@
 
 python tools/bench/llm_bench.py build
 python tools/bench/llm_bench.py run --models qwen2.5:3b,llama3.2:3b --machine laptop
+python tools/bench/llm_bench.py run --models decision:laya:en --verbose
 python tools/bench/llm_bench.py warm | seed
+
+A ``decision:`` prefix runs that model through the decision backend (``backends.make_client``).
+``run`` rewrites the report's table and keeps everything from ``NOTES_MARK`` down.
 """
 
 from __future__ import annotations
@@ -21,10 +25,10 @@ from veyra_common.framing import split_lines
 from veyra_common.hashing import template_sig
 from veyra_common.settings import settings
 from veyra_contracts import compile
+from veyra_contracts.drafting.backends import make_client
 from veyra_contracts.drafting.cache import DraftCache
 from veyra_contracts.drafting.drafter import Drafter
 from veyra_contracts.drafting.generalize import generalize, new_contract
-from veyra_contracts.drafting.ollama import OllamaClient
 from veyra_contracts.drafting.request import Prepared, build
 from veyra_contracts.drafting.verify import verify
 from veyra_contracts.golden import GOLDEN_RECEIVED, golden_engine, golden_envelope
@@ -32,6 +36,7 @@ from veyra_contracts.golden import GOLDEN_RECEIVED, golden_engine, golden_envelo
 REPO = Path(__file__).resolve().parents[2]
 CASES = REPO / "bench" / "llm_golden" / "cases.json"
 EXTRA = REPO / "bench" / "llm_golden" / "extra.json"
+NOTES_MARK = "<!-- Hand-written below."
 
 
 def _expected(event: dict[str, Any], entries: list[Any]) -> dict[str, Any]:
@@ -107,17 +112,33 @@ def _got(prepared: Prepared, response: Any) -> dict[str, Any]:
     return out
 
 
-def run(models: list[str], machine: str) -> Path:
+def differences(expected: dict[str, Any], got: dict[str, Any]) -> list[str]:
+    """What a draft got wrong against the golden mapping, one phrase per path."""
+    out = [
+        f"{path}: {got[path]!r}, want {expected[path]!r}"
+        for path in sorted(expected.keys() & got.keys())
+        if json.dumps(got[path], sort_keys=True) != json.dumps(expected[path], sort_keys=True)
+    ]
+    out += [f"{p}: missing, want {expected[p]!r}" for p in sorted(expected.keys() - got.keys())]
+    out += [f"{p}: {got[p]!r} not wanted" for p in sorted(got.keys() - expected.keys())]
+    return out
+
+
+def write_report(report: Path, lines: list[str]) -> None:
+    """The generated part, then whatever was hand-written from ``NOTES_MARK`` down before."""
+    notes: list[str] = []
+    if report.exists():
+        previous = report.read_text(encoding="utf-8")
+        if NOTES_MARK in previous:
+            notes = ["", previous[previous.index(NOTES_MARK) :].rstrip()]
+    report.write_text("\n".join(lines + notes) + "\n", encoding="utf-8")
+
+
+def run(models: list[str], machine: str, *, verbose: bool = False) -> Path:
     cases = json.loads(CASES.read_text(encoding="utf-8"))
     rows = []
     for model in models:
-        client = OllamaClient(
-            settings.ollama_url,
-            model,
-            num_ctx=settings.llm_num_ctx,
-            timeout_s=settings.llm_timeout_s,
-            keep_alive=settings.llm_keep_alive,
-        )
+        client = make_client(settings, model=model)
         drafter = Drafter(mode="live", cache=DraftCache(Path("/nonexistent")), client=client)
         precision, recall, latency = [], [], []
         valid = proven = 0
@@ -128,9 +149,15 @@ def run(models: list[str], machine: str) -> Path:
             outcome = drafter.draft(prepared)
             latency.append((time.perf_counter() - started) * 1000)
             valid += outcome.source.startswith("llm:")
-            p, r = score(case["expected"], _got(prepared, outcome.response))
+            got = _got(prepared, outcome.response)
+            p, r = score(case["expected"], got)
             precision.append(p)
             recall.append(r)
+            if verbose:
+                wrong = differences(case["expected"], got) or ["exact"]
+                print(f"{model} {case['id']} [{outcome.source}] " + "; ".join(wrong))
+                for note in outcome.notes:
+                    print(f"    note: {note}")
             template = generalize(prepared, outcome.response)
             contract = new_contract(
                 contract_id="bench",
@@ -164,28 +191,22 @@ def run(models: list[str], machine: str) -> Path:
         f"{len(cases)} cases from `bench/llm_golden/cases.json`.",
         "",
         "Verify % is the whole C4 verify (compile, provenance, types) on the drafted contract.",
-        "JSON-valid % is the share of drafts the model produced; the rest fell back to the"
-        " heuristic.",
+        "Valid % is the share of drafts the model produced; the rest fell back to the heuristic.",
+        "A `decision:` model answers multiple-choice questions instead of writing JSON.",
         "",
-        "| Model | Precision | Recall | Verify % | JSON-valid % | p50 ms | p95 ms | VRAM GiB |",
+        "| Model | Precision | Recall | Verify % | Valid % | p50 ms | p95 ms | VRAM GiB |",
         "|---|---|---|---|---|---|---|---|",
     ]
     lines += [
         f"| {m} | {p:.2f} | {r:.2f} | {pv:.0f} | {jv:.0f} | {p50:.0f} | {p95:.0f} | {v:.1f} |"
         for m, p, r, pv, jv, p50, p95, v in rows
     ]
-    report.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    write_report(report, lines)
     return report
 
 
 def seed() -> None:
-    client = OllamaClient(
-        settings.ollama_url,
-        settings.llm_model,
-        num_ctx=settings.llm_num_ctx,
-        timeout_s=settings.llm_timeout_s,
-        keep_alive=settings.llm_keep_alive,
-    )
+    client = make_client(settings)
     drafter = Drafter(
         mode="live_then_cache", cache=DraftCache(settings.llm_cache_dir), client=client
     )
@@ -204,6 +225,7 @@ def main(argv: list[str] | None = None) -> int:
     run_p = sub.add_parser("run")
     run_p.add_argument("--models", required=True)
     run_p.add_argument("--machine", default=settings.profile)
+    run_p.add_argument("--verbose", action="store_true", help="print each case's differences")
     sub.add_parser("warm")
     sub.add_parser("seed")
     args = parser.parse_args(argv)
@@ -213,15 +235,9 @@ def main(argv: list[str] | None = None) -> int:
         CASES.write_text(json.dumps(cases, indent=1, ensure_ascii=False), encoding="utf-8")
         print(f"{len(cases)} cases → {CASES}")
     elif args.cmd == "run":
-        print(run(args.models.split(","), args.machine))
+        print(run(args.models.split(","), args.machine, verbose=args.verbose))
     elif args.cmd == "warm":
-        OllamaClient(
-            settings.ollama_url,
-            settings.llm_model,
-            num_ctx=settings.llm_num_ctx,
-            timeout_s=settings.llm_timeout_s,
-            keep_alive=settings.llm_keep_alive,
-        ).warm()
+        make_client(settings).warm()
     else:
         seed()
     return 0

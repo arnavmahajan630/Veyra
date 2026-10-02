@@ -297,7 +297,7 @@ class AutoRunner:
                 "name": "Auth Server",
                 "vendor": "custom",
                 "zone": "dmz",
-                "transport": "http_hec_event",
+                "transport": "http_push",
                 "expected_eps": 2.0,
             },
         )

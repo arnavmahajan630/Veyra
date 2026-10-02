@@ -17,6 +17,59 @@ ACTION REQUIRED:
 
 ---
 
+## 2026-10-02 22:10 — S2 + C4 — DECISION + REQUEST  (contracts v1.5, no bump)
+TYPE: DECISION
+What:     `./veyra.sh up` now lets the reviewer choose which AI drafts contracts:
+          `--drafter ollama|laya` (or `--laya`). With a terminal and no flag it asks once and
+          remembers the answer; with `--yes` or no terminal it uses `ollama`. Choosing `laya`
+          starts a decision-model server (Ollaya) in place of Ollama, pulls `laya:en`
+          (`--decision-model NAME` for another), and writes `VEYRA_LLM_BACKEND=decision`,
+          `VEYRA_DECISION_URL`, `VEYRA_DECISION_MODEL` and `VEYRA_LLM_MODE=live_then_cache`.
+          Verified on the laptop through `veyra.ps1`: `up --drafter laya` 19/19 smoke checks,
+          the demo's onboarding beat drafts live through Laya; the CPU image drafts too.
+Why:      The decision backend existed but could only be switched on by hand.
+IDs:      IF-ENV
+Files patched: (none in docs/plan beyond this entry); README.md, docs/DEMO_GUIDE.md
+TYPE: REQUEST
+What:     Shared files changed: two new overlays, `compose/docker-compose.decision.yml` (CPU
+          image `ollaya:0.9.0`) and `compose/docker-compose.decision-gpu.yml` (`0.9.0-cuda` plus
+          the NVIDIA reservation). Nothing in `docker-compose.yml` or the profiles changes for
+          this. Also fixed: `veyra.ps1` read a WSL error message as a distro name.
+          Merged with 43ed88b afterwards: `compose/docker-compose.yml` is upstream's, and the
+          smoke check keeps upstream's new entries plus the drafter-dependent model server.
+ACTION REQUIRED:
+  - [ ] @A @B nothing to do unless you object to the two overlays.
+  - [ ] @B a one-word change in your `demo_engine/auto.py`, made here: it registered the demo
+        source with `"transport": "http_hec_event"`, which `POST /sources` answers with 422, so
+        `./veyra.sh demo` stopped at beat 3. The API takes `http_push` and publishes it as
+        `http_hec_event` (02_CONTRACTS, IF-CONTROL). `test_auto.py` now covers the case where
+        the source does not exist yet. With it the guided demo passes 17 of 17.
+  - [ ] @C beat 4 of `veyra.sh demo` times out on a stack that holds old events whose raw
+        bytes have aged out of Kafka: the backtest waits `VEYRA_EVIDENCE_TIMEOUT_S` (5 s) per
+        missing record (control-api `KafkaRawStore`). A fresh stack is not affected.
+
+## 2026-10-02 20:30 — C4 — CLARIFICATION + REQUEST  (contracts v1.5, no bump)
+TYPE: CLARIFICATION
+What:     The drafter's answers are now limited to fixed lists, and a decision model can draft.
+          (1) Ollama's `format` schema is built per request: only this request's token ids, each
+          with the fields its value could fill, and enum constants only on enum paths. The
+          IF-LLM-DRAFT response shape is unchanged. (2) A second backend, `DecisionClient`, drafts
+          through a decision-model server (Ollaya, `POST /api/decide`). It is off by default.
+          Measured on the laptop: qwen2.5:3b usable answers 85% → 100%, verify 63% → 81%;
+          llama3.2:3b verify 74% → 81% and T3 exact; `laya:en` 87 ms per draft, 100% usable, but
+          precision 0.44 / recall 0.33, so Ollama stays the default (reports/C4.md).
+Why:      The 2026-09-29 bench failures were answers outside the vocabulary, which a schema can
+          forbid; and drafting is multiple choice, which is what decision models are for.
+IDs:      IF-LLM-DRAFT (shape unchanged), IF-ENV (additive)
+Files patched: reports/C4.md, reports/C4-bench-laptop.md
+TYPE: REQUEST
+What:     Four additive settings in the shared `veyra_common/settings.py`, all with defaults that
+          keep today's behaviour: `VEYRA_LLM_BACKEND` (`ollama` | `decision`, default `ollama`),
+          `VEYRA_DECISION_URL`, `VEYRA_DECISION_MODEL`, `VEYRA_DECISION_MIN_PROBABILITY`. No
+          profile change. (The `veyra.sh` switch and the compose overlays are the entry above.)
+ACTION REQUIRED:
+  - [ ] @A @B nothing to do unless you object to the four settings.
+
 ## 2026-10-02 — S1 + S2 — CONTRACT-ADDITIVE + CLARIFICATION  (contracts v1.5, no bump)
 TYPE: CONTRACT-ADDITIVE
 What:     The integration pass before the first full bring-up. `main` could not start at all —

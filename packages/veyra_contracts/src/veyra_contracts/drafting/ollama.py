@@ -1,5 +1,8 @@
 """Ollama ``/api/chat`` with schema-constrained output (C4 "Ollama call").
 
+The schema is built per request (``schema.request_schema``): the model can only name this
+request's token ids, and each id only with fields its value could fill.
+
 ``temperature 0`` and ``seed 7`` are fixed by C4 so a draft is reproducible. An answer
 that is not valid JSON, fails the response schema, or points outside the closed
 vocabulary (``schema.problems``) is retried once with the complaint appended; a second
@@ -18,7 +21,12 @@ from pydantic import ValidationError
 
 from veyra_contracts.drafting.prompt import messages
 from veyra_contracts.drafting.request import Prepared
-from veyra_contracts.drafting.schema import DraftResponse, problems, response_schema
+from veyra_contracts.drafting.schema import (
+    DraftResponse,
+    problems,
+    request_schema,
+    without_repeats,
+)
 
 TEMPERATURE = 0
 SEED = 7
@@ -48,11 +56,11 @@ class OllamaClient:
         self._timeout_s = timeout_s
         self._client = client or httpx.Client(base_url=url, timeout=timeout_s)
 
-    def _chat(self, chat: list[dict[str, str]], *, timeout_s: float) -> str:
+    def _chat(self, chat: list[dict[str, str]], schema: dict[str, Any], *, timeout_s: float) -> str:
         body = {
             "model": self.model,
             "messages": chat,
-            "format": response_schema(),
+            "format": schema,
             "stream": False,
             "keep_alive": self._keep_alive,
             "options": {"temperature": TEMPERATURE, "seed": SEED, "num_ctx": self._num_ctx},
@@ -70,7 +78,7 @@ class OllamaClient:
     @staticmethod
     def _parse(content: str, token_ids: set[str]) -> tuple[DraftResponse | None, str]:
         try:
-            parsed = DraftResponse.model_validate(json.loads(content))
+            parsed = without_repeats(DraftResponse.model_validate(json.loads(content)))
         except json.JSONDecodeError:
             return None, "the answer is not valid JSON"
         except ValidationError as exc:
@@ -81,6 +89,7 @@ class OllamaClient:
     def draft(self, prepared: Prepared) -> tuple[DraftResponse, str]:
         """One draft, retry included, within ``timeout_s`` overall (C4 AC2's bound)."""
         token_ids = {t["id"] for t in prepared.request["tokens"]}
+        schema = request_schema(t for t in prepared.tokens if t.id in prepared.variable)
         deadline = time.monotonic() + self._timeout_s
         complaint: str | None = None
         for _ in range(2):
@@ -88,7 +97,7 @@ class OllamaClient:
             if remaining <= 0:
                 raise DraftFailed(f"the model timed out: no time left to retry ({complaint})")
             content = self._chat(
-                messages(prepared.request, complaint=complaint), timeout_s=remaining
+                messages(prepared.request, complaint=complaint), schema, timeout_s=remaining
             )
             parsed, complaint = self._parse(content, token_ids)
             if parsed is not None:

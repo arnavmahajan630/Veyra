@@ -45,8 +45,13 @@ HEALTH = [
     ("evidence-api (via Caddy)", "http://caddy:8080/api/evidence/roots", True),
     ("demo-engine (via Caddy)", "http://caddy:8080/api/demo/healthz", True),
     ("kafka-ui", "http://kafka-ui:8080/actuator/health", False),
-    ("ollama", "http://ollama:11434/api/tags", False),
 ]
+# The model server that drafts, optional either way: a missing one means drafts come from
+# saved answers or the rules drafter. Which one depends on the drafter veyra.sh was told to use.
+if settings.llm_backend == "decision":
+    HEALTH.append((f"ollaya ({settings.decision_model})", "http://ollaya:11435/", False))
+else:
+    HEALTH.append(("ollama", "http://ollama:11434/api/tags", False))
 
 
 def probe_health() -> list[tuple[str, bool, str, bool]]:

@@ -22,15 +22,16 @@ and it ended with **Ready**. It covers:
 | 4 | Build | The Veyra Python image, the React console (in a Node 25 container), the edge configs, the evidence keys | 5–10 min | seconds (cached) |
 | 5 | Infrastructure | Kafka, ClickHouse, immudb, the two Vector edges, Caddy, the Kafka UI; waits until healthy; creates every topic | 2–4 min | < 1 min |
 | 6 | Wazuh (workstation) | Sets `vm.max_map_count`, makes certificates once, starts the indexer, manager and dashboard, initialises security once | 3–6 min | ~1 min |
-| 7 | AI model | Starts Ollama (GPU if found), downloads the profile's model, loads it | 2–10 min (download) | seconds |
+| 7 | AI drafter model | Starts the chosen model server (GPU if found), downloads its model, loads it. `--drafter ollama` (default): Ollama and the profile's LLM. `--drafter laya`: Ollaya and the Laya decision model. Stage 1 asks which on the first run | 2–10 min (download; under 2 min for Laya) | seconds |
 | 8 | Veyra services | Gateway, normalizer, control API, drift worker, lineage indexer, archiver, integrity, evidence API; waits until each answers | 1–2 min | < 1 min |
-| 9 | Smoke check | Every service answers; all topics exist; admin can sign in; a syslog probe comes out as OCSF tier 1 and reaches the Wazuh sink file | < 1 min | < 1 min |
+| 9 | Smoke check | Every service answers; all topics exist; admin can sign in; a syslog probe comes out as OCSF tier 1 and reaches the Wazuh sink file; evidence is indexed, signed and audits clean; a push event is accepted with a newly issued key | < 1 min | < 1 min |
 | 10 | Ready | Prints URLs and sign-ins | — | — |
 
 Script overrides the demo relies on (in `.env.runtime`, never in your `.env.local`):
 - `VEYRA_SEGMENT_MAX_SECONDS=20`, so evidence seals within the demo;
 - `VEYRA_DEMO_MODE=1`, which enables the demo user switch and last-key endpoint;
-- `VEYRA_OLLAMA_URL=http://ollama:11434`;
+- `VEYRA_OLLAMA_URL=http://ollama:11434`, with the `ollama` drafter;
+- `VEYRA_LLM_BACKEND=decision`, `VEYRA_DECISION_URL=http://ollaya:11435`, `VEYRA_DECISION_MODEL` and `VEYRA_LLM_MODE=live_then_cache`, with the `laya` drafter;
 - `VEYRA_LLM_MODE=cache`, only when no model is available.
 
 ---
@@ -39,7 +40,8 @@ Script overrides the demo relies on (in `.env.runtime`, never in your `.env.loca
 
 Open the console (http://localhost:8080) and the Kafka UI (http://localhost:8085) side by side and
 watch the topics fill as the beats run. The walkthrough pauses after each beat; use `--auto` to run
-straight through, or `--beat N` to repeat one beat.
+straight through, `--beat N` to repeat one beat, or `--no-reset` to keep the current state. Every
+option of the setup script is in [SETUP_ADVANCED.md](SETUP_ADVANCED.md).
 
 | Beat | What it does | What it proves | Problem-statement point |
 |---|---|---|---|
@@ -74,7 +76,7 @@ demo: it says why and moves on.
 | Control plane: tenants, roles, sources, keys, audit | **Built** (C1) | 5 roles, tenant isolation, audit trail, live updates (SSE) | Console; http://localhost:8000/docs |
 | Contract registry and lifecycle | **Built** (C2) | Git-versioned contracts, lint, golden tests, four-eyes, backtest, diff, rollback | Beats 3–4; console Contracts page |
 | Drift detection and library packs | **Built** (C3) | Drain3 clustering of the DLQ; 5 library packs matched automatically | Beat 4; console Drift page |
-| AI drafter | **Built** (C4) | Token-reference drafting with provenance, type and backtest checks; modes live / cache / rules. On an RTX 4050, drafts take 2–6 s, but 3B–7B models get the T3 shape wrong (the checks catch it), so demos default to the rules drafter | `VEYRA_LLM_MODE=live ./veyra.sh demo` |
+| AI drafter | **Built** (C4) | Token-reference drafting with provenance, type and backtest checks; modes live / cache / rules. Answers are limited to fixed lists, so a draft can't name a value or field that isn't offered. Two backends, chosen at `up`: an Ollama LLM (1–2 s a draft on an RTX 4050; llama3.2:3b drafts the T3 shape right, qwen2.5:3b doesn't) or the Laya decision model (about 0.1 s, less accurate on which field a value fills). The checks catch a wrong draft either way, and demos default to the rules drafter | `VEYRA_LLM_MODE=live ./veyra.sh demo`; `./veyra.sh up --drafter laya` (drafts live) |
 | Web console | **Built** (C5, C6, B6) | Overview, Sources, Onboard, Contracts, Drift, Lineage, Evidence, Delivery, Audit, English/Hindi. Every page reads the live control plane and lineage index; what the index does not hold (a route's lag and breaker state) is shown blank rather than filled in | http://localhost:8080 |
 | Evidence vault (archiver) | **Prototype** (B2) | Sealed, zstd-compressed, AES-256-GCM segments; hash chain; `0444` files (not `chattr +i`). Publishes `IF-VAULT-INDEX` at each seal, so the index can find an event without scanning. No crash-recovery tests | Beat 5 |
 | Integrity (Merkle + Ed25519) | **Prototype** (B3) | One signed root per minute, chained, in a ledger file. **Not in immudb yet** | Beat 5; `tools/ledger_audit.py` |
@@ -163,6 +165,6 @@ falling back to zero.
 - Sealed segments are `0444`, not `chattr +i`. Root can still edit them — which is the attack the tamper lab demonstrates, and the signed Merkle root is what catches it.
 - A route's delivery lag and circuit-breaker state are not in the lineage index, so the Delivery page shows them blank rather than guessing.
 - The seeded `linux_sshd@1` covers only some of the corpus's sshd shapes; the rest arrive as tier 3. That is deliberate for the demo — it is what shows "never drop" and a live tier mix — and swapping in the fuller library pack is a contract change, not a code change.
-- The AI drafter's small models are fast but not accurate enough to draft the demo's T3 shape unaided; checks and four-eyes catch it.
+- The AI drafter's small models still get drafts wrong: on the demo's T3 shape, llama3.2:3b is right, qwen2.5:3b (the laptop profile's model) and Laya are not. Checks and four-eyes catch it.
 - Evidence files on a Windows drive are slower. Clone inside WSL for load tests.
 - Everything else, and why: `docs/plan/00_MASTER.md` §7 (declared deviations) and `docs/plan/06_STATUS_BOARD.md`.
