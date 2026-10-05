@@ -20,6 +20,7 @@ from control_api import (
     routes_sources,
     routes_stream,
     routes_tenants,
+    routes_load,
 )
 from control_api.context import AppContext
 
@@ -45,6 +46,7 @@ def create_app(ctx: AppContext) -> FastAPI:
         routes_meta,
         routes_stream,
         routes_internal,
+        routes_load,
     ):
         app.include_router(module.router)
     return app

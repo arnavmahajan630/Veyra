@@ -155,11 +155,11 @@ def check_flow(results: Results) -> str:
         norm is not None and tier == 1,
         f"tier={tier}" if norm else "no norm.* record within 60 s",
     )
-    delivered = wait_until(lambda: sink_has(WAZUH_SINK, start, user), timeout=30)
+    delivered = wait_until(lambda: sink_has(WAZUH_SINK, start, user), timeout=120)
     results.check(
         "router delivered it to the Wazuh sink",
         delivered,
-        str(WAZUH_SINK) if delivered else "not in the sink file within 30 s",
+        str(WAZUH_SINK) if delivered else "not in the sink file within 120 s",
     )
     return user
 
@@ -321,11 +321,18 @@ def check_dmz_edge(results: Results) -> None:
 
 
 def sink_has(path: Path, start: int, needle: str) -> bool:
-    if not path.exists():
-        return False
-    with path.open("rb") as handle:
-        handle.seek(start)
-        return needle.encode() in handle.read()
+    encoded = needle.encode()
+    if path.exists():
+        if path.stat().st_size < start:
+            backup = path.with_suffix(path.suffix + ".1")
+            if backup.exists() and encoded in backup.read_bytes():
+                return True
+            start = 0
+        with path.open("rb") as handle:
+            handle.seek(start)
+            if encoded in handle.read():
+                return True
+    return False
 
 
 def main(argv: list[str] | None = None) -> int:

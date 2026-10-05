@@ -237,15 +237,36 @@ choose_drafter() {
 }
 
 contracts() {
-  stage "Log Contract registry (../contracts-repo)"
-  if [[ -d $CONTRACTS_REPO/.git ]]; then
-    ok "found $(cd "$CONTRACTS_REPO" && pwd) ($(git -C "$CONTRACTS_REPO" rev-parse --short HEAD 2>/dev/null || echo 'no commits'))"
-  else
-    info "cloning $CONTRACTS_URL next to this repo (it may ask you to sign in to GitHub) ..."
-    git clone --quiet "$CONTRACTS_URL" "$CONTRACTS_REPO" || die "could not clone the contracts registry. Clone it yourself next to this folder: git clone $CONTRACTS_URL ../contracts-repo"
-    ok "cloned"
+  stage "Log Contract registry"
+
+  local parent_contracts="$REPO/../contracts-repo"
+
+  # The contracts repo is expected one level above Veyra.
+  if [[ -d "$parent_contracts" ]]; then
+    CONTRACTS_REPO="$(cd "$parent_contracts" && pwd)"
+
+    if [[ -d "$CONTRACTS_REPO/.git" ]]; then
+      local commit
+      commit=$(git -C "$CONTRACTS_REPO" rev-parse --short HEAD 2>/dev/null || echo "unknown")
+      ok "found $CONTRACTS_REPO ($commit)"
+    else
+      warn "$CONTRACTS_REPO exists but is not a Git checkout"
+      ok "using existing contracts repo: $CONTRACTS_REPO"
+    fi
+    return
   fi
+
+  info "contracts repo not found at $parent_contracts"
+  info "cloning $CONTRACTS_URL ..."
+
+  git clone --quiet "$CONTRACTS_URL" "$parent_contracts" || \
+    die "could not clone the contracts registry. Clone it yourself: git clone $CONTRACTS_URL ../contracts-repo"
+
+  CONTRACTS_REPO="$(cd "$parent_contracts" && pwd)"
+  ok "cloned to $CONTRACTS_REPO"
 }
+
+
 
 write_env() {
   local uid gid docker_gid console_port=8080
@@ -300,7 +321,7 @@ environment() {
   mkdir -p data/{kafka,clickhouse,immudb,caddy,vault,keys,state,control,sinks/wazuh,sinks/partner,vector/dmz,vector/core,llm_cache,wazuh}
   touch data/sinks/wazuh/veyra.ndjson data/sinks/partner/partner.ndjson
   # The toolbox runs as root, but the services run as uid 1000: let them write what it created.
-  if [[ ${VEYRA_TOOLBOX:-0} == 1 ]]; then chmod -R a+rwX data 2>/dev/null || true; fi
+  if [[ ${VEYRA_TOOLBOX:-0} == 1 || $(id -u) == 0 ]]; then chmod -R a+rwX data edge console "$CONTRACTS_REPO" 2>/dev/null || true; fi
   compose_files
   save_state
   ok ".env.runtime written (profile $PROFILE$([[ -f .env.local ]] && echo ' + .env.local'))"

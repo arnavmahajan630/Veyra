@@ -45,7 +45,7 @@ zone = "string"
 type = "socket"
 mode = "udp"
 address = "0.0.0.0:5524"
-max_length = 65536
+max_length = 262144
 host_key = "peer_host"
 port_key = "peer_port"
 
@@ -56,7 +56,7 @@ codec = "bytes"
 type = "socket"
 mode = "tcp"
 address = "0.0.0.0:5525"
-max_length = 65536
+max_length = 262144
 host_key = "peer_host"
 port_key = "peer_port"
 
@@ -124,7 +124,7 @@ raw = string!(.message)
 # 1-2. Size. length() is the BYTE length (strlen() would be characters, which would be
 # wrong for the Devanagari OT historian lines).
 raw_len = length(raw)
-truncated = raw_len >= 65536
+truncated = raw_len >= 262144
 
 # 3-4. Seal the bytes before anything parses them.
 raw_sha256 = sha2(raw, variant: "SHA-256")

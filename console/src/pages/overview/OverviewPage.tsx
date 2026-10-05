@@ -8,10 +8,12 @@ import { StatusDot } from "../../components/StatusDot";
 import { TierBar } from "../../components/TierBar";
 import { TierChip } from "../../components/TierChip";
 import { TIERS, percent, tierShares } from "../../components/tiers";
+import { useState } from "react";
 import { useI18n } from "../../i18n/i18n";
 import { useTenantScope } from "../../shell/tenant";
 import { PipelineFlow } from "./PipelineFlow";
 import { BUCKET_COUNT, useTierBuckets } from "./useTierSeries";
+import { LoadTestPanel } from "./LoadTestPanel";
 
 function RouteRow({ route }: { route: OverviewRoute }) {
   const { t } = useI18n();
@@ -39,6 +41,8 @@ export default function OverviewPage() {
   const sourceList = useSources(scope);
   const names = new Map(sourceList.data?.map((s) => [s.id, s.name]));
   const navigate = useNavigate();
+
+  const [loadPanelOpen, setLoadPanelOpen] = useState(false);
 
   if (overview.isPending) return <p className="p-6 text-ink-2">{t("common.loading")}</p>;
   if (overview.isError) {
@@ -90,7 +94,17 @@ export default function OverviewPage() {
 
   return (
     <div className="flex flex-col gap-8 p-6">
-      <h1 className="text-title font-semibold">{t("overview.title")}</h1>
+      <div className="flex items-center justify-between">
+        <h1 className="text-title font-semibold">{t("overview.title")}</h1>
+        <button 
+          onClick={() => setLoadPanelOpen(true)}
+          className="rounded-control bg-paper border border-rule px-3 py-1.5 text-meta font-medium hover:bg-rule"
+        >
+          Load Test
+        </button>
+      </div>
+
+      <LoadTestPanel open={loadPanelOpen} onOpenChange={setLoadPanelOpen} />
 
       {data.sources.length === 0 ? (
         <p>
