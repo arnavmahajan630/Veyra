@@ -2,9 +2,7 @@
 
 import asyncio
 import logging
-import socket
 import time
-import uuid
 from typing import Any
 
 from fastapi import APIRouter, HTTPException, Request
@@ -17,8 +15,9 @@ log = logging.getLogger(__name__)
 
 class LoadStart(BaseModel):
     count: int
-    eps: int
-    mix: str = "ssh"
+    # Allow eps and mix to be sent for backward compatibility, but ignore them
+    eps: int | None = None
+    mix: str | None = None
 
 
 class LoadState:
@@ -29,6 +28,7 @@ class LoadState:
         self.outcome: str | None = None
         self.error: str | None = None
         self._task: asyncio.Task[None] | None = None
+        self._proc: asyncio.subprocess.Process | None = None
         self.start_time: float = 0.0
         self.actual_eps: float = 0.0
 
@@ -36,20 +36,7 @@ class LoadState:
 state = LoadState()
 
 
-def _generate_syslog(user: str, mix: str) -> bytes:
-    if mix == "firewall":
-        return (
-            b"<86>Sep 26 14:05:12 fw-dmz-01 kernel: DROP IN=eth0 OUT= MAC=00:00 "
-            b"SRC=45.12.3.9 DST=10.0.0.1 LEN=40 TOS=0x00 PREC=0x00 TTL=241 ID=123 "
-            b"PROTO=TCP SPT=52144 DPT=22 WINDOW=1024 RES=0x00 SYN URGP=0"
-        )
-    return (
-        f"<86>Sep 26 14:05:12 core-lnx-07 sshd[4410]: Failed password for invalid user {user} "
-        "from 45.12.3.9 port 52144 ssh2"
-    ).encode()
-
-
-async def background_load(count: int, eps: int, mix: str, hub: EventHub) -> None:
+async def background_load(count: int, hub: EventHub) -> None:
     state.running = True
     state.total = count
     state.sent = 0
@@ -57,8 +44,7 @@ async def background_load(count: int, eps: int, mix: str, hub: EventHub) -> None
     state.error = None
     state.start_time = time.monotonic()
     state.actual_eps = 0.0
-    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-
+    
     def _publish_status():
         hub.publish("load", {
             "running": state.running,
@@ -68,50 +54,66 @@ async def background_load(count: int, eps: int, mix: str, hub: EventHub) -> None
             "error": state.error,
             "actual_eps": state.actual_eps,
         })
-    
+        
     _publish_status()
-
-    target = ("edge-dmz", 5514) if mix == "firewall" else ("edge-core", 5524)
-    batch_delay = 0.1
-    batch_size = max(1, int(eps * batch_delay)) if eps > 0 else 1
-
+    
     try:
-        while state.running and state.sent < count:
-            start_batch = time.monotonic()
-            to_send = min(batch_size, count - state.sent)
-
-            for _ in range(to_send):
-                user = f"probe{uuid.uuid4().hex[:8]}"
-                msg = _generate_syslog(user, mix)
+        proc = await asyncio.create_subprocess_exec(
+            "python", "/app/tools/bench/load_raw.py", 
+            "--events", str(count), 
+            "--workers", "8", 
+            "--interval", "0.2",
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.STDOUT
+        )
+        state._proc = proc
+        
+        # Read output line by line to parse the 'normalized' count and rate
+        if proc.stdout:
+            while state.running:
                 try:
-                    sock.sendto(msg, target)
-                except Exception as e:
-                    state.outcome = "failed"
-                    state.error = f"UDP send failed: {e}"
-                    state.running = False
-                    log.error(f"UDP send failed: {e}")
+                    line = await asyncio.wait_for(proc.stdout.readline(), timeout=0.5)
+                except asyncio.TimeoutError:
+                    if proc.returncode is not None:
+                        break
+                    continue
+                if not line:
                     break
-            
-            if not state.running:
-                break
-
-            state.sent += to_send
-            elapsed = time.monotonic() - start_batch
-            total_elapsed = time.monotonic() - state.start_time
-            state.actual_eps = state.sent / total_elapsed if total_elapsed > 0 else 0.0
-            _publish_status()
-
-            if eps > 0:
-                if elapsed < batch_delay:
-                    await asyncio.sleep(batch_delay - elapsed)
-                else:
-                    await asyncio.sleep(0)  # yield to event loop
-            else:
-                await asyncio.sleep(0)
+                line_str = line.decode('utf-8').strip()
+                # Try to match the output line which looks like:
+                # 1s         5,000         5,000     995,000
+                if "s " in line_str:
+                    parts = line_str.split()
+                    if len(parts) >= 4 and parts[0].endswith("s"):
+                        try:
+                            normalized = int(parts[1].replace(",", ""))
+                            rate = float(parts[2].replace(",", ""))
+                            state.sent = normalized
+                            state.actual_eps = rate
+                            _publish_status()
+                        except ValueError:
+                            pass
+        
+        if state.running:
+            await proc.wait()
+            if proc.returncode != 0 and proc.returncode is not None:
+                state.outcome = "failed"
+                state.error = f"Load test process exited with code {proc.returncode}"
+                _publish_status()
+    except Exception as e:
+        state.outcome = "failed"
+        state.error = f"Failed to start load test: {e}"
+        log.error(state.error)
+        _publish_status()
     finally:
-        sock.close()
         state.running = False
         state._task = None
+        if state._proc:
+            try:
+                state._proc.terminate()
+            except ProcessLookupError:
+                pass
+            state._proc = None
         _publish_status()
 
 
@@ -120,13 +122,18 @@ async def start_load(req: LoadStart, request: Request) -> dict[str, str]:
     if state.running:
         raise HTTPException(status_code=400, detail="Load test already running")
     hub: EventHub = request.app.state.ctx.hub
-    state._task = asyncio.create_task(background_load(req.count, req.eps, req.mix, hub))
+    state._task = asyncio.create_task(background_load(req.count, hub))
     return {"status": "started"}
 
 
 @router.post("/stop")
 async def stop_load() -> dict[str, str]:
     state.running = False
+    if state._proc:
+        try:
+            state._proc.terminate()
+        except ProcessLookupError:
+            pass
     if state._task:
         state._task.cancel()
         state._task = None

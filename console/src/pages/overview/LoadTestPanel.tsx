@@ -22,9 +22,7 @@ interface LoadStatus {
 export function LoadTestPanel({ open, onOpenChange }: LoadTestPanelProps) {
   const queryClient = useQueryClient();
 
-  const [count, setCount] = useState<number | "">(10000);
-  const [eps, setEps] = useState<number | "">(1000);
-  const [mix, setMix] = useState("ssh");
+  const [count, setCount] = useState<number | "">(5000000);
 
   const status = useQuery({
     queryKey: ["load-status"],
@@ -33,7 +31,7 @@ export function LoadTestPanel({ open, onOpenChange }: LoadTestPanelProps) {
   });
 
   const startMutation = useMutation({
-    mutationFn: () => api.post(`${CONTROL}/load/start`, { count: Number(count), eps: Number(eps), mix }),
+    mutationFn: () => api.post(`${CONTROL}/load/start`, { count: Number(count) }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["load-status"] }),
     onError: () => queryClient.invalidateQueries({ queryKey: ["load-status"] }),
   });
@@ -49,7 +47,7 @@ export function LoadTestPanel({ open, onOpenChange }: LoadTestPanelProps) {
     <Drawer open={open} onOpenChange={onOpenChange} title="Load Test Configuration">
       <div className="flex flex-col gap-6">
         <p className="text-meta text-ink-2">
-          Fire synthetic UDP syslog events directly into the pipeline to test throughput and stability.
+          Fire synthetic envelopes directly into the Kafka raw topics using C-optimized bindings to stress test the system's maximum horizontal scaling capacity.
         </p>
 
         <form
@@ -74,37 +72,6 @@ export function LoadTestPanel({ open, onOpenChange }: LoadTestPanelProps) {
             />
           </div>
 
-          <div className="flex flex-col gap-1">
-            <label htmlFor="load-eps" className="text-meta font-medium">
-              Target EPS (Events per Second)
-            </label>
-            <input
-              id="load-eps"
-              type="number"
-              min="1"
-              value={eps ?? ""}
-              onChange={(e) => setEps(e.target.value === "" ? "" : parseInt(e.target.value) || "")}
-              disabled={isRunning}
-              className="rounded-control border border-rule bg-paper px-3 py-2 text-ink disabled:opacity-50 focus:outline-thread"
-            />
-          </div>
-
-          <div className="flex flex-col gap-1">
-            <label htmlFor="load-mix" className="text-meta font-medium">
-              Log Mix
-            </label>
-            <select
-              id="load-mix"
-              value={mix}
-              onChange={(e) => setMix(e.target.value)}
-              disabled={isRunning}
-              className="rounded-control border border-rule bg-paper px-3 py-2 text-ink disabled:opacity-50 focus:outline-thread"
-            >
-              <option value="ssh">Linux SSH Logs</option>
-              <option value="firewall">Firewall Logs</option>
-            </select>
-          </div>
-
           {startMutation.isError && (
             <div role="alert" className="text-bad text-meta font-medium">
               {(startMutation.error as Error).message}
@@ -125,7 +92,7 @@ export function LoadTestPanel({ open, onOpenChange }: LoadTestPanelProps) {
               <button
                 type="submit"
                 className="w-full justify-center rounded-control bg-thread text-paper px-4 py-2 font-medium hover:opacity-90 disabled:opacity-50 transition-opacity"
-                disabled={startMutation.isPending || !count || !eps}
+                disabled={startMutation.isPending || !count}
               >
                 {startMutation.isPending ? "Starting..." : "Run Test"}
               </button>
