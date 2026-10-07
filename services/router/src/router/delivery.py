@@ -12,6 +12,9 @@ The shape A6 asks for, and why each part is there:
   auditor can see (every delivery leaves a receipt).
 * **A blocked route blocks the commit, not the consumer.** The loop keeps polling and buffering up
   to the queue bound, so Kafka does not see a stalled consumer and rebalance us away mid-outage.
+* **A worker writes whatever is waiting in one go.** One write and one flush per event was the
+  router's ceiling (about 110 events/s on a laptop, under the workstation profile's own baseline
+  traffic), so a worker takes up to ``batch_max`` queued deliveries and flushes once for them all.
 
 Receipts are produced for every outcome, including `filtered`: "why did this event not reach Wazuh?"
 must be answerable from the receipts topic alone, without re-running the filters.
@@ -62,8 +65,10 @@ class RouteWorker:
         queue_max: int,
         on_receipt: Any,
         clock: Any = rfc3339_ns,
+        batch_max: int = 1,
     ) -> None:
         self.route = route
+        self.batch_max = max(1, batch_max)
         self.queue: queue.Queue[Delivery | None] = queue.Queue(maxsize=max(1, queue_max))
         self.on_receipt = on_receipt
         self.clock = clock
@@ -99,21 +104,38 @@ class RouteWorker:
     # ---------------------------------------------------------------- the loop
     def _run(self) -> None:
         while not self._stop.is_set():
-            item = self.queue.get()
-            if item is None:
+            batch = self._take()
+            if not batch:
                 return
-            self._deliver(item)
+            self._deliver(batch)
 
-    def _deliver(self, delivery: Delivery) -> None:
+    def _take(self) -> list[Delivery]:
+        """The next delivery, plus whatever else is already waiting, up to ``batch_max``."""
+        first = self.queue.get()
+        if first is None:
+            return []
+        batch = [first]
+        while len(batch) < self.batch_max:
+            try:
+                item = self.queue.get_nowait()
+            except queue.Empty:
+                break
+            if item is None:  # stop() has set the flag; _deliver receipts these as not delivered
+                break
+            batch.append(item)
+        return batch
+
+    def _deliver(self, batch: list[Delivery]) -> None:
+        payloads = [delivery.payload for delivery in batch]
         attempts = 0
         while not self._stop.is_set():
             attempts += 1
             try:
-                self.route.sink.write([delivery.payload])
+                self.route.sink.write(payloads)
                 self.route.sink.flush()
             except SinkError as exc:
                 if exc.permanent or attempts >= MAX_ATTEMPTS:
-                    self._finish(delivery, "failed", str(exc))
+                    self._finish(batch, "failed", str(exc))
                     return
                 wait = getattr(self.route.sink, "retry_after", DEFAULT_RETRY_S)
                 log.warning(
@@ -122,31 +144,35 @@ class RouteWorker:
                 )
                 self._stop.wait(min(float(wait), 30.0))
                 continue
-            self._finish(delivery, "delivered", "")
+            self._finish(batch, "delivered", "")
             return
-        # Stopping with the delivery unwritten: say so rather than reporting it delivered.
-        self._finish(delivery, "failed", "router stopped before delivery")
+        # Stopping with the batch unwritten: say so rather than reporting it delivered.
+        self._finish(batch, "failed", "router stopped before delivery")
 
-    def _finish(self, delivery: Delivery, status: str, detail: str) -> None:
-        delivery.status = status
-        delivery.detail = detail
+    def _finish(self, batch: list[Delivery], status: str, detail: str) -> None:
         if status == "delivered":
-            self.delivered += 1
+            self.delivered += len(batch)
             self.last_delivered_at = time.monotonic()
         else:
-            self.failed += 1
-            log.error("delivery failed", extra={"route": self.route.id, "detail": detail})
-        self.on_receipt(
-            Receipt(
-                event_uid=delivery.event_uid,
-                revision=delivery.revision,
-                route_id=self.route.id,
-                status=status,  # type: ignore[arg-type]
-                detail=detail[:500],
-                at=self.clock(),
+            self.failed += len(batch)
+            log.error(
+                "delivery failed",
+                extra={"route": self.route.id, "events": len(batch), "detail": detail},
             )
-        )
-        delivery.done.set()
+        for delivery in batch:
+            delivery.status = status
+            delivery.detail = detail
+            self.on_receipt(
+                Receipt(
+                    event_uid=delivery.event_uid,
+                    revision=delivery.revision,
+                    route_id=self.route.id,
+                    status=status,  # type: ignore[arg-type]
+                    detail=detail[:500],
+                    at=self.clock(),
+                )
+            )
+            delivery.done.set()
 
     # ---------------------------------------------------------------- observability
     @property
