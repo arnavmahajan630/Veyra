@@ -28,7 +28,7 @@ All names are prefixed `VEYRA_`. Memory limits are enforced via compose `mem_lim
 
 | Knob | laptop | mac | workstation | Notes |
 |---|---|---|---|---|
-| `MEM_KAFKA` / `KAFKA_HEAP` | 1g / 512m | 2g / 1g | 6g / 4g | |
+| `MEM_KAFKA` / `KAFKA_HEAP` | 1g / 512m | 2g / 1g | 12g / 8g | |
 | `MEM_CLICKHOUSE` / `CH_MAX_MEMORY` | 1g / 800m | 3g / 2.5g | 12g / 10g | |
 | `MEM_WAZUH_INDEXER` / `WAZUH_INDEXER_HEAP` | 1.8g / 1g | 3g / 2g | 8g / 4g | |
 | `MEM_WAZUH_MANAGER` | 700m | 1g | 2g | |
@@ -36,10 +36,10 @@ All names are prefixed `VEYRA_`. Memory limits are enforced via compose `mem_lim
 | `MEM_IMMUDB` | 256m | 512m | 1g | |
 | `MEM_VECTOR` (each) | 128m | 256m | 512m | |
 | `MEM_PY_SERVICE` (each) | 192m | 384m | 1g | |
-| `NORMALIZER_REPLICAS` | 1 | 2 | 6 | Must be ≤ raw partitions |
-| `ROUTER_REPLICAS` | 1 | 1 | 3 | |
-| `RAW_PARTITIONS_PER_VENDOR` | 3 | 6 | 12 | v1 production: 48 total |
-| `NORM_PARTITIONS` | 3 | 6 | 12 | |
+| `NORMALIZER_REPLICAS` | 1 | 2 | 18 | Must be ≤ raw partitions. Compose defines six instances, so `veyra load` starts at most six |
+| `ROUTER_REPLICAS` | 1 | 1 | 4 | |
+| `RAW_PARTITIONS_PER_VENDOR` | 3 | 6 | 24 | v1 production: 48 total |
+| `NORM_PARTITIONS` | 3 | 6 | 24 | |
 | `KAFKA_REPLICATION` | 1 | 1 | 1 (3 with the `multi-broker` profile) | |
 
 ### 2.2 Vault, integrity and lineage
