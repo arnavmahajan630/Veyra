@@ -444,7 +444,18 @@ decision_model() {
 
 services() {
   stage "Starting the Veyra services"
+  # Extra normalizers left running by a load test are not part of `up`, so they would keep the
+  # old image. One consumer group cannot run two versions: stop them, and start them again below.
+  local extra=() svc
+  while read -r svc; do
+    [[ $svc =~ ^normalizer-[0-9]+$ ]] && extra+=("$svc")
+  done < <(dc --profile scale ps --services --status running 2>/dev/null || true)
+  if ((${#extra[@]})); then dc --profile scale stop "${extra[@]}" >/dev/null 2>&1 || true; fi
   dc up -d --remove-orphans 2>&1 | shown 12
+  if ((${#extra[@]})); then
+    dc --profile scale up -d "${extra[@]}" 2>&1 | shown 2
+    ok "extra normalizers restarted on this build: ${#extra[@]}"
+  fi
   info "waiting for every service to answer ..."
   run_tools python tools/veyra_check.py --wait 240 --only-health >/dev/null 2>&1 \
     && ok "all services answering" || warn "some services are slow to start; the smoke check below shows which"

@@ -17,6 +17,84 @@ ACTION REQUIRED:
 
 ---
 
+## 2026-10-07 10:15 — S2 — CLARIFICATION  (contracts v1.5, no bump)
+TYPE: CLARIFICATION
+What:     `./veyra.sh load` on the workstation profile froze: after 50k to 90k events the rate
+          column showed 0 for minutes, sometimes for good. What caused it, and what else the
+          load test and the workstation smoke check turned up, each fixed:
+          1. Kafka (`compose/docker-compose.yml`). Under the load burst the in-process KRaft
+             controller's events took up to 19 s, past the default 9 s broker session, so it
+             fenced its own broker and every partition lost its leader for a few seconds.
+             `KAFKA_BROKER_SESSION_TIMEOUT_MS: 60000`: the stalls still happen, the fencing
+             does not.
+          2. `TxnProcessor` (`veyra_common/kafka.py`). After such a fencing, librdkafka 2.15.1
+             left normalizers stuck in two ways, both with the process up and "healthy":
+             blocked for good inside `send_offsets_to_transaction` (it ignores the timeout it
+             is given; the stack is in `cnd_wait` under `rd_kafka_txn_op_req0`), or put out of
+             the consumer group and polling on without ever rejoining. A stuck instance kept
+             its partitions until `max.poll.interval.ms` (5 minutes), which was the freeze.
+             A watchdog thread now ends the process (`exit_for_restart`, hook `on_stall`) when
+             a transaction is still open, or the consumer has had no member id, for
+             `kafka_txn_timeout_ms`; the restart policy starts a clean one.
+             Also in that loop: a transaction Kafka fails with an abortable error is aborted
+             and the consumer is put back at the batch's first offsets (`_rewind`). Before, the
+             batch was aborted and never read again, so the next commit moved past it: events
+             were dropped without a DLQ record (P2). Kafka's failures no longer count as
+             poison attempts. `fn` now runs before `begin_transaction`. Each instance has its
+             own inflight journal (`normalizer-2_inflight`; instance 0 keeps
+             `normalizer_inflight`): they were all writing one file.
+          3. `tools/bench/load_raw.py`. It stopped on one unanswered question to Kafka, could
+             wait for ever on a producer process that had died, and waited for a count that
+             could not be reached. It also counted the end offsets of `norm.*`, which include
+             transaction markers and aborted records: one run reported an empty backlog with
+             190,000 events still queued. It now reads the normalizer group's committed
+             offsets on `raw.*`, finishes when those have moved by what it delivered, skips a
+             sample Kafka cannot answer, and stops with an error after `--stall` seconds
+             (default 300) without progress.
+Why:      The load test could not complete on the workstation profile, and the same Kafka stall
+          outside a load test left normalizers silently doing nothing.
+IDs:      IF-TOPICS (unchanged), P2
+Files patched: `05_CHANGELOG.md`, `03_INFRA_PROFILES.md`, `docs/SETUP_ADVANCED.md`
+Verified: laptop (12 CPUs, Docker at 8 GB) on `--profile workstation --no-wazuh --no-llm`.
+          Before: frozen at 78,699 events, two normalizers still blocked 5 minutes later.
+          With Kafka put back to the 9 s session on purpose, for 30 minutes: 5 fencings and 6
+          watchdog restarts (2 for a stuck transaction, 4 for a lost group); in the load run
+          during it no sample showed a rate of 0 and the longest gap was 35 s. With the 60 s
+          session: no fencing; a 75 s `docker pause` of Kafka mid-run was recovered by abort
+          and rewind alone (14 failed transactions, no restart). Final run on this build:
+          400,000 delivered, 405,108 committed in 379 s (the demo baseline adds its own), no
+          fencing, exit 0. Unit tests:
+          `packages/veyra_common/tests/test_kafka_txn.py`, `tools/bench/test_load_raw.py`.
+          4. Only two of the six normalizers ever worked, for two reasons, both fixed:
+             - IF-TOPICS keys a record by `source_id`, and the load used one source per topic,
+               so each topic's whole load sat in one partition (`raw.linux[4]`,
+               `raw.acme_ngfw[18]`). `load_raw.py` now sends its sources as heavy hitters
+               (IF-ENVELOPE: key `source_id#n`, `salt=n`) over `--salt-buckets` keys, default
+               64 per partition; `--salt-buckets 1` gives the old single-partition run.
+             - `cooperative-sticky` only evens the number of partitions a member holds: one
+               instance was seen with all 12 of `raw.acme_ngfw` and five with none.
+               `TxnProcessor`'s consumer now uses `roundrobin`, which gave every instance 4 of
+               every topic's 24. Other consumers keep `cooperative-sticky`.
+             `veyra.sh up` now restarts extra normalizers a load test left running, so the
+             group never mixes two builds (or two assignment strategies).
+          5. Router (`services/router`). The smoke check "router delivered it to the Wazuh
+             sink" failed on the workstation profile because the router wrote, flushed and
+             synchronously committed one event at a time: 112 events/s here, under that
+             profile's 200 events/s demo baseline, so it never caught up. It now takes up to
+             `VEYRA_ROUTE_BATCH_MAX` events (waiting `VEYRA_ROUTE_BATCH_MS` for more), each
+             route writes and flushes its share once, and the offsets commit once per batch,
+             still only after every route has flushed. New settings, in all three profiles.
+          Also brought `main` back to green: the workstation profile's new values (18
+          normalizers, 24 partitions, Kafka 12g/8g) in `03_INFRA_PROFILES.md` and the
+          profile test, and lint in `control_api/routes_load.py` and `app.py`.
+ACTION REQUIRED:
+  - none. For information, @A: the normalizer's loop now ends the process when its Kafka client
+    is stuck, so `restart: unless-stopped` is load-bearing; its group uses `roundrobin`; the
+    router commits per batch. `VEYRA_NORMALIZER_REPLICAS=18` starts six instances, because
+    compose defines six.
+
+---
+
 ## 2026-10-02 22:10 — S2 + C4 — DECISION + REQUEST  (contracts v1.5, no bump)
 TYPE: DECISION
 What:     `./veyra.sh up` now lets the reviewer choose which AI drafts contracts:
