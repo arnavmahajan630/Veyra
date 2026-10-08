@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import argparse
 import base64
+import os
 import sys
 import time
 import uuid
@@ -46,6 +47,9 @@ HEALTH = [
     ("demo-engine (via Caddy)", "http://caddy:8080/api/demo/healthz", True),
     ("kafka-ui", "http://kafka-ui:8080/actuator/health", False),
 ]
+
+if os.environ.get("VEYRA_NO_DEMO") == "1":
+    HEALTH = [s for s in HEALTH if "demo-engine" not in s[0]]
 # The model server that drafts, optional either way: a missing one means drafts come from
 # saved answers or the rules drafter. Which one depends on the drafter veyra.sh was told to use.
 if settings.llm_backend == "decision":

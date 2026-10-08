@@ -506,6 +506,13 @@ need_up() {
   compose_files
 }
 
+cmd_clean() {
+  export VEYRA_NO_DEMO=1
+  # Override default profiles to exclude 'b7' (demo-engine)
+  SERVICE_PROFILES=(a2 a3 a6 c1 c3 b1 b2 b3 b4)
+  cmd_up
+}
+
 cmd_demo() {
   need_up; STAGES=1; stage "Guided demo"
   # The walkthrough prints its own PASS/FAIL tally; just hand its exit code back.
@@ -583,6 +590,7 @@ cmd_load() {
 
 case "$CMD" in
   up) cmd_up ;;
+  clean) cmd_clean ;;
   demo) cmd_demo ;;
   load) cmd_load ;;
   status) cmd_status ;;

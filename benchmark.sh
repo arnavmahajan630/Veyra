@@ -3,7 +3,9 @@ set -eo pipefail
 
 # Veyra Automated Benchmark Suite
 # Generates comprehensive performance metrics per the Handoff Checklist.
-# Assumes the Veyra stack is already running (e.g. via ./veyra.sh up)
+# Assumes the Veyra stack is already running.
+# IMPORTANT: For best results and no background noise, bring up the stack using:
+#   ./veyra.sh clean
 
 BENCH_DIR="bench/results"
 mkdir -p "$BENCH_DIR"
