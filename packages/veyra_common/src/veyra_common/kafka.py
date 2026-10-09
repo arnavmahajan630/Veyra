@@ -12,7 +12,9 @@ outputs and the offsets move together — no duplicates, no gaps.
 from __future__ import annotations
 
 import logging
+import os
 import signal
+import threading
 import time
 from collections.abc import Callable, Iterable, Sequence
 from dataclasses import dataclass, field
@@ -56,6 +58,26 @@ ProcessFn = Callable[[list[Message]], Iterable[OutputRecord]]
 
 class PoisonBatch(Exception):
     """Raised for the benefit of ``on_poison`` when a batch is skipped without being processed."""
+
+
+class TxnStalled(RuntimeError):
+    """Kafka would neither finish the transaction nor abort it; only a new process can carry on.
+
+    Replacing the process is safe by construction: ``init_transactions`` in the new one fences
+    this one and resolves whatever it left open, and consumption resumes from the committed
+    offsets.
+    """
+
+
+def exit_for_restart(reason: str) -> None:
+    """Leave at once, so the restart policy starts a clean process.
+
+    Not ``sys.exit``: the interpreter's shutdown waits for librdkafka to close, and librdkafka
+    being stuck is the reason for leaving.
+    """
+    log.critical("kafka transactions are stuck; exiting for a restart", extra={"reason": reason})
+    logging.shutdown()
+    os._exit(1)
 
 
 def _base_conf(cfg: Settings) -> dict[str, Any]:
@@ -172,6 +194,19 @@ class TxnProcessor:
     The attempt count is also journalled to ``data/state/<name>_inflight`` before each batch, so a
     record that kills the *process* rather than raising is quarantined on the next restart instead
     of crash-looping forever. See :mod:`veyra_common.inflight`.
+
+    A transaction that Kafka fails is not the records' fault and is never counted against them.
+    It is aborted and the batch read again. When it cannot even be aborted, ``on_stall`` is called,
+    which by default replaces the process (:func:`exit_for_restart`).
+
+    A watchdog does the same for the two states the loop was seen unable to leave by itself, both
+    after a broker lost and regained its partitions (librdkafka 2.15), and both with the process
+    still looking healthy:
+
+    * a transaction still open after ``kafka_txn_timeout_ms``, when the broker has already
+      rolled it back. The calls are given that limit too, but ``send_offsets_to_transaction``
+      waited for good on a reply that never came, and a loop blocked there never polls;
+    * a consumer put out of its group that polls on and never asks to rejoin.
     """
 
     def __init__(
@@ -186,15 +221,34 @@ class TxnProcessor:
         cfg: Settings | None = None,
         on_poison: Callable[[list[Message], Exception], Iterable[OutputRecord]] | None = None,
         journal: InflightJournal | None = None,
+        on_stall: Callable[[str], None] = exit_for_restart,
     ) -> None:
         self.cfg = cfg or settings
         self.name = name
         self.fn = fn
         self.on_poison = on_poison
-        self.journal = journal or InflightJournal.for_service(name, cfg=self.cfg)
-        self.consumer = make_consumer(group, topics, pattern=pattern, cfg=self.cfg)
+        self.on_stall = on_stall
+        # One journal per instance: instances share data/state, and one file between them means
+        # each overwrites and clears the others' record. Instance 0 keeps the documented name.
+        owner = name if instance == "0" else f"{name}-{instance}"
+        self.journal = journal or InflightJournal.for_service(owner, cfg=self.cfg)
+        # Round-robin deals the sorted partition list out one at a time, so every topic is spread
+        # over every instance. `cooperative-sticky` only evens the count: with six topics and two
+        # of them busy, one instance was seen holding all of one busy topic and five holding none
+        # of it. Its full revoke on a rebalance costs nothing here: the open transaction is
+        # aborted and the batch read again by whoever owns it next.
+        self.consumer = make_consumer(
+            group,
+            topics,
+            pattern=pattern,
+            cfg=self.cfg,
+            **{"partition.assignment.strategy": "roundrobin"},
+        )
         self.producer = make_producer(f"{name}-{instance}", cfg=self.cfg)
         self.producer.init_transactions()
+        # The broker rolls a transaction back at this age, so a call still waiting cannot succeed.
+        self._txn_wait_s = self.cfg.kafka_txn_timeout_ms / 1000
+        self._txn_began: float | None = None
         self._stop = False
         self._attempts = 0
         self.batches = 0
@@ -255,22 +309,28 @@ class TxnProcessor:
             highest[key] = max(highest.get(key, -1), offset)
         return [TopicPartition(t, p, off + 1) for (t, p), off in highest.items()]
 
-    def process_batch(self, batch: list[Message]) -> None:
-        """One transaction: outputs and consumed offsets commit together."""
+    def _transact(self, batch: list[Message], outputs: Iterable[OutputRecord]) -> None:
+        """Produce ``outputs`` and move past ``batch`` in one transaction, every call bounded."""
+        self._txn_began = time.monotonic()
         self.producer.begin_transaction()
-        try:
-            for out in self.fn(batch):
-                # confluent types `headers` as a mapping or a list of (str, str|bytes|None);
-                # ours is always a list of (str, bytes), which is that type.
-                headers: Any = out.headers or None
-                self.producer.produce(out.topic, value=out.value, key=out.key, headers=headers)
-            self.producer.send_offsets_to_transaction(
-                self._positions(batch), self.consumer.consumer_group_metadata()
-            )
-            self.producer.commit_transaction()
-        except Exception:
-            self.producer.abort_transaction()
-            raise
+        for out in outputs:
+            # confluent types `headers` as a mapping or a list of (str, str|bytes|None);
+            # ours is always a list of (str, bytes), which is that type.
+            headers: Any = out.headers or None
+            self.producer.produce(out.topic, value=out.value, key=out.key, headers=headers)
+        self.producer.send_offsets_to_transaction(
+            self._positions(batch), self.consumer.consumer_group_metadata(), self._txn_wait_s
+        )
+        self.producer.commit_transaction(self._txn_wait_s)
+        self._txn_began = None
+
+    def process_batch(self, batch: list[Message]) -> None:
+        """One transaction: outputs and consumed offsets commit together.
+
+        ``fn`` runs before the transaction begins, so what it raises is about the records and
+        leaves nothing to abort; a ``KafkaException`` from here on is about Kafka.
+        """
+        self._transact(batch, list(self.fn(batch)))
         self.batches += 1
         self.records += len(batch)
         self._attempts = 0
@@ -279,44 +339,114 @@ class TxnProcessor:
     def run(self) -> None:
         """Run until :meth:`stop` is called."""
         log.info("txn loop starting", extra={"service": self.name})
-        while not self._stop:
-            batch = self.poll_batch()
-            if not batch:
-                continue
-            identity = self.batch_id(batch)
-            if self.journal.poisonous(identity):
-                # This exact batch already took us down `poison_max_retries` times. Do not hand it
-                # to `fn` again — processing it is the thing that kills us.
-                self._quarantine(batch, PoisonBatch(f"crash-looped on {identity}"))
-                continue
-            attempts = self.journal.begin(identity)
-            try:
-                self.process_batch(batch)
-            except Exception as exc:
-                self._attempts = max(self._attempts + 1, attempts)
-                log.error(
-                    "batch failed",
-                    extra={"attempt": self._attempts, "size": len(batch), "error": str(exc)},
-                )
-                if self._attempts >= self.cfg.poison_max_retries:
-                    self._quarantine(batch, exc)
+        threading.Thread(target=self._watch, name="txn-watchdog", daemon=True).start()
+        try:
+            while not self._stop:
+                batch = self.poll_batch()
+                if not batch:
+                    continue
+                try:
+                    self._handle(batch)
+                except KafkaException as exc:
+                    self._recover(batch, exc)
+        finally:
+            self._stop = True  # the watchdog's cue to leave as well
         self.close()
+
+    def _handle(self, batch: list[Message]) -> None:
+        """One batch: what ``fn`` raises counts against the records, what Kafka raises does not."""
+        identity = self.batch_id(batch)
+        if self.journal.poisonous(identity):
+            # This exact batch already took us down `poison_max_retries` times. Do not hand it
+            # to `fn` again — processing it is the thing that kills us.
+            self._quarantine(batch, PoisonBatch(f"crash-looped on {identity}"))
+            return
+        attempts = self.journal.begin(identity)
+        try:
+            self.process_batch(batch)
+        except KafkaException:
+            raise
+        except Exception as exc:
+            self._attempts = max(self._attempts + 1, attempts)
+            log.error(
+                "batch failed",
+                extra={"attempt": self._attempts, "size": len(batch), "error": str(exc)},
+            )
+            if self._attempts >= self.cfg.poison_max_retries:
+                self._quarantine(batch, exc)
+            else:
+                self._rewind(batch)
+
+    def _watch(self) -> None:
+        """Call ``on_stall`` for the two stuck states described on the class."""
+        limit = self._txn_wait_s
+        groupless: float | None = None
+        while not self._stop:
+            time.sleep(min(1.0, limit / 4))
+            now = time.monotonic()
+            began = self._txn_began
+            # No member id is normal while joining, and for as long as Kafka is away.
+            groupless = None if self.consumer.memberid() else groupless or now
+            if began is not None and now - began > limit:
+                reason = "a transaction outlived"
+            elif groupless is not None and now - groupless > limit:
+                reason = "outside its consumer group for"
+            else:
+                continue
+            self.journal.clear()  # Kafka's doing, so not an attempt against the records
+            self.on_stall(f"{self.name}: {reason} {limit:.0f} s")
+            return
+
+    def _give_up(self, reason: str, cause: Exception) -> None:
+        self.on_stall(reason)
+        raise TxnStalled(reason) from cause
+
+    def _recover(self, batch: list[Message], exc: KafkaException) -> None:
+        """Undo a transaction Kafka failed and read ``batch`` again, or give the process up."""
+        error = exc.args[0] if exc.args else None
+        abortable = isinstance(error, KafkaError) and error.txn_requires_abort()
+        log.error(
+            "transaction failed",
+            extra={"size": len(batch), "error": str(exc), "abortable": abortable},
+        )
+        # Whatever went wrong was not in the records, so a restart on this batch must not count
+        # towards quarantining them.
+        self.journal.clear()
+        if not abortable:
+            self._give_up(f"{self.name}: transaction cannot be completed: {exc}", exc)
+        try:
+            self.producer.abort_transaction(self._txn_wait_s)
+        except KafkaException as abort_exc:
+            self._give_up(f"{self.name}: transaction cannot be aborted: {abort_exc}", exc)
+        self._txn_began = None
+        self._rewind(batch)
+
+    def _rewind(self, batch: list[Message]) -> None:
+        """Put the consumer back at the start of ``batch``, so the next poll reads it again.
+
+        Without this an uncommitted batch is simply skipped: the consumer's position is already
+        past it, and the next batch's offsets commit over the gap.
+        """
+        first: dict[tuple[str, int], int] = {}
+        for msg in batch:
+            topic, partition, offset = _coords(msg)
+            key = (topic, partition)
+            first[key] = min(first.get(key, offset), offset)
+        for (topic, partition), offset in first.items():
+            try:
+                self.consumer.seek(TopicPartition(topic, partition, offset))
+            except KafkaException as exc:
+                # No longer ours: a rebalance moved it, and its new owner starts from the
+                # committed offset, which is this one.
+                log.info(
+                    "partition not rewound",
+                    extra={"partition": f"{topic}[{partition}]", "error": str(exc)},
+                )
 
     def _quarantine(self, batch: list[Message], exc: Exception) -> None:
         """Skip a poisonous batch, after emitting whatever ``on_poison`` produces."""
-        self.producer.begin_transaction()
-        try:
-            if self.on_poison:
-                for out in self.on_poison(batch, exc):
-                    self.producer.produce(out.topic, value=out.value, key=out.key)
-            self.producer.send_offsets_to_transaction(
-                self._positions(batch), self.consumer.consumer_group_metadata()
-            )
-            self.producer.commit_transaction()
-            log.error("batch quarantined", extra={"size": len(batch), "error": str(exc)})
-        except Exception:
-            self.producer.abort_transaction()
-            raise
-        finally:
-            self._attempts = 0
-            self.journal.clear()
+        outputs = list(self.on_poison(batch, exc)) if self.on_poison else []
+        self._transact(batch, outputs)
+        log.error("batch quarantined", extra={"size": len(batch), "error": str(exc)})
+        self._attempts = 0
+        self.journal.clear()

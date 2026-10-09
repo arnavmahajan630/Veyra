@@ -15,12 +15,12 @@ from control_api import (
     routes_drafts,
     routes_drift,
     routes_internal,
+    routes_load,
     routes_meta,
     routes_replay,
     routes_sources,
     routes_stream,
     routes_tenants,
-    routes_load,
 )
 from control_api.context import AppContext
 

@@ -49,7 +49,7 @@ export function PipelineFlow({ overview }: { overview: Overview }) {
   const deliveredPerMin = overview.routes.reduce((sum, route) => sum + route.delivered_per_min, 0);
   const outEps = deliveredPerMin / 60;
   const wazuh = overview.routes.find((route) => route.route_id.startsWith("wazuh"));
-  const wazuhLag = wazuh?.lag_s == null ? undefined : t("overview.lag", { n: wazuh.lag_s });
+  const wazuhLag = wazuh?.lag_s == null ? undefined : t("overview.lag", { n: Math.round(wazuh.lag_s) });
 
   return (
     <figure aria-label={t("overview.pipeline")} className="overflow-x-auto">
@@ -62,7 +62,7 @@ export function PipelineFlow({ overview }: { overview: Overview }) {
         <Branch eps={eps} position="first" />
         <Stage id="normalizer" label={t("overview.normalizer")} value={epsText} />
         <Line eps={outEps} />
-        <Stage id="router" label={t("overview.router")} value={t("overview.perMin", { n: deliveredPerMin })} />
+        <Stage id="router" label={t("overview.router")} value={t("overview.perMin", { n: Math.round(deliveredPerMin) })} />
         <Line eps={outEps} />
         <Stage id="wazuh" label={t("overview.wazuh")} value={wazuhLag} />
 

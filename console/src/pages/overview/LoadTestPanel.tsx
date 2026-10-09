@@ -3,6 +3,8 @@ import { useState } from "react";
 import { api, CONTROL } from "../../api/client";
 import { Drawer } from "../../components/Drawer";
 
+import { formatEps } from "../../components/format";
+
 export interface LoadTestPanelProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -12,25 +14,28 @@ interface LoadStatus {
   running: boolean;
   sent: number;
   total: number;
+  outcome?: string | null;
+  error?: string | null;
+  actual_eps?: number;
 }
 
 export function LoadTestPanel({ open, onOpenChange }: LoadTestPanelProps) {
   const queryClient = useQueryClient();
 
-  const [count, setCount] = useState(10000);
-  const [eps, setEps] = useState(1000);
+  const [count, setCount] = useState<number | "">(10000);
+  const [eps, setEps] = useState<number | "">(1000);
   const [mix, setMix] = useState("ssh");
 
   const status = useQuery({
     queryKey: ["load-status"],
     queryFn: () => api.get<LoadStatus>(`${CONTROL}/load/status`),
-    refetchInterval: (query) => (query.state.data?.running ? 500 : false),
     enabled: open,
   });
 
   const startMutation = useMutation({
-    mutationFn: () => api.post(`${CONTROL}/load/start`, { count, eps, mix }),
+    mutationFn: () => api.post(`${CONTROL}/load/start`, { count: Number(count), eps: Number(eps), mix }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["load-status"] }),
+    onError: () => queryClient.invalidateQueries({ queryKey: ["load-status"] }),
   });
 
   const stopMutation = useMutation({
@@ -62,8 +67,8 @@ export function LoadTestPanel({ open, onOpenChange }: LoadTestPanelProps) {
               id="load-count"
               type="number"
               min="1"
-              value={count}
-              onChange={(e) => setCount(parseInt(e.target.value) || 0)}
+              value={count ?? ""}
+              onChange={(e) => setCount(e.target.value === "" ? "" : parseInt(e.target.value) || "")}
               disabled={isRunning}
               className="rounded-control border border-rule bg-paper px-3 py-2 text-ink disabled:opacity-50 focus:outline-thread"
             />
@@ -77,8 +82,8 @@ export function LoadTestPanel({ open, onOpenChange }: LoadTestPanelProps) {
               id="load-eps"
               type="number"
               min="1"
-              value={eps}
-              onChange={(e) => setEps(parseInt(e.target.value) || 0)}
+              value={eps ?? ""}
+              onChange={(e) => setEps(e.target.value === "" ? "" : parseInt(e.target.value) || "")}
               disabled={isRunning}
               className="rounded-control border border-rule bg-paper px-3 py-2 text-ink disabled:opacity-50 focus:outline-thread"
             />
@@ -100,6 +105,12 @@ export function LoadTestPanel({ open, onOpenChange }: LoadTestPanelProps) {
             </select>
           </div>
 
+          {startMutation.isError && (
+            <div role="alert" className="text-bad text-meta font-medium">
+              {(startMutation.error as Error).message}
+            </div>
+          )}
+
           <div className="mt-4 flex items-center gap-4">
             {isRunning ? (
               <button
@@ -114,7 +125,7 @@ export function LoadTestPanel({ open, onOpenChange }: LoadTestPanelProps) {
               <button
                 type="submit"
                 className="w-full justify-center rounded-control bg-thread text-paper px-4 py-2 font-medium hover:opacity-90 disabled:opacity-50 transition-opacity"
-                disabled={startMutation.isPending}
+                disabled={startMutation.isPending || !count || !eps}
               >
                 {startMutation.isPending ? "Starting..." : "Run Test"}
               </button>
@@ -125,10 +136,18 @@ export function LoadTestPanel({ open, onOpenChange }: LoadTestPanelProps) {
         {status.data && (
           <div className="mt-4 border-t border-rule pt-4">
             <h3 className="text-meta font-medium mb-2">Test Status</h3>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-3 gap-4">
               <div className="flex flex-col">
                 <span className="text-meta text-ink-2">State</span>
-                <span className="font-medium">{isRunning ? "Running" : "Idle"}</span>
+                <span className="font-medium">
+                  {status.data.outcome === "failed" ? "Failed" : isRunning ? "Running" : "Idle"}
+                </span>
+              </div>
+              <div className="flex flex-col">
+                <span className="text-meta text-ink-2">Actual EPS</span>
+                <span className="font-medium">
+                  {status.data.actual_eps ? formatEps(status.data.actual_eps) : "0"}
+                </span>
               </div>
               <div className="flex flex-col">
                 <span className="text-meta text-ink-2">Progress</span>
@@ -137,11 +156,18 @@ export function LoadTestPanel({ open, onOpenChange }: LoadTestPanelProps) {
                 </span>
               </div>
             </div>
+            
+            {status.data.error && (
+              <div role="alert" className="mt-4 rounded bg-bad/10 p-3 text-bad text-meta">
+                {status.data.error}
+              </div>
+            )}
+
             {isRunning && (
               <div className="mt-4 h-2 w-full overflow-hidden rounded bg-rule">
                 <div
-                  className="h-full bg-thread transition-all duration-500"
-                  style={{ width: `${(status.data.sent / status.data.total) * 100}%` }}
+                  className="h-full bg-thread transition-all duration-100 ease-linear"
+                  style={{ width: `${(status.data.sent / Math.max(1, status.data.total)) * 100}%` }}
                 />
               </div>
             )}

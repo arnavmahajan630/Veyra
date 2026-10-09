@@ -308,3 +308,154 @@ def test_a_malformed_norm_value_is_not_committed(
     finally:
         router.stop()
     assert producer.receipts() == []
+
+
+# ---------------------------------------------------------------- batches
+class CountingSink:
+    """Records the size of every write, and how often it was flushed."""
+
+    breaker_state = 0
+
+    def __init__(self) -> None:
+        self.writes: list[int] = []
+        self.flushes = 0
+
+    def write(self, payloads: list[dict[str, Any]]) -> None:
+        self.writes.append(len(payloads))
+
+    def flush(self) -> None:
+        self.flushes += 1
+
+    def close(self) -> None: ...
+
+
+def queued(worker: RouteWorker, count: int) -> list[Delivery]:
+    """``count`` deliveries already waiting when the worker starts, as during a backlog."""
+    deliveries = [Delivery(event_uid=f"u{i}", revision=1, payload={"n": i}) for i in range(count)]
+    for delivery in deliveries:
+        worker.submit(delivery)
+    return deliveries
+
+
+def test_a_worker_writes_everything_that_is_waiting_in_one_go(
+    cfg: RouterSettings, tmp_path: Path
+) -> None:
+    """One write and one flush per event was the router's ceiling: about 110 events/s."""
+    collected: list[Receipt] = []
+    route = route_for(cfg, tmp_path)
+    route.sink.close()
+    sink = CountingSink()
+    route.sink = sink  # type: ignore[assignment]
+    worker = RouteWorker(route, queue_max=10, on_receipt=collected.append, batch_max=10)
+    deliveries = queued(worker, 5)
+    worker.start()
+    try:
+        assert Dispatcher.wait(deliveries, timeout=10)
+    finally:
+        worker.stop()
+    assert sink.writes == [5]
+    assert sink.flushes == 1
+    assert receipts_of(collected) == [("wazuh_main", "delivered")] * 5
+    assert [receipt.event_uid for receipt in collected] == ["u0", "u1", "u2", "u3", "u4"]
+    assert worker.delivered == 5
+
+
+def test_a_batch_is_never_larger_than_the_limit(cfg: RouterSettings, tmp_path: Path) -> None:
+    collected: list[Receipt] = []
+    route = route_for(cfg, tmp_path)
+    route.sink.close()
+    sink = CountingSink()
+    route.sink = sink  # type: ignore[assignment]
+    worker = RouteWorker(route, queue_max=10, on_receipt=collected.append, batch_max=2)
+    deliveries = queued(worker, 5)
+    worker.start()
+    try:
+        assert Dispatcher.wait(deliveries, timeout=10)
+    finally:
+        worker.stop()
+    assert sink.writes == [2, 2, 1]
+
+
+def test_a_batch_that_cannot_be_written_receipts_every_event_failed(
+    cfg: RouterSettings, tmp_path: Path
+) -> None:
+    collected: list[Receipt] = []
+    route = route_for(cfg, tmp_path)
+
+    class Broken(CountingSink):
+        def write(self, payloads: list[dict[str, Any]]) -> None:
+            raise SinkError("disk is read-only", permanent=True)
+
+    route.sink.close()
+    route.sink = Broken()  # type: ignore[assignment]
+    worker = RouteWorker(route, queue_max=10, on_receipt=collected.append, batch_max=10)
+    deliveries = queued(worker, 3)
+    worker.start()
+    try:
+        assert Dispatcher.wait(deliveries, timeout=10)
+    finally:
+        worker.stop()
+    assert receipts_of(collected) == [("wazuh_main", "failed")] * 3
+    assert worker.failed == 3
+
+
+class Consumed:
+    """A consumed Kafka message, as far as the router looks at one."""
+
+    def __init__(self, partition: int, offset: int, value: bytes, error: Any = None) -> None:
+        self._partition, self._offset, self._value, self._error = partition, offset, value, error
+
+    def topic(self) -> str:
+        return "norm.iam"
+
+    def partition(self) -> int:
+        return self._partition
+
+    def offset(self) -> int:
+        return self._offset
+
+    def value(self) -> bytes:
+        return self._value
+
+    def error(self) -> Any:
+        return self._error
+
+
+def test_a_batch_commits_once_past_the_last_event_of_each_partition(
+    cfg: RouterSettings, tmp_path: Path, producer: FakeProducer
+) -> None:
+    """The offset rule, for a batch: positions come back only after every route has flushed."""
+    from router.__main__ import Router
+
+    router = Router(cfg, producer=producer)
+    sink_file = tmp_path / "w.ndjson"
+    router.load(
+        [
+            {
+                "id": "wazuh_main",
+                "filter": {},
+                "sink": {"type": "ndjson_file", "path": str(sink_file)},
+            }
+        ]
+    )
+    good = json.dumps(norm_event()).encode()
+    try:
+        positions = router.handle_batch(
+            [
+                Consumed(0, 7, good),
+                Consumed(1, 3, good),
+                Consumed(0, 8, good),
+                Consumed(1, 4, b"{not json"),
+                Consumed(2, 9, good, error="broker went away"),
+            ]
+        )
+        written = sink_file.read_text().splitlines()
+    finally:
+        router.stop()
+
+    assert sorted((p.topic, p.partition, p.offset) for p in positions) == [
+        ("norm.iam", 0, 9),
+        ("norm.iam", 1, 4),  # the unparseable record at offset 4 is not stepped over
+    ]
+    assert len(written) == 3, "every event was on disk before its position was handed back"
+    assert len(producer.receipts()) == 3

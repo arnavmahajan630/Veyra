@@ -7,6 +7,10 @@ Each event is rendered and masked per IF-ROUTES, delivered to every matching sin
 (IF-RECEIPT) per route. The **offset commits only once every route has flushed**, so a restart can
 re-deliver but never skip, and every delivery — including a filtered one — leaves a receipt.
 
+Events are taken up to `VEYRA_ROUTE_BATCH_MAX` at a time (waiting at most `VEYRA_ROUTE_BATCH_MS`
+for more), and the offsets are committed once for the batch, after every route has flushed all
+of it. One synchronous commit per event had the router slower than the traffic it was routing.
+
 Routes come from the compacted `control` topic (key `routes`, published by control-api), with
 `services/router/routes.default.yaml` as the fallback so the router works on a fresh stack. A route
 set that fails to compile is rejected whole and the previous one keeps serving.
@@ -20,9 +24,10 @@ import signal
 import threading
 from typing import Any
 
+from confluent_kafka import TopicPartition
 from prometheus_client import Counter, Gauge
 
-from router.delivery import Dispatcher, RouteWorker
+from router.delivery import Delivery, Dispatcher, RouteWorker
 from router.keys import ensure_route_key
 from router.routes import Route, compile_routes, load_routes_file
 from router.settings import RouterSettings
@@ -71,7 +76,12 @@ class Router:
         with self._lock:
             old = self.workers
             workers = [
-                RouteWorker(route, queue_max=self.cfg.route_queue_max, on_receipt=self.emit_receipt)
+                RouteWorker(
+                    route,
+                    queue_max=self.cfg.route_queue_max,
+                    on_receipt=self.emit_receipt,
+                    batch_max=self.cfg.route_batch_max,
+                )
                 for route in routes
             ]
             for worker in workers:
@@ -96,20 +106,51 @@ class Router:
             BREAKER.labels(worker.route.id).set(worker.breaker_state)
 
     # ---------------------------------------------------------------- one record
-    def handle(self, value: bytes) -> bool:
-        """Deliver one `norm.*` value everywhere it belongs. False when it could not be parsed."""
+    def submit(self, value: bytes) -> list[Delivery] | None:
+        """Hand one `norm.*` value to every route it belongs to. None when it cannot be parsed."""
         try:
             event = json.loads(value)
         except (json.JSONDecodeError, TypeError) as exc:
             log.error("norm event is not JSON", extra={"error": str(exc)})
-            return False
+            return None
         if not isinstance(event, dict):
-            return False
+            return None
         deliveries = self.dispatcher.dispatch(event)
         if not deliveries:
             DROPPED.inc()
+        return deliveries
+
+    def handle(self, value: bytes) -> bool:
+        """Deliver one `norm.*` value everywhere it belongs. False when it could not be parsed."""
+        deliveries = self.submit(value)
+        if deliveries is None:
+            return False
         self.dispatcher.wait(deliveries)
         return True
+
+    def handle_batch(self, messages: list[Any]) -> list[TopicPartition]:
+        """Deliver a batch of consumed messages; return the positions now safe to commit.
+
+        They are safe once every route has flushed every event of the batch. A value that could
+        not be parsed does not move its partition's position, as when events came one at a time.
+        """
+        pending: list[Delivery] = []
+        reached: dict[tuple[str, int], int] = {}
+        for message in messages:
+            if message.error():
+                log.error("consume error", extra={"error": str(message.error())})
+                continue
+            deliveries = self.submit(message.value())
+            if deliveries is None:
+                continue
+            pending.extend(deliveries)
+            key = (message.topic(), message.partition())
+            reached[key] = max(reached.get(key, -1), message.offset())
+        self.dispatcher.wait(pending)
+        return [
+            TopicPartition(topic, partition, offset + 1)
+            for (topic, partition), offset in reached.items()
+        ]
 
     def stop(self) -> None:
         for worker in self.workers:
@@ -177,16 +218,19 @@ def main() -> None:
     log.info("router running", extra={"group": cfg.consumer_group})
     try:
         while not stopping.is_set():
-            message = consumer.poll(1.0)
+            first = consumer.poll(1.0)
             router.observe()
-            if message is None:
+            if first is None:
                 continue
-            if message.error():
-                log.error("consume error", extra={"error": str(message.error())})
-                continue
-            if router.handle(message.value()):
-                # Every route has flushed and receipted by now, so this offset is safe to lose.
-                consumer.commit(message=message, asynchronous=False)
+            batch = [first]
+            if cfg.route_batch_max > 1:
+                batch += consumer.consume(
+                    cfg.route_batch_max - 1, timeout=cfg.route_batch_ms / 1000
+                )
+            positions = router.handle_batch(batch)
+            if positions:
+                # Every route has flushed and receipted the batch, so these are safe to lose.
+                consumer.commit(offsets=positions, asynchronous=False)
             router.producer.poll(0)
     finally:
         consumer.close()

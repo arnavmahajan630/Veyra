@@ -252,6 +252,7 @@ The drafter used in beats 3 and 4 is whatever `up` configured.
 | `--workers N` | Stage B: producer processes | half the CPUs, 2 to 16 |
 | `--interval S` | Stage B: seconds between progress lines | 5 |
 | `--timeout S` | Stage B: stop measuring after this long | 3600 |
+| `--stall S` | Stage B: stop with an error when nothing has been normalized for this long and events are still queued | 300 |
 | `--measure-only` | Stage B: send nothing, only measure what is flowing | |
 
 - **Stage A** creates a topic `bench.load`, produces to it with full durability (`acks=all`,
@@ -371,6 +372,7 @@ To move a prepared machine's images to another machine, use `docker save` and `d
 | Wazuh's indexer keeps restarting | It needs `vm.max_map_count` of at least 262144. Re-run `up --wazuh` and answer yes; on Linux the value resets at reboot |
 | Cloning the contracts registry fails | Sign in to GitHub when git asks, or clone it yourself next to this folder, or set `VEYRA_CONTRACTS_URL` |
 | The load test refuses to start | The disk guard. Lower `--events` or `--pipeline`, free some disk, or pass `--force` |
+| The load test shows `0` in the rate column for a while | Kafka paused under the burst. A normalizer whose transaction is stuck exits after `VEYRA_KAFKA_TXN_TIMEOUT_MS` (2 minutes) and Docker restarts it, so the rate comes back. If it stays at 0, the test stops after `--stall` seconds; `./veyra.sh logs normalizer` and `docker logs veyra-kafka` show why |
 | A demo beat times out on a stack that has been up for days | `./veyra.sh reset` |
 | Beat 4 fails with "no events to replay", or lineage searches come back empty now and then | ClickHouse is at its memory cap (`./veyra.sh logs evidence-api` shows `MEMORY_LIMIT_EXCEEDED`). Give Docker more memory, raise `VEYRA_MEM_CLICKHOUSE` and `VEYRA_CH_MAX_MEMORY` in `.env.local` (the laptop profile uses `1g` and `800m`), and run `up` again. Seen with Docker at 7 GB |
 | Windows: "$'\r': command not found" | Run through `.\veyra.ps1`, which fixes line endings, rather than calling `veyra.sh` directly from a CRLF checkout |

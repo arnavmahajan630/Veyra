@@ -49,6 +49,10 @@ services:
       KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: ${VEYRA_KAFKA_REPLICATION:-1}
       KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
       KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      # The controller is this same process. Under a write burst its events were seen taking
+      # 15 s, past the default 9 s broker session, so it fenced its own broker and every
+      # partition lost its leader. No other broker could have taken over, so wait longer.
+      KAFKA_BROKER_SESSION_TIMEOUT_MS: 60000
       KAFKA_AUTO_CREATE_TOPICS_ENABLE: "false"
       KAFKA_NUM_PARTITIONS: ${VEYRA_RAW_PARTITIONS_PER_VENDOR:-3}
       KAFKA_LOG_DIRS: /var/lib/kafka/data

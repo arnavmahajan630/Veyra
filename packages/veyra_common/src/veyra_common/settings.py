@@ -146,6 +146,8 @@ class Settings(BaseSettings):
     # Router (A6)
     sink_rotate_bytes: int = 64 * 1024 * 1024
     route_queue_max: int = 10000
+    route_batch_max: int = 500
+    route_batch_ms: int = 100
     route_breaker_fails: int = 5
     route_fsync_ms: int = 200
     wazuh_mode: WazuhMode = "local"

@@ -1,7 +1,8 @@
 """The router's own settings section.
 
 Every knob A6 needs already exists in `veyra_common.settings.Settings` and in all three profiles
-(`sink_rotate_bytes`, `route_queue_max`, `route_breaker_fails`, `route_fsync_ms`,
+(`sink_rotate_bytes`, `route_queue_max`, `route_batch_max`, `route_batch_ms`,
+`route_breaker_fails`, `route_fsync_ms`,
 `wazuh_remote_host/port`), so nothing new is invented here — P5: profile-driven, no magic numbers.
 """
 

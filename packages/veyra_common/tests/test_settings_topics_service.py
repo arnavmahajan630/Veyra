@@ -81,8 +81,8 @@ def test_profile_files_are_loadable(monkeypatch: pytest.MonkeyPatch) -> None:
             monkeypatch.setenv(key, value)
     s = Settings(_env_file=None)
     assert s.profile == "workstation"
-    assert s.normalizer_replicas == 6
-    assert s.raw_partitions_per_vendor == 12
+    assert s.normalizer_replicas == 18
+    assert s.raw_partitions_per_vendor == 24
 
 
 def test_topic_specs_cover_if_topics() -> None:
