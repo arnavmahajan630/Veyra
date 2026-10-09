@@ -20,12 +20,12 @@ function RouteRow({ route }: { route: OverviewRoute }) {
   return (
     <li className="flex flex-wrap items-center gap-x-5 py-2">
       <code className="font-mono text-meta">{route.route_id}</code>
-      <span className="tabular-nums">{t("overview.perMin", { n: route.delivered_per_min })}</span>
+      <span className="tabular-nums">{t("overview.perMin", { n: Math.round(route.delivered_per_min) })}</span>
       {route.failed_per_min > 0 ? (
-        <span className="tabular-nums">{t("overview.failedPerMin", { n: route.failed_per_min })}</span>
+        <span className="tabular-nums">{t("overview.failedPerMin", { n: Math.round(route.failed_per_min) })}</span>
       ) : null}
       {route.lag_s !== null ? (
-        <span className="tabular-nums text-ink-2">{t("overview.lag", { n: route.lag_s })}</span>
+        <span className="tabular-nums text-ink-2">{t("overview.lag", { n: Math.round(route.lag_s) })}</span>
       ) : null}
       {route.breaker === "open" ? <StatusDot tone="bad" label={t("overview.breakerOpen")} /> : null}
     </li>

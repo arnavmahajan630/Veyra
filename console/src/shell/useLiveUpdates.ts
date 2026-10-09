@@ -92,6 +92,9 @@ export function useLiveUpdates(createSource?: (url: string) => EventSourceLike):
           old ? { ...old, ...job, state: (job.status ?? old.state) as ReplayJob["state"] } : old);
         if (job.status === "done") push(t("toast.replay", { job: job.job_id ?? "?" }), "success");
       },
+      load: (event) => {
+        client.setQueryData(["load-status"], payload(event));
+      },
     },
     createSource,
   );
