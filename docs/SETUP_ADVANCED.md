@@ -370,7 +370,7 @@ To move a prepared machine's images to another machine, use `docker save` and `d
 | The model "did not warm up" | The first draft will be slow while it loads. `./veyra.sh logs ollama` or `logs ollaya` shows why |
 | A port is in use | `./veyra.sh doctor` lists the busy ports. Stop what holds them; only the console port moves by itself |
 | Wazuh's indexer keeps restarting | It needs `vm.max_map_count` of at least 262144. Re-run `up --wazuh` and answer yes; on Linux the value resets at reboot |
-| Cloning the contracts registry fails | Sign in to GitHub when git asks, or clone it yourself next to this folder, or set `VEYRA_CONTRACTS_URL` |
+| Cloning the contracts registry fails | Check your internet connection, or clone it manually from `https://github.com/arnavmahajan630/contracts-repo`, or set `VEYRA_CONTRACTS_URL` |
 | The load test refuses to start | The disk guard. Lower `--events` or `--pipeline`, free some disk, or pass `--force` |
 | The load test shows `0` in the rate column for a while | Kafka paused under the burst. A normalizer whose transaction is stuck exits after `VEYRA_KAFKA_TXN_TIMEOUT_MS` (2 minutes) and Docker restarts it, so the rate comes back. If it stays at 0, the test stops after `--stall` seconds; `./veyra.sh logs normalizer` and `docker logs veyra-kafka` show why |
 | A demo beat times out on a stack that has been up for days | `./veyra.sh reset` |

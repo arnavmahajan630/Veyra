@@ -7,7 +7,7 @@
 
 ## 1. What we are building
 
-**VEYRA** is an air-gapped log pre-processing framework for SIH problem statement **SIH26156 (NTRO — Universal Log Pre-processing Framework)**.
+**VEYRA** is an air-gapped log pre-processing framework for high-security environments (Universal Log Pre-processing Framework).
 
 It receives heterogeneous, messy security logs and does four things:
 - preserves the exact original bytes as tamper-evident evidence;

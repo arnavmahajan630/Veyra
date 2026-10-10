@@ -14,13 +14,11 @@ jobs:
       VEYRA_CONTRACTS_REPO: ${{ github.workspace }}/contracts-repo
     steps:
       - uses: actions/checkout@v5
-      # The Log Contract registry is a separate repository. It is private, so set the
-      # CONTRACTS_REPO_TOKEN secret (read access); github.token only works if it is public.
+      # The Log Contract registry is a separate repository.
       - uses: actions/checkout@v5
         with:
           repository: arnavmahajan630/contracts-repo
           path: contracts-repo
-          token: ${{ secrets.CONTRACTS_REPO_TOKEN || github.token }}
       - uses: astral-sh/setup-uv@v7
         with:
           version: "0.12.19"
