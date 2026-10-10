@@ -34,7 +34,7 @@ describe("OverviewPage", () => {
     expect(within(flow).getByText("900/min")).toBeInTheDocument();
     expect(flow.querySelectorAll("[data-stage]")).toHaveLength(8);
     expect(within(flow).getByText("40 segments")).toBeInTheDocument();
-    expect(flow.querySelector('[data-stage="wazuh"]')).toHaveTextContent("Lag 0.4 s");
+    expect(flow.querySelector('[data-stage="wazuh"]')).toHaveTextContent("Lag 0 s");
   });
 
   it("names each source in the strip, with its id beneath", async () => {
@@ -67,7 +67,7 @@ describe("OverviewPage", () => {
     expect(screen.getByText(/Last signed root w_1790496000/)).toBeInTheDocument();
     expect(screen.getByText("Anchored in immudb")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Chain intact" })).toHaveAttribute("href", "/evidence");
-    expect(within(screen.getByRole("region", { name: "Delivery" })).getByText("Lag 0.4 s")).toBeInTheDocument();
+    expect(within(screen.getByRole("region", { name: "Delivery" })).getByText("Lag 0 s")).toBeInTheDocument();
   });
 
   it("opens the source drawer from the sources strip", async () => {

@@ -2,6 +2,7 @@ import json
 import sys
 from pathlib import Path
 
+
 def main():
     if len(sys.argv) < 2:
         print("Usage: compile_report.py <bench_dir>")
@@ -9,7 +10,7 @@ def main():
 
     bench_dir = Path(sys.argv[1])
     report = ["# Veyra Benchmark Report\n"]
-    
+
     # 1. Environment
     env_file = bench_dir / "environment.json"
     if env_file.exists():
@@ -28,7 +29,7 @@ def main():
         try:
             results = json.loads(engine_file.read_text())
             report.append("## Engine Microbenchmark (Single-core Parsing)")
-            report.append("| Workload | EPS | p50 latency (µs) | p95 latency (µs) | Validation (µs) | Tiers |")
+            report.append("| Workload | EPS | p50 latency (µs) | p95 latency (µs) | Validation (µs) | Tiers |")  # noqa: E501
             report.append("|----------|-----|------------------|------------------|-----------------|-------|")
             for name, data in results.items():
                 report.append(
@@ -39,7 +40,7 @@ def main():
             report.append("\n")
         except Exception as e:
             report.append(f"*(Engine benchmark data unavailable: {e})*\n")
-            
+
     # 3. ClickHouse Query Benchmarks
     ch_file = bench_dir / "ch_queries.json"
     if ch_file.exists():
@@ -70,7 +71,7 @@ def main():
     res_file = bench_dir / "resources.csv"
     if res_file.exists():
         report.append("\n## Resource Utilization")
-        report.append(f"Raw system metrics (CPU/Memory) during throughput test are available in `{res_file.name}`.\n")
+        report.append(f"Raw system metrics (CPU/Memory) during throughput test are available in `{res_file.name}`.\n")  # noqa: E501
 
     print("\n".join(report))
 
