@@ -15,7 +15,7 @@ from veyra_evidence.chain import genesis, step, walk
 
 TOPIC, PARTITION = "raw.acme", 0
 
-# From docs/plan/reference/spec_vectors.py, out["chain"] — the authority named by the
+# From packages/veyra_evidence/tests/spec_vectors.py, out["chain"] — the authority named by the
 # contract, and cross-checked against it by test_matches_the_reference_implementation.
 # (The table printed in 02_CONTRACTS.md §IF-CHAIN was stale; corrected alongside this.)
 H0 = "3d78bdc3924694f97ccedf7d55e171922e7e08bbffc4203fc40aa1845f250820"
@@ -126,7 +126,7 @@ def test_matches_the_reference_implementation() -> None:
     import sys
     from pathlib import Path
 
-    script = Path(__file__).resolve().parents[3] / "docs" / "plan" / "reference" / "spec_vectors.py"
+    script = Path(__file__).resolve().parent / "spec_vectors.py"
     out = subprocess.run(
         [sys.executable, str(script)], capture_output=True, text=True, timeout=60, check=True
     )

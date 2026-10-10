@@ -37,7 +37,7 @@ def test_matches_the_reference_implementation() -> None:
     import sys
     from pathlib import Path
 
-    script = Path(__file__).resolve().parents[3] / "docs" / "plan" / "reference" / "spec_vectors.py"
+    script = Path(__file__).resolve().parent / "spec_vectors.py"
     out = subprocess.run(
         [sys.executable, str(script)], capture_output=True, text=True, timeout=60, check=True
     )

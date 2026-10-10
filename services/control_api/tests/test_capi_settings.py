@@ -26,7 +26,8 @@ C1_KEYS = [
 ]
 
 
-def test_control_plane_knobs_have_laptop_defaults() -> None:
+def test_control_plane_knobs_have_laptop_defaults(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("VEYRA_CONTRACTS_REPO", raising=False)
     s = Settings(_env_file=None)
     assert s.control_api_port == 8000
     assert s.control_db == Path("data/control/control.db")
