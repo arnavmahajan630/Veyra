@@ -7,23 +7,16 @@ import time
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Request
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from control_api.auth import current_principal
 from control_api.events import EventHub
 
-router = APIRouter(
-    prefix="/load",
-    tags=["load"],
-    dependencies=[Depends(current_principal)]
-)
+router = APIRouter(prefix="/load", tags=["load"], dependencies=[Depends(current_principal)])
 log = logging.getLogger(__name__)
 
 LOAD_COMMAND = ["python", "/app/tools/bench/load_raw.py"]
 
-
-
-from pydantic import BaseModel, Field
 
 class LoadStart(BaseModel):
     count: int = Field(..., gt=0)
@@ -58,27 +51,32 @@ async def background_load(count: int, hub: EventHub) -> None:
     state.actual_eps = 0.0
 
     def _publish_status():
-        hub.publish("load", {
-            "running": state.running,
-            "sent": state.sent,
-            "total": state.total,
-            "outcome": state.outcome,
-            "error": state.error,
-            "actual_eps": state.actual_eps,
-        })
+        hub.publish(
+            "load",
+            {
+                "running": state.running,
+                "sent": state.sent,
+                "total": state.total,
+                "outcome": state.outcome,
+                "error": state.error,
+                "actual_eps": state.actual_eps,
+            },
+        )
 
     _publish_status()
 
     try:
-        cmd = LOAD_COMMAND + [
-            "--events", str(count),
-            "--workers", "8",
-            "--interval", "0.2",
+        cmd = [
+            *LOAD_COMMAND,
+            "--events",
+            str(count),
+            "--workers",
+            "8",
+            "--interval",
+            "0.2",
         ]
         proc = await asyncio.create_subprocess_exec(
-            *cmd,
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.STDOUT
+            *cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.STDOUT
         )
         state._proc = proc
 
@@ -93,7 +91,7 @@ async def background_load(count: int, hub: EventHub) -> None:
                     continue
                 if not line:
                     break
-                line_str = line.decode('utf-8').strip()
+                line_str = line.decode("utf-8").strip()
                 if line_str:
                     state._last_line = line_str
                 # Try to match the output line which looks like:
@@ -114,16 +112,16 @@ async def background_load(count: int, hub: EventHub) -> None:
             await proc.wait()
             if proc.returncode != 0 and proc.returncode is not None:
                 state.outcome = "failed"
-                # Since stdout and stderr are piped and consumed above, we don't have the last line here
+                # Since stdout and stderr are piped and consumed above, we don't have the last line
                 # unless we save it. The tests assert "Kafka is not answering".
                 # The fake script prints it. We should capture the last line.
-                state.error = getattr(state, "_last_line", f"Load test process exited with code {proc.returncode}")
+                state.error = getattr(state, "_last_line", f"Exited code {proc.returncode}")
             else:
                 state.outcome = "finished"
                 # Cap the sent count to total as per the test's expectation of finishing at 1000
                 if state.sent > count:
                     state.sent = count
-                
+
             _publish_status()
     except Exception as e:
         state.outcome = "failed"

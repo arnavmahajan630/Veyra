@@ -1,6 +1,6 @@
-# 03 — INFRA PROFILES
+# Infrastructure Profiles
 
-**Default: `laptop`.** Better hardware means switching the profile, not editing code (principle P5).
+**Default: `laptop`.** Better hardware means switching the profile, not editing code .
 
 ## 1. Profiles
 

@@ -48,7 +48,7 @@ cd Veyra
 That single command:
 
 1. checks the machine and picks a hardware profile (laptop or workstation);
-2. clones the Log Contract registry next to the repo (`../contracts-repo`);
+2. clones the Log Contract registry (`https://github.com/arnavmahajan630/contracts-repo`) next to the repo (`../contracts-repo`);
 3. writes the runtime settings (`.env.runtime`) and data folders;
 4. builds the Veyra image and the web console;
 5. starts Kafka, ClickHouse, immudb, the edge collectors, Caddy and a Kafka UI, and creates the topics;
@@ -187,8 +187,7 @@ control API (contracts, keys, four-eyes) --> Kafka `control` --> normalizer / ga
 
 Every service talks over Kafka topics or REST, behind one origin on port 8080 (Caddy). For the
 plain-English and technical explanations, read the **Veyra, explained** doc and
-[`docs/DEMO_GUIDE.md`](docs/DEMO_GUIDE.md). The design and decision log live in
-[`docs/plan/`](docs/plan/README.md).
+[`docs/DEMO_GUIDE.md`](docs/DEMO_GUIDE.md). The system architecture is documented in [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
 
 ## Key concepts
 
@@ -235,8 +234,7 @@ person's approval follow either way. Two kinds of model can do it:
 | Time per draft | 1 to 2 s on a GPU; too slow on a CPU, so the laptop profile uses saved drafts | About 0.1 s on a GPU and 1 to 2 s on a CPU, so it drafts live on every profile |
 | Download | A few GB | Under 1 GB |
 
-Switch at any time by re-running `up` with the other value: `./veyra.sh up --drafter laya`. The
-numbers are in [`docs/plan/reports/C4.md`](docs/plan/reports/C4.md).
+Switch at any time by re-running `up` with the other value: `./veyra.sh up --drafter laya`. 
 
 ## Profiles
 
@@ -298,7 +296,7 @@ Each step prints PASS/FAIL and the run ends with a tally. See [`docs/DEMO_GUIDE.
 | `wazuh/` | Wazuh add-ons: where Veyra's output is read and the custom rules |
 | `demo/` | Sample logs and senders |
 | `tools/` | Smoke check, guided demo, load generator, integration checkpoints, tamper lab, ledger audit, benches |
-| `docs/` | [`DEMO_GUIDE.md`](docs/DEMO_GUIDE.md) (steps and scope), [`SETUP_ADVANCED.md`](docs/SETUP_ADVANCED.md) (every option of the setup script), `plan/` (design, contracts, status, reports) |
+| `docs/` | [`DEMO_GUIDE.md`](docs/DEMO_GUIDE.md) (steps and scope), [`SETUP_ADVANCED.md`](docs/SETUP_ADVANCED.md) (every option of the setup script) |
 | `../contracts-repo` | The Log Contract registry: a separate git repo, cloned beside this one |
 
 ## Development
@@ -311,7 +309,7 @@ uv run pytest -q -m "not int"               # unit tests (no containers needed)
 uv run ruff check . && uv run ruff format --check .   # lint
 uv run mypy packages services tools          # type check
 make test-int                                # integration tests (stack must be up)
-make ci                                      # what CI runs: lint + test + plan-check
+make ci                                      # what CI runs: lint + test
 ```
 
 For the console:
@@ -334,13 +332,7 @@ make cp4               # demo freeze: reset budget, scripted run, headroom, fall
 
 Run `make help` for the full list of targets.
 
-**What is built today** (10 Oct 2026):
-- Ingestion, normalization (tiers 1 to 4, byte offsets, shadow and replay), the router to Wazuh and a masked partner feed, the control plane, drift and the AI drafter are built.
-- The whole console is built and reads live data: Overview, Sources, Onboard, Contracts, Drift, Lineage, Evidence, Delivery, Audit, and the hidden demo panel at `/demo`.
-- The evidence side runs as working prototypes: the archiver, the Merkle and Ed25519 integrity service, the evidence API and the tamper lab. **Verify checks 7 of its 8 steps** — the eighth anchors the signed root in immudb and is declared not implemented; it reports itself as such everywhere rather than showing a tick it has not earned.
-- The demo engine drives the whole 5-minute script, and the `Shift+1`..`Shift+6` hotkeys work from any console page.
-- Sealed segments are mode `0444` and hash-chained, but not `chattr +i`: the vault resists an accidental edit, and a signed Merkle root outside it is what catches a deliberate one.
-- `make cp1` to `make cp4` run the integration checkpoints that gate the demo; `docs/plan/06_STATUS_BOARD.md` records each run.
+
 
 [`docs/DEMO_GUIDE.md`](docs/DEMO_GUIDE.md) has the full scope matrix.
 
@@ -380,6 +372,8 @@ checked them out as CRLF.
 | [`DEMO_GUIDE.md`](docs/DEMO_GUIDE.md) | Demo beats, scope matrix, load testing, known limits |
 | [`SETUP_ADVANCED.md`](docs/SETUP_ADVANCED.md) | Every option of the setup script, settings precedence, recipes |
 | [`tamper_matrix.md`](docs/tamper_matrix.md) | What the tamper lab breaks and how each attack is caught |
-| [`docs/plan/`](docs/plan/README.md) | Design documents, contracts spec, infrastructure profiles, changelog, status board |
+| [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | System Architecture |
+| [`docs/CONTRACTS.md`](docs/CONTRACTS.md) | Log Contract specifications |
+| [`docs/INFRA_PROFILES.md`](docs/INFRA_PROFILES.md) | Infrastructure Profiles |
 | [`wazuh/REMOTE.md`](wazuh/REMOTE.md) | Shipping to an external Wazuh instance |
 | `Makefile` (`make help`) | Every build, test, demo, and bench target |

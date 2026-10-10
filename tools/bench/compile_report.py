@@ -29,8 +29,12 @@ def main():
         try:
             results = json.loads(engine_file.read_text())
             report.append("## Engine Microbenchmark (Single-core Parsing)")
-            report.append("| Workload | EPS | p50 latency (µs) | p95 latency (µs) | Validation (µs) | Tiers |")  # noqa: E501
-            report.append("|----------|-----|------------------|------------------|-----------------|-------|")
+            report.append(
+                "| Workload | EPS | p50 latency (µs) | p95 latency (µs) | Validation (µs) | Tiers |"
+            )
+            report.append(
+                "|----------|-----|------------------|------------------|-----------------|-------|"
+            )
             for name, data in results.items():
                 report.append(
                     f"| {name} | {data.get('eps', 0):.1f} | {data.get('p50_us', 0):.1f} | "
@@ -71,9 +75,12 @@ def main():
     res_file = bench_dir / "resources.csv"
     if res_file.exists():
         report.append("\n## Resource Utilization")
-        report.append(f"Raw system metrics (CPU/Memory) during throughput test are available in `{res_file.name}`.\n")  # noqa: E501
+        report.append(
+            f"Raw system metrics during throughput test are available in `{res_file.name}`.\n"
+        )
 
     print("\n".join(report))
+
 
 if __name__ == "__main__":
     main()

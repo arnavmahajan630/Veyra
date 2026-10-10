@@ -1,17 +1,17 @@
 # VEYRA — one entry point for everything. Never put machine-specific values in here:
-# they belong in profiles/<name>.env (P5).
+# they belong in profiles/<name>.env.
 #
 #   make up PROFILE=laptop                 base stack + Wazuh (local)
 #   make up PROFILE=laptop WAZUH=remote    base stack only; the router ships via syslog_tcp
-#   make up SERVICES="a2 a3 a6"            also start those phases' python services
-#   make topics && make test && make lint && make plan-check
+#   make up SERVICES="a2 a3 a6"            also start those specific python services
+#   make topics && make test && make lint
 #
-# Targets that print TODO are owned by a later phase; the phase id is in the message.
+
 
 SHELL := /bin/bash
 .DEFAULT_GOAL := help
 .PHONY: help up down ps logs restart build topics wipe-data test test-int lint fmt typecheck ci \
-        test-int-slow plan-check wazuh-certs wazuh-init wazuh-logtest wazuh-rules-test \
+        test-int-slow wazuh-certs wazuh-init wazuh-logtest wazuh-rules-test \
         console-dev console-build \
         console-mock console-test console-contrast console-e2e \
         contracts-repo-init contracts-test \
@@ -22,8 +22,8 @@ SHELL := /bin/bash
 
 PROFILE      ?= laptop
 WAZUH        ?= local
-# Every phase's service profile, so `make up` starts the same stack ./veyra.sh does.
-# Narrow it to debug one phase: make up SERVICES="a3 c1".
+# Every service profile, so `make up` starts the same stack ./veyra.sh does.
+# Narrow it to debug one service: make up SERVICES="a3 c1".
 SERVICES     ?= a2 a3 a6 c1 c3 b1 b2 b3 b4 b7
 PROFILE_FILE := profiles/$(PROFILE).env
 RUNTIME_ENV  := .env.runtime
@@ -77,7 +77,7 @@ veyra-load: ## ./veyra.sh load: Kafka + pipeline throughput test
 up: $(RUNTIME_ENV) edge-render ## build if needed and start the stack
 	mkdir -p data/{kafka,clickhouse,immudb,caddy,vault,keys,state,control,sinks/wazuh,sinks/partner,vector/dmz,vector/core,llm_cache,wazuh}
 	@# The route sinks are created here, owned by the invoking user, so both the router
-	@# container (A6) and host tools can append to them.
+	@# container and host tools can append to them.
 	touch data/sinks/wazuh/veyra.ndjson data/sinks/partner/partner.ndjson
 	$(DC) up -d --remove-orphans
 	@echo "console: http://localhost:$$(grep -E '^VEYRA_CONSOLE_PORT=' $(RUNTIME_ENV) | cut -d= -f2 | grep . || echo 8080)   wazuh: https://localhost:8443"
@@ -158,10 +158,7 @@ fmt: ## apply ruff fixes and formatting
 typecheck: ## mypy (lenient)
 	$(UV) run mypy packages services tools
 
-plan-check: ## list plan files whose contracts header is stale
-	$(UV) run python tools/plan_check.py
-
-ci: lint test plan-check ## what CI runs (edge-test needs docker, so it is separate)
+ci: lint test ## what CI runs (edge-test needs docker, so it is separate)
 	@echo "ci: green"
 
 doctor: ## check the host has what the laptop profile needs
@@ -189,7 +186,7 @@ wazuh-init: ## upload the indexer security config with our CA (once, after wazuh
 	    -cacert $$C/root-ca.pem -cert $$C/admin.pem -key $$C/admin-key.pem -p 9200 -icl' \
 	  | tail -3
 
-wazuh-rules-test: ## check every VEYRA rule against the manager's own engine (A6)
+wazuh-rules-test: ## check every VEYRA rule against the manager's own engine
 	$(UV) run python tools/wazuh_logtest.py
 
 wazuh-logtest: ## pipe a sample NDJSON line through the manager's rule engine
@@ -197,26 +194,26 @@ wazuh-logtest: ## pipe a sample NDJSON line through the manager's rule engine
 	echo '$(LINE)' | docker exec -i veyra-wazuh-manager /var/ossec/bin/wazuh-logtest -v
 
 # ---------------------------------------------------------------------------- console
-console-dev: ## console dev server on :5173, /api proxied to caddy (C5)
+console-dev: ## console dev server on :5173, /api proxied to caddy
 	cd console && npm run dev
 
-console-mock: ## console on :5173 against built-in fixtures, no backend needed (C5)
+console-mock: ## console on :5173 against built-in fixtures, no backend needed
 	cd console && npm run dev:mock
 
-console-build: ## build the static console bundle into console/dist (C5)
+console-build: ## build the static console bundle into console/dist
 	cd console && npm ci && npm run build
 
-console-test: ## console unit tests (C5)
+console-test: ## console unit tests
 	cd console && npm test
 
-console-contrast: ## WCAG AA check of the design tokens (C5)
+console-contrast: ## WCAG AA check of the design tokens
 	cd console && npx vitest run src/design/contrast.test.ts
 
-console-e2e: ## Playwright smoke against the mock console (C5)
+console-e2e: ## Playwright smoke against the mock console
 	cd console && npx playwright test
 
 # ---------------------------------------------------------------------------- checkpoints
-# The S1 integration checkpoints (docs/plan/shared/S1_integration_checkpoints.md). Each script
+# The integration checkpoints (docs/integration_checkpoints.md). Each script
 # only observes: it sends input through the public paths and checks the outputs, and prints
 # PASS/WARN/FAIL per numbered criterion. They run in the `tools` container, because that is
 # where the service names resolve and the corpus and vault are mounted.
@@ -237,29 +234,29 @@ cp4: $(RUNTIME_ENV) ## CP4 demo freeze: reset budget, scripted run, RUNS=10, hea
 
 e2e-smoke: cp1 ## end-to-end smoke test (CP1)
 
-llm-warm: ## preload the LLM into memory and keep it resident (C4)
+llm-warm: ## preload the LLM into memory and keep it resident
 	$(UV) run --env-file $(RUNTIME_ENV) python tools/bench/llm_bench.py warm
 
-bench-llm: ## draft accuracy + latency bench (C4); MODELS=a,b
+bench-llm: ## draft accuracy + latency bench; MODELS=a,b
 	$(UV) run python tools/bench/llm_bench.py build
 	$(UV) run --env-file $(RUNTIME_ENV) python tools/bench/llm_bench.py run --models $(MODELS)
 
-llm-cache-seed: ## record live drafts for the demo shapes T1-T3 into data/llm_cache (C4)
+llm-cache-seed: ## record live drafts for the demo shapes T1-T3 into data/llm_cache
 	$(UV) run --env-file $(RUNTIME_ENV) python tools/bench/llm_bench.py seed
 
-bench-throughput: ## normalizer/router scaling bench (A6); COUNT=20000 REPLICAS=1,2,4
+bench-throughput: ## normalizer/router scaling bench; COUNT=20000 REPLICAS=1,2,4
 	$(UV) run python tools/bench/throughput.py --count $(or $(COUNT),20000) \
 		--replicas $(or $(REPLICAS),1,2,4) --router --report
 
-demo-reset: $(RUNTIME_ENV) ## reset to the pre-demo state, under VEYRA_DEMO_RESET_BUDGET_S (B7)
+demo-reset: $(RUNTIME_ENV) ## reset to the pre-demo state, under VEYRA_DEMO_RESET_BUDGET_S
 	$(UV) run --env-file $(RUNTIME_ENV) python -m demo_engine.cli reset
 
-demo-preflight: $(RUNTIME_ENV) ## pre-demo checks: containers, RAM, LLM, rules, clock, disk (B7 + S2)
+demo-preflight: $(RUNTIME_ENV) ## pre-demo checks: containers, RAM, LLM, rules, clock, disk
 	$(UV) run --env-file $(RUNTIME_ENV) python -m demo_engine.cli preflight
 
-demo-stage: $(RUNTIME_ENV) ## run one demo stage: make demo-stage N=3 (B7)
+demo-stage: $(RUNTIME_ENV) ## run one demo stage: make demo-stage N=3
 	@test -n "$(N)" || { echo "usage: make demo-stage N=3"; exit 2; }
 	$(UV) run --env-file $(RUNTIME_ENV) python -m demo_engine.cli stage $(N)
 
-demo-auto: $(RUNTIME_ENV) ## drive the whole demo through the real APIs; make demo-auto N=10 (B7)
+demo-auto: $(RUNTIME_ENV) ## drive the whole demo through the real APIs; make demo-auto N=10
 	$(UV) run --env-file $(RUNTIME_ENV) python -m demo_engine.cli auto $(or $(N),1)

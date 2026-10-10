@@ -1,22 +1,6 @@
-# 02 — CONTRACTS (shared interfaces)
+# Shared Interfaces and Contracts
 
-**Contract version: v1.5**. Bump rules are in §0. Every section has an ID (`IF-*`). Phase files reference these IDs. When you change a section, grep for its ID across the plan folder and update every file that references it.
-
----
-
-## §0 Change rules
-
-| Change type | Examples | Allowed by | Version bump | Required actions |
-|---|---|---|---|---|
-| **Additive** | new optional field, new endpoint, new topic, new enum value | any track owner (agent may propose, human merges) | minor (v1.0 → v1.1) | changelog entry; update this file; notify affected tracks |
-| **Breaking** | rename or remove a field, change semantics, change an algorithm | agreement of all owners whose phases consume the ID | major (v1.x → v2.0) | changelog with `ACTION REQUIRED @X`; patch all plan files; migration note |
-| **Clarification** | wording, examples, typo | anyone | none (note in changelog) | — |
-
-Algorithms with test vectors (`IF-TEMPLATE-SIG`, `IF-CHAIN`, `IF-MERKLE`) are frozen after S0. Changing one is always breaking.
-
----
-
-## IF-VERSIONS — pinned versions (filled by S0)
+## Versions — pinned versions
 
 Pinned on the demo laptop (Ubuntu, i5-13400H, 16 GB, RTX 3050 4 GB) on 2026-09-26.
 Do not bump a row without a `VERSION-PIN` entry in `05_CHANGELOG.md` (01_TEAM_GUIDE §4.3 rule 7).

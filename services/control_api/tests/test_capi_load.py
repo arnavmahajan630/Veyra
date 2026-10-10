@@ -93,12 +93,14 @@ def test_a_run_reports_progress_and_that_it_finished(client, load) -> None:
     assert status["outcome"] == "finished"
     assert status["error"] is None
 
+
 def test_a_failed_run_says_why(client, load) -> None:
     load("fail")
     client.post("/load/start", json={"count": 1000})
     status = wait_for(client, lambda s: not s["running"])
     assert status["outcome"] == "failed"
     assert "Kafka is not answering" in status["error"]
+
 
 def test_a_missing_load_script_is_a_failed_run(client, load, monkeypatch) -> None:
     load("ok")
@@ -121,7 +123,7 @@ def test_stop_ends_the_producers_too_and_the_next_start_works(client, load) -> N
     assert time.monotonic() - asked < 2
     status = client.get("/load/status").json()
     assert (status["running"], status["outcome"]) == (False, "stopped")
-    
+
     time.sleep(0.1)
     produced = beats(beat)
     time.sleep(0.3)

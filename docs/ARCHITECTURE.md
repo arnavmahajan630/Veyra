@@ -1,9 +1,4 @@
-# 00 — MASTER: VEYRA Demo
-
-> Every agent session starts by reading this file in full. It is the context an agent cannot infer from code.
-> Contract version this file assumes: **contracts v1.0** (see `02_CONTRACTS.md`).
-
----
+# VEYRA System Architecture
 
 ## 1. What we are building
 
@@ -17,7 +12,7 @@ It receives heterogeneous, messy security logs and does four things:
 
 VEYRA is **a pre-processor, not a SIEM**. It never does detections or threat analytics; the SIEM does.
 
-The full production design is in `VEYRA_System_Architecture_Document.docx`, referred to as **v1** in this plan (sections cited as `v1 §N`). This project builds a **running, faithful-lite version of v1** on one machine, plus a 3-minute live demo.
+This document outlines the architecture for the VEYRA system.
 
 **One-line pitch:** *"Any log, however messy, is sealed as evidence the moment it arrives, normalized deterministically, delivered to your SIEM immediately, and traceable byte-for-byte back to its source. Formats it has never seen become approved parsers in minutes, not weeks."*
 
@@ -45,7 +40,7 @@ Details, narration and fallbacks are in `04_DEMO_SCRIPT.md`.
 
 ## 4. Non-negotiable principles
 
-Every agent must uphold these. A change that violates one is a bug, even if tests pass.
+Every contributor must uphold these. A change that violates one is a bug, even if tests pass.
 
 | ID | Principle | Concretely |
 |---|---|---|
@@ -53,7 +48,7 @@ Every agent must uphold these. A change that violates one is a bug, even if test
 | P2 | **Never drop** (v1 §9.1) | Every event reaches the SIEM route at some tier (1–4). Rejection is not an outcome. Tier 2–4 also go to the DLQ. |
 | P3 | **Deterministic hot path** (v1 ADR-04) | The normalizer never calls an LLM. Same input + same contract version = byte-identical output. The LLM only drafts contracts in the control plane. |
 | P4 | **Every field traceable** | Every mapped OCSF value carries a byte offset into the raw event (`ulpf.field_offsets`) or is explicitly marked as derived or constant. |
-| P5 | **Profile-driven scale** | No hard-coded limits, partitions, model names, windows or intervals. Everything comes from env and profile (`03_INFRA_PROFILES.md`). |
+| P5 | **Profile-driven scale** | No hard-coded limits, partitions, model names, windows or intervals. Everything comes from env and profile (`INFRA_PROFILES.md`). |
 | P6 | **Demo determinism** | A scripted scenario plus a reset command reproduces the demo identically. The LLM has a recorded-response fallback. |
 | P7 | **Real where visible** | Kafka, Vector, ClickHouse, immudb, Wazuh and Ollama are real. What the judge sees working must actually work. Slide-only items are declared (§6). |
 | P8 | **Honest deviations** | Every place the demo differs from v1 is listed in §7 and said aloud if asked. |
@@ -61,7 +56,7 @@ Every agent must uphold these. A change that violates one is a bug, even if test
 ## 5. Architecture (demo build)
 
 ```
-                     ┌──────────────────────── CONTROL PLANE (Track C) ─────────────────────────┐
+                     ┌──────────────────────── CONTROL PLANE ─────────────────────────┐
                      │ control-api (FastAPI+SQLite+git contracts)  drift-worker (Drain3)        │
                      │ llm-drafter (Ollama, token-ref drafting, provenance check)               │
                      │ publishes: contracts, api-key registry, source inventory → topic control │
@@ -69,8 +64,8 @@ Every agent must uphold these. A change that violates one is a bug, even if test
                                     │ control topic (compacted)                 │ dlq, shadow, lineage
   SOURCES (demo generators)         ▼                                           │
   syslog UDP/TCP ──► edge-dmz / edge-core (Vector)  ─┐                          │
-  HTTP push (API key) ─► ingest-gateway (FastAPI) ───┼─► KAFKA raw.<vendor> ─┬─► normalizer (Track A) ─► norm.<category>, lineage, dlq, shadow
-  batch upload ────────► ingest-gateway ─────────────┘   (stamped envelopes) ├─► archiver (Track B) ─► vault segments (WORM) ─► vault_index
+  HTTP push (API key) ─► ingest-gateway (FastAPI) ───┼─► KAFKA raw.<vendor> ─┬─► normalizer ─► norm.<category>, lineage, dlq, shadow
+  batch upload ────────► ingest-gateway ─────────────┘   (stamped envelopes) ├─► archiver ─► vault segments (WORM) ─► vault_index
                                                                              └─► lineage-indexer (B) ─► ClickHouse
                                                          norm.* ─► router (A) ─► Wazuh (NDJSON sink) + partner file (masked) ─► receipts
                                                          vault_index ─► integrity (B) ─► Merkle root/window, Ed25519 sign ─► immudb + ledger
@@ -142,7 +137,7 @@ Say these honestly if a judge asks.
 | ID | Decision | Why | Revisit if |
 |---|---|---|---|
 | D1 | Python 3.12 for all services, `uv` for deps, ruff + pytest | Drain3 and ML tooling; agent reliability; team familiarity | — |
-| D2 | React + Vite + TypeScript + Tailwind for console, built to static and served by Caddy | Fast polished UI via agents; no Node at runtime | — |
+| D2 | React + Vite + TypeScript + Tailwind for console, built to static and served by Caddy | Fast polished UI; no Node at runtime | — |
 | D3 | Vector (config only) for syslog edge; Python gateway for HTTP push | Faithful to v1; key auth is easier in Python | Vector lacks a needed VRL function → see A1 fallback |
 | D4 | Contracts compile to a Python parse plan in `veyra_engine`, not VRL | Tier 3, peeling and offsets are far easier; still deterministic | — |
 | D5 | immudb for the signed-root ledger (pg wire) | Verifiable append-only store with one container; Python via `psycopg` | pg-wire issues → immudb Python SDK or ledger-file only |
@@ -192,9 +187,9 @@ contracts-repo/                 SEPARATE repository beside veyra/: git repo of L
 
 ## 10. Quality bar
 
-"Sophisticated" means all of the following. Reviewers reject phases that miss them.
+"Sophisticated" means all of the following. Reviewers reject pull requests that miss them.
 
-- **Typed and validated:** Pydantic models for every record in `02_CONTRACTS.md`. Every consumer validates input and routes invalid records to the DLQ with a reason; nothing crashes on bad input.
+- **Typed and validated:** Pydantic models for every record in `CONTRACTS.md`. Every consumer validates input and routes invalid records to the DLQ with a reason; nothing crashes on bad input.
 - **Tested:**
   - unit tests for every engine and evidence function;
   - test vectors from `reference/spec_vectors.py` pass;
@@ -242,4 +237,4 @@ contracts-repo/                 SEPARATE repository beside veyra/: git repo of L
 
 ## 14. How this plan evolves
 
-Read `01_TEAM_GUIDE.md` §6. In short: phase done → report in `reports/` → update `06_STATUS_BOARD.md` → if anything shared changed: bump `02_CONTRACTS.md`, log in `05_CHANGELOG.md`, patch every affected plan file (grep the `IF-*` IDs).
+

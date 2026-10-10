@@ -1,5 +1,5 @@
-# CI mirrors `make ci` exactly: lint, unit tests, plan-check. Integration tests need the
-# compose stack and run locally with `make test-int` (01_TEAM_GUIDE §4.1 step 5).
+# CI mirrors `make ci` exactly: lint, unit tests. Integration tests need the
+# compose stack and run locally with `make test-int`.
 name: ci
 
 on:
@@ -28,11 +28,10 @@ jobs:
       - run: uv run ruff format --check .
       - run: uv run pytest -q -m "not int"
       - run: uv run python -m veyra_contracts.check "$VEYRA_CONTRACTS_REPO"
-      - run: uv run python tools/plan_check.py
 
   console:
     runs-on: ubuntu-latest
-    # IF-VERSIONS: Node 25, build only (D17). The Playwright smoke runs locally
+    # IF-VERSIONS: Node 25, build only. The Playwright smoke runs locally
     # (`make console-e2e`); CI runs the unit tests against the same MSW handlers.
     defaults:
       run:
